@@ -36,6 +36,8 @@ export const MOBS: Record<string, MobDef> = {
   imp: { id: "imp", name: "Огненный бес", sprite: "imp", size: 1, hp: 0.8, dmg: 1.2, armor: 0.6, xp: 1.1, speed: 100, aggro: 210, range: 190, attackCd: 1.6, projectile: "fire", radius: 10, color: "#e0603a" },
   golem: { id: "golem", name: "Лавовый голем", sprite: "golem", size: 1, hp: 1.8, dmg: 1.3, armor: 1.6, xp: 1.5, speed: 55, aggro: 150, range: 42, attackCd: 2.0, radius: 13, color: "#8a5040" },
   skeleton_knight: { id: "skeleton_knight", name: "Рыцарь-скелет", sprite: "skeleton_knight", size: 1, hp: 1.4, dmg: 1.25, armor: 1.6, xp: 1.3, speed: 80, aggro: 200, range: 40, attackCd: 1.3, radius: 11, color: "#b8b4c8" },
+  bandit: { id: "bandit", name: "Разбойник с большой дороги", sprite: "rogue", size: 1, hp: 1, dmg: 1.1, armor: 0.9, xp: 1.1, speed: 90, aggro: 260, range: 36, attackCd: 1.2, radius: 10, color: "#b0805a" },
+  bandit_leader: { id: "bandit_leader", name: "Главарь засады", sprite: "warrior", size: 1, hp: 1.8, dmg: 1.3, armor: 1.3, xp: 1.8, speed: 85, aggro: 260, range: 38, attackCd: 1.3, radius: 12, color: "#d04a3a" },
   sapling: { id: "sapling", name: "Саженец", sprite: "sapling", size: 1, hp: 0.45, dmg: 0.7, armor: 0.5, xp: 0.25, speed: 75, aggro: 400, range: 34, attackCd: 1.3, radius: 10, color: "#6fae4a" },
 
   ent: {

@@ -2,6 +2,7 @@
 import { Client, getStateCallbacks, type Room } from "colyseus.js";
 import type { ArenaInfo, ArenaMode, ArenaResultMsg, HistoryRow, LeaderRow, MatchFoundMsg, PartyState, Reservation } from "../../shared/arena";
 import type { RumorMsg } from "../../shared/rumors";
+import type { EncDialogMsg, EncNpcMsg, EncShopMsg } from "../../shared/encounters";
 import type { TradeView } from "../../shared/trade";
 import type { BankView } from "../../shared/bank";
 import type { ChatLine, CooldownMsg, Fx, JoinOptions, LootBag, SelfState, ToastMsg } from "../../shared/protocol";
@@ -24,6 +25,12 @@ type Events = {
   "arena:top": { mode: ArenaMode; rows: LeaderRow[] };
   "arena:history": HistoryRow[];
   rumor: RumorMsg;
+  "enc:npc": EncNpcMsg;
+  "enc:say": { id: string; text: string };
+  "enc:move": { id: string; x: number; y: number; ms: number };
+  "enc:gone": { id: string };
+  "enc:dialog": EncDialogMsg;
+  "enc:shop": EncShopMsg;
   party: PartyState | null;
   "party:invite": { from: string };
   "trade:request": { from: string; ms: number } | null;
@@ -151,7 +158,7 @@ export class Net {
       this.party = m;
       this.emit("party", m);
     });
-    for (const t of ["rumor", "arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done", "bank", "market:prices", "admin:players", "admin:logs", "admin:banner"] as const)
+    for (const t of ["rumor", "enc:npc", "enc:say", "enc:move", "enc:gone", "enc:dialog", "enc:shop", "arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done", "bank", "market:prices", "admin:players", "admin:logs", "admin:banner"] as const)
       room.onMessage(t, (m: any) => this.emit(t, m));
     room.onMessage("arena:go", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
     room.onMessage("arena:return", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));

@@ -14,6 +14,7 @@ import { Mob } from "./Mob";
 import type { Player } from "./Player";
 import { gainXp } from "./rewards";
 import { addItem } from "./inventory";
+import { startEncounter, type EncKind } from "./encounters";
 
 const PERMA = 9e12;
 
@@ -145,6 +146,15 @@ export function registerAdmin(room: WorldRoom, on: On) {
     if (def.boss) mob.boss = createBoss(world, mob, 300);
     world.addMob(mob);
     log(p, "spawn", def.id, { level, x: Math.round(p.unit.x), y: Math.round(p.unit.y) });
+  });
+
+  adm<{ name: unknown; kind: unknown }>("admin:encounter", (p, m) => {
+    const t = str(m.name) ? online(str(m.name)) : p;
+    const kind = ["traveler", "ambush", "merchant"].includes(str(m.kind)) ? (str(m.kind) as EncKind) : undefined;
+    if (!t) return toast(p, "Игрок не в сети", "error");
+    const title = startEncounter(w(), t, kind);
+    toast(p, title ? `Встреча: ${title} → ${t.name}` : "Встреча не создана (уже есть или город/подземелье)", title ? "info" : "error");
+    log(p, "encounter", t.name, { kind: kind ?? "random", ok: !!title });
   });
 
   adm<{ text: unknown }>("admin:announce", (p, m) => {

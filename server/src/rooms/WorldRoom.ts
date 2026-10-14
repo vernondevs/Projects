@@ -17,6 +17,7 @@ import { GameDB, type PlayerSave } from "../db";
 import { sendPrices, setMarketDb } from "../game/market";
 import { buyMaterial, upgradeItem } from "../game/smith";
 import { registerAdmin } from "../game/admin";
+import { registerEncounters } from "../game/encounters";
 import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
@@ -65,6 +66,7 @@ export class WorldRoom extends Room<WorldState> {
     this.registerMessages(on);
     this.registerArena(on);
     registerAdmin(this, on);
+    registerEncounters(on, () => this.world);
     if (process.env.TEST_MODE === "1") this.registerDebug(on);
     this.clock.setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
     this.clock.setInterval(() => this.queue.tick(), 1000);

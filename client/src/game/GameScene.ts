@@ -17,8 +17,8 @@ import { Scenes } from "./scenes";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
 
-type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank";
-type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string };
+type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "enc";
+type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string; objs?: Phaser.GameObjects.GameObject[] };
 
 export class GameScene extends Phaser.Scene {
   map!: WorldMap;
@@ -37,6 +37,7 @@ export class GameScene extends Phaser.Scene {
   /** NPC города (только в мире): торговка и распорядитель арены. */
   npcs: Npc[] = [];
   pendingNpc: Npc | null = null;
+  private npcExtras: Phaser.GameObjects.GameObject[] = [];
   private cleanup: (() => void)[] = [];
   bubbles: { t: Phaser.GameObjects.Text; id: string; until: number }[] = [];
   zone: Zone = Zone.Town;
@@ -95,6 +96,7 @@ export class GameScene extends Phaser.Scene {
       this.addNpc("bank", BANKER.sprite, BANKER, BANKER.name, BANKER.color, BANKER.tint, BANKER.id);
       for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
       this.scenes = new Scenes(this, this.map);
+      this.setupEncounters();
     } else this.scenes = null;
 
     this.clickMark = this.add.image(0, 0, "fx_target").setDepth(DEPTH.ground + 7).setVisible(false).setScale(0.6);
@@ -121,12 +123,55 @@ export class GameScene extends Phaser.Scene {
     const tex = this.textures.exists(`u_${sprite}`) ? `u_${sprite}` : "u_merchant";
     const s = this.add.sprite(at.x, at.y, tex, 0).setOrigin(0.5, 30 / 32).setDepth(at.y);
     if (tint) s.setTint(tint);
-    this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
+    const shadow = this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
     const label = { fontFamily: FONT, fontSize: "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 };
-    this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
-    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : kind === "smith" ? "⚒" : kind === "bank" ? "$" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
-    this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.setFrame(Math.random() < 0.5 ? 0 : 24) });
+    const nameT = this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    const mark = this.add.text(at.x, at.y - 40, kind === "enc" ? (at as { icon?: string }).icon ?? "!" : kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : kind === "smith" ? "⚒" : kind === "bank" ? "$" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.active && s.setFrame(Math.random() < 0.5 ? 0 : 24) });
+    this.npcExtras = [shadow, nameT, mark];
     this.npcs.push({ sprite: s, kind, id, name });
+  }
+
+  /** Случайные встречи: NPC видит только его владелец, сервер присылает появление, реплики, уход. */
+  private setupEncounters() {
+    const find = (id: string) => this.npcs.find((n) => n.kind === "enc" && n.id === id);
+    const drop = (n: Npc) => {
+      this.npcs = this.npcs.filter((x) => x !== n);
+      this.tweens.killTweensOf(n.objs ?? []);
+      for (const o of n.objs ?? []) o.destroy();
+      n.sprite.destroy();
+    };
+    this.cleanup.push(
+      net.on("enc:npc", (m) => {
+        const old = find(m.id);
+        if (old) drop(old);
+        this.addNpc("enc", m.sprite, m, m.name, m.color, m.tint, m.id);
+        const n = this.npcs[this.npcs.length - 1];
+        n.sprite.setFlipX(false);
+        if (m.lying) n.sprite.setAngle(90).y += 8;
+        n.objs = this.npcExtras;
+      }),
+      net.on("enc:say", (m) => {
+        const n = find(m.id);
+        if (!n) return;
+        const t = this.add.text(n.sprite.x, n.sprite.y - 52, m.text, { fontFamily: FONT, fontSize: "10px", color: "#ffe0b0", stroke: "#200a0a", strokeThickness: 4, resolution: 4, align: "center", wordWrap: { width: 160 } }).setOrigin(0.5, 1).setDepth(DEPTH.top);
+        this.time.delayedCall(3500, () => t.destroy());
+        this.hud.chatLine({ from: n.name ?? "", text: m.text, sys: false });
+      }),
+      net.on("enc:move", (m) => {
+        const n = find(m.id);
+        if (!n) return;
+        n.sprite.setAngle(0);
+        const dx = m.x - n.sprite.x, dy = m.y - n.sprite.y;
+        this.tweens.add({ targets: [n.sprite, ...(n.objs ?? [])], x: `+=${dx}`, y: `+=${dy}`, duration: m.ms });
+        this.tweens.add({ targets: n.sprite, alpha: 0, delay: m.ms * 0.7, duration: m.ms * 0.3 });
+        n.sprite.setDepth(m.y);
+      }),
+      net.on("enc:gone", (m) => {
+        const n = find(m.id);
+        if (n) drop(n);
+      }),
+    );
   }
 
   /** Атмосферные частицы по зонам, пыль из-под ног, свет героя в темноте. */
@@ -409,6 +454,7 @@ export class GameScene extends Phaser.Scene {
     else if (n.kind === "smith") this.hud.smith.open();
     else if (n.kind === "bank") this.hud.bank.open();
     else if (n.kind === "rumor") this.hud.rumor.open(n.id!, n.name!);
+    else if (n.kind === "enc") this.hud.enc.open(n.id!);
     else this.hud.arena.open();
   }
 

@@ -14,6 +14,7 @@ import { TradeUI } from "./trade";
 import { AdminUI } from "./admin";
 import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
+import { EncounterUI } from "./encounter";
 import { CookUI, foodTip } from "./cook";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
@@ -88,6 +89,7 @@ export class Hud {
   readonly admin: AdminUI;
   private adminBtn: HTMLElement | null = null;
   readonly rumor: RumorUI;
+  readonly enc: EncounterUI;
   readonly cook: CookUI;
   readonly smith: SmithUI;
   readonly bank: BankUI;
@@ -115,6 +117,7 @@ export class Hud {
     this.bestiary = new BestiaryUI(root, icon);
     this.admin = new AdminUI(root);
     this.rumor = new RumorUI(root);
+    this.enc = new EncounterUI(root);
     this.cook = new CookUI(root);
     this.smith = new SmithUI(root);
     this.bank = new BankUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true), showInv: () => { if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); } } });
@@ -156,6 +159,7 @@ export class Hud {
         if (this.ctx.net.self && !this.wins.shop.hidden) this.renderSelf(this.ctx.net.self);
       });
       this.rumor.bind(n);
+      this.enc.bind(n);
       this.admin.bind(n);
       this.cook.bind(n);
       this.smith.bind(n);
@@ -287,7 +291,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.enc.close() || this.cook.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;

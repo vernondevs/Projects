@@ -170,7 +170,7 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
   const ex = ax + t * dx - px, ey = ay + t * dy - py;
   return Math.sqrt(ex * ex + ey * ey);
 }
-function roadDist(x: number, y: number): number {
+export function roadDist(x: number, y: number): number {
   let best = 1e9;
   for (const r of ROADS) for (let i = 0; i < r.length - 1; i++) {
     const d = segDist(x, y, r[i][0], r[i][1], r[i + 1][0], r[i + 1][1]);

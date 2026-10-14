@@ -16,6 +16,7 @@ import { createBoss } from "./bosses";
 import * as legendary from "./legendary";
 import { rogueProc } from "./rogue";
 import { grantKillRewards } from "./rewards";
+import { tickEncounters } from "./encounters";
 import { Mob } from "./Mob";
 import { grantPets, mobAttackPet, tickPetCast, updatePet, dismissPet, type Pet } from "./Pet";
 import type { Player } from "./Player";
@@ -177,6 +178,7 @@ export class World {
     for (const m of this.mobs.values()) this.updateMob(m, dt);
     for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
     this.updateHazards();
+    if (this.opts.mobs !== false) tickEncounters(this);
     this.flush();
   }
 
