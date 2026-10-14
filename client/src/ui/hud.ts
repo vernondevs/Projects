@@ -14,6 +14,7 @@ import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
 import { CookUI, foodTip } from "./cook";
 import { plusBadge, SmithUI } from "./smith";
+import { MOUNTS, MOUNT_IDS } from "../../../shared/mounts";
 import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
 
@@ -27,6 +28,7 @@ export interface HudCtx {
   map: WorldMap;
   useSkill: (i: number) => void;
   usePotion: (base: string) => void;
+  toggleMount?: () => void;
   closeTarget: () => void;
   focusGame: () => void;
 }
@@ -136,6 +138,7 @@ export class Hud {
       n.on("self", (s) => this.renderSelf(s));
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
+      n.on("mountcast", (m) => this.mountCast(m.ms, m.name));
       n.on("arena:info", () => this.applyFrame());
       n.on("market:prices", (m: Record<string, number>) => {
         this.prices = m;
@@ -363,6 +366,15 @@ export class Hud {
       this.bar.append(b);
     }
 
+    {
+      const mid = s.mount ?? "";
+      const md = MOUNTS[mid];
+      const mounted = !!(this.ctx.net.unit(s.id)?.mount);
+      const b = el("button", `slot ${md ? "" : "empty"}`, `<span style="font-size:26px;line-height:50px;display:block;text-align:center">${mounted ? "⤓" : "♞"}</span><kbd>X</kbd>`);
+      b.onclick = () => this.ctx.toggleMount?.();
+      this.tipFor(b, () => md ? `<div class="t">${md.name}</div><div class="d">Скорость ×${md.speed} · призыв 2 с, стоя на месте. X — сесть/слезть, Shift+X — сменить. Не в бою, не на арене.</div>` : `<div class="t">Маунт</div><div class="d">Бурый конь — с 10 уровня</div>`);
+      this.bar.append(b);
+    }
     if (!this.wins.char.hidden) this.renderChar(s);
     if (!this.wins.inv.hidden) this.renderInv(s);
     if (!this.wins.skills.hidden) this.renderSkills(s);
@@ -509,6 +521,19 @@ export class Hud {
     });
   }
 
+  /** Полоса призыва маунта над панелью умений. */
+  private mountCast(ms: number, name?: string) {
+    let box = document.getElementById("mount-cast");
+    if (!ms) return void box?.remove();
+    box?.remove();
+    box = el("div", "", `<div style="font-size:11px;color:#fff;text-shadow:0 1px 0 #000;text-align:center">${esc(name ?? "Маунт")}</div><div style="height:6px;background:#0a0608;border:1px solid #6a5a46;margin-top:2px"><i style="display:block;height:100%;width:0;background:#f0c050;transition:width ${ms}ms linear"></i></div>`);
+    box.id = "mount-cast";
+    box.style.cssText = "position:fixed;left:50%;bottom:110px;width:180px;transform:translateX(-50%);z-index:20;pointer-events:none";
+    document.body.append(box);
+    const bar = box.querySelector("i") as HTMLElement;
+    requestAnimationFrame(() => requestAnimationFrame(() => (bar.style.width = "100%")));
+  }
+
   private renderShop(s: SelfState) {
     const b = this.body("shop");
     b.innerHTML = `<p class="muted">«Зелья свежие, цены честные. Ненужное снаряжение тоже возьму.» Клик по предмету в сумке — продать.</p>`;
@@ -521,6 +546,16 @@ export class Hud {
         btn.onclick = () => this.ctx.net.send("buy", { base, qty: q });
         row.append(btn);
       }
+      b.append(row);
+    }
+    for (const id of MOUNT_IDS) {
+      const m = MOUNTS[id];
+      if (m.price <= 0 || s.mounts?.includes(id)) continue;
+      const row = el("div", "shoprow", `<div>${m.name}<br><span class="muted">Маунт ×${m.speed} · ур. ${m.level}</span></div>`);
+      const btn = el("button", "btn small", `<span class="gold">${m.price} з</span>`);
+      btn.disabled = s.gold < m.price || s.level < m.level;
+      btn.onclick = () => this.ctx.net.send("mount:buy", { id });
+      row.append(btn);
       b.append(row);
     }
     const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");

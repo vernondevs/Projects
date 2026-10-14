@@ -3,6 +3,8 @@ import { ARENA_MODES, MODE_NAMES, rankOf, TEAM_SIZE, type ArenaInfo, type ArenaM
 import { CLASS_IDS, STAT_NAMES, type ClassId, type StatKey } from "../../../shared/classes";
 import { NAME_RE, PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
 import { xpToNext } from "../../../shared/formulas";
+import { MOUNTS } from "../../../shared/mounts";
+import { MERCHANT_RANGE } from "../../../shared/constants";
 import { makeItem, makeUnique, Rarity } from "../../../shared/items";
 import type { JoinOptions } from "../../../shared/protocol";
 import { canLearn, SKILLS } from "../../../shared/skills";
@@ -170,6 +172,7 @@ export class WorldRoom extends Room<WorldState> {
     for (const p of players as Player[]) {
       inArena.add(p.name.toLowerCase());
       p.goingToArena = true;
+      this.world.breakMount(p);
       p.input = { mx: 0, my: 0 };
       p.moveTo = null;
       WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
@@ -245,6 +248,25 @@ export class WorldRoom extends Room<WorldState> {
   private registerMessages(on: On) {
     const w = () => this.world;
     on("respawn", (p) => w().respawn(p));
+    on<{ id: unknown }>("mount:select", (p, m) => {
+      if (typeof m.id !== "string" || !p.save.mounts?.includes(m.id)) return;
+      p.save.mount = m.id;
+      p.selfDirty = true;
+    });
+    on<{ id: unknown }>("mount:buy", (p, m) => {
+      const def = typeof m.id === "string" ? MOUNTS[m.id] : undefined;
+      const err = (text: string) => p.send("toast", { text, kind: "error" });
+      if (!def || p.dead) return;
+      if (w().dist(p, w().map.merchant) > MERCHANT_RANGE) return err("Подойдите к торговке");
+      if (p.save.mounts?.includes(def.id)) return err("Маунт уже у вас");
+      if (p.level < def.level) return err(`${def.name}: нужен ${def.level} уровень`);
+      if (def.price <= 0 || p.save.gold < def.price) return err("Не хватает золота");
+      p.save.gold -= def.price;
+      (p.save.mounts ??= []).push(def.id);
+      p.save.mount = def.id;
+      p.selfDirty = true;
+      p.send("toast", { text: `Получен маунт: ${def.name}`, kind: "loot" });
+    });
     on<{ npc: unknown }>("rumor", (p, m) => {
       const r = rumorFor(w(), p, m.npc);
       if (r) p.send("rumor", r);

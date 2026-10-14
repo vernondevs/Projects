@@ -53,6 +53,7 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
   const aim = Math.atan2(ay - u.y, ax - u.x);
 
   const ok = () => {
+    w.breakMount(p);
     u.mp -= mana;
     const cd = def.cd!(rank) * 1000;
     p.cds.set(id, w.time + cd);

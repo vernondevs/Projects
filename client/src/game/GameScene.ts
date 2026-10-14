@@ -7,6 +7,7 @@ import { RUMOR_NPCS } from "../../../shared/rumors";
 import { COOK } from "../../../shared/food";
 import { SMITH } from "../../../shared/upgrade";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
+import { MOUNTS } from "../../../shared/mounts";
 import { net, type UnitState } from "../net";
 import type { Hud } from "../ui/hud";
 import { Effects } from "./effects";
@@ -98,6 +99,7 @@ export class GameScene extends Phaser.Scene {
       net,
       map: this.map,
       useSkill: (i) => this.useSkill(i),
+      toggleMount: () => this.toggleMount(),
       usePotion: (k) => this.usePotion(k),
       closeTarget: () => this.setTarget(null),
       focusGame: () => this.game.canvas.focus(),
@@ -208,6 +210,7 @@ export class GameScene extends Phaser.Scene {
       else if (code === "Tab") { e.preventDefault(); this.cycleTarget(); }
       else if (code === "Space") { e.preventDefault(); this.pickupNearest(); }
       else if (code === "KeyF") this.talkNearest();
+      else if (code === "KeyX") { if (e.shiftKey) this.cycleMount(); else this.toggleMount(); }
       else if (code === "KeyP") this.hud.toggle("arena");
       else if (code === "KeyB") this.hud.toggle("bestiary");
       else if (code === "KeyM") this.hud.toggleMinimap();
@@ -294,6 +297,20 @@ export class GameScene extends Phaser.Scene {
     if (!list.length) return;
     const i = list.findIndex(([id]) => id === this.targetId);
     this.setTarget(list[(i + 1) % list.length][0]);
+  }
+
+  toggleMount() {
+    if (!this.me || this.me.dead) return;
+    net.send("mount:toggle");
+  }
+
+  /** Shift+X: выбрать следующий из своих маунтов. */
+  cycleMount() {
+    const own = net.self?.mounts ?? [];
+    if (own.length < 2) return;
+    const next = own[(own.indexOf(net.self?.mount ?? "") + 1) % own.length];
+    net.send("mount:select", { id: next });
+    this.hud.toast({ text: `Маунт: ${MOUNTS[next]?.name ?? next}`, kind: "info" });
   }
 
   useSkill(i: number) {
@@ -407,7 +424,7 @@ export class GameScene extends Phaser.Scene {
       const blocked = u.buffs & (BUFF_STUN | BUFF_ROOT) || u.anim === Anim.Dead;
       if ((mx || my) && !blocked) {
         const len = Math.hypot(mx, my);
-        const sp = PLAYER_SPEED * (u.buffs & BUFF_SLOW ? 0.55 : 1) * dt;
+        const sp = PLAYER_SPEED * (MOUNTS[u.mount]?.speed ?? 1) * (u.buffs & BUFF_SLOW ? 0.55 : 1) * dt;
         const n = moveWithCollision(this.map, this.pos.x, this.pos.y, (mx / len) * sp, (my / len) * sp, PLAYER_RADIUS);
         this.pos.x = n.x;
         this.pos.y = n.y;

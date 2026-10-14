@@ -6,6 +6,7 @@
  */
 import { OUTLINE, PC, hex, mix, shade, withA, type RGBA, type Ramp } from "./canvas";
 import { P } from "./palette";
+import { MOUNTS, mountSprite } from "../../shared/mounts";
 
 export type View = "down" | "up" | "side";
 export type Pose = { kind: "walk" | "attack"; i: number };
@@ -585,7 +586,16 @@ function sideOnly(fn: (p: Pose) => PC, frame = 32, squashDeath = true): UnitArt 
   return { frame, squashDeath, draw: (_v, p) => fn(p) };
 }
 
+/** Маунты из data/mounts.json: четвероногое без смерти, рисуется под всадником. */
+const MOUNT_ART: Record<string, UnitArt> = Object.fromEntries(
+  Object.values(MOUNTS).map((m) => [
+    mountSprite(m.id),
+    sideOnly((p) => quadruped({ body: ramp_(...m.colors), mane: ramp_(...m.mane), ears: "point", tail: m.id === "horse" ? "thin" : "bushy", snout: ramp_(...m.colors) }, p)),
+  ]),
+);
+
 export const UNIT_ART: Record<string, UnitArt> = {
+  ...MOUNT_ART,
   warrior: humanoidArt(SPECS.warrior),
   mage: humanoidArt(SPECS.mage),
   ranger: humanoidArt(SPECS.ranger),

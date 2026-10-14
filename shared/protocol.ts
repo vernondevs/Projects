@@ -60,6 +60,9 @@ export interface ClientMessages {
   pickup: { bag: string; index?: number };
   chat: { text: string };
   respawn: Record<string, never>;
+  "mount:toggle": Record<string, never>;
+  "mount:select": { id: string };
+  "mount:buy": { id: string };
 }
 
 // ---------- сервер -> клиент ----------
@@ -84,6 +87,9 @@ export interface SelfState {
   mobKills: Record<string, number>;
   /** Еда: id блюда и сколько мс осталось. */
   food?: { id: string; left: number } | null;
+  /** Маунты: владение и выбранный. */
+  mounts?: string[];
+  mount?: string;
   /** Входящие запросы на обмен отключены. */
 }
 

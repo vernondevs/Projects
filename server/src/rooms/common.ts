@@ -63,6 +63,7 @@ export function registerCombat(on: On, world: () => World) {
     const err = castSkill(w(), p, m.id, x, y, typeof m.target === "string" ? m.target : null);
     if (err) p.send("toast", { text: err, kind: "error" });
   });
+  on("mount:toggle", (p) => w().toggleMount(p));
   on<{ text: unknown }>("chat", (p, m) => {
     if (typeof m.text !== "string") return;
     const text = cleanText(m.text).slice(0, CHAT_MAX_LEN);

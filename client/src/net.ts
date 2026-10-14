@@ -11,6 +11,7 @@ type Events = {
   fx: Fx[];
   chat: ChatLine;
   toast: ToastMsg;
+  mountcast: { ms: number; name?: string };
   loot: LootBag[];
   cd: CooldownMsg;
   leave: number;
@@ -59,6 +60,7 @@ export interface UnitState {
   title: string;
   frame: string;
   elite: number;
+  mount: string;
 }
 
 export function serverUrl(): string {
@@ -126,6 +128,7 @@ export class Net {
     room.onMessage("fx", (list: Fx[]) => this.emit("fx", list));
     room.onMessage("chat", (l: ChatLine) => this.emit("chat", l));
     room.onMessage("toast", (t: ToastMsg) => this.emit("toast", t));
+    room.onMessage("mountcast", (m: { ms: number; name?: string }) => this.emit("mountcast", m));
     room.onMessage("loot", (b: LootBag[]) => {
       this.bags = b;
       this.emit("loot", b);

@@ -1,5 +1,11 @@
 {
  "units": {
+  "mount_horse": {
+   "frame": 32
+  },
+  "mount_ashwolf": {
+   "frame": 32
+  },
   "warrior": {
    "frame": 32
   },

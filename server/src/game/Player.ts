@@ -3,6 +3,7 @@ import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
 import { derive, xpToNext, type Derived } from "../../../shared/formulas";
 import { FOOD } from "../../../shared/food";
+import { MOUNTS } from "../../../shared/mounts";
 import { makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { Anim, UnitKind, type LootBag, type SelfState } from "../../../shared/protocol";
 import { starterSkill } from "../../../shared/skills";
@@ -79,6 +80,8 @@ export class Player {
   goingToArena = false;
   goingHome = false;
   lastSave = 0;
+  /** Призыв маунта: момент готовности и точка начала (движение отменяет). */
+  mountCast: { until: number; x: number; y: number } | null = null;
 
   constructor(
     readonly id: string,
@@ -95,6 +98,7 @@ export class Player {
     u.level = save.level;
     u.anim = Anim.Idle;
     this.applyCosmetics();
+    this.grantMounts();
     this.recalc();
     u.hp = save.hp > 0 ? Math.min(save.hp, u.maxHp) : u.maxHp;
     u.mp = save.mp >= 0 ? Math.min(save.mp, u.maxMp) : u.maxMp;
@@ -117,6 +121,16 @@ export class Player {
   applyCosmetics() {
     this.unit.title = this.save.title ?? "";
     this.unit.frame = this.save.frame ?? "";
+  }
+
+  /** Выдаёт бесплатные маунты по уровню. */
+  grantMounts() {
+    const own = (this.save.mounts ??= []);
+    for (const m of Object.values(MOUNTS)) {
+      if (own.includes(m.id)) continue;
+      if ((m.price === 0 && this.save.level >= m.level) || (m.grantLevel > 0 && this.save.level >= m.grantLevel)) own.push(m.id);
+    }
+    if (!this.save.mount || !own.includes(this.save.mount)) this.save.mount = own[0] ?? "";
   }
 
   attackRange(): number {
@@ -172,7 +186,10 @@ export class Player {
   }
 
   selfState(): SelfState {
+    this.grantMounts();
     return {
+      mounts: this.save.mounts,
+      mount: this.save.mount ?? "",
       id: this.id,
       name: this.name,
       cls: this.save.cls,

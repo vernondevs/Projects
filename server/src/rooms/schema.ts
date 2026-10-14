@@ -25,6 +25,8 @@ export class Unit extends Schema {
   @type("uint8") team = 0;
   @type("string") title = "";
   @type("string") frame = "";
+  /** Игрок: id маунта под седоком ("" — пешком). */
+  @type("string") mount = "";
   /** Элитный моб: 1. */
   @type("uint8") elite = 0;
 }

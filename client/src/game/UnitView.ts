@@ -5,6 +5,7 @@ import { RARITY_COLORS } from "../../../shared/items";
 import { net, type UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
+import { mountSprite } from "../../../shared/mounts";
 
 export const FONT = '"Pixelify Sans", monospace';
 const MELEE = new Set(["warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
@@ -21,6 +22,8 @@ export class UnitView {
   /** Титул над именем и рамка ранга арены. */
   titleText: Phaser.GameObjects.Text;
   frameGfx: Phaser.GameObjects.Graphics;
+  mountSpr?: Phaser.GameObjects.Sprite;
+  private mountId = "";
   private lastTitle = "";
   private lastColor = "";
   x: number;
@@ -134,6 +137,7 @@ export class UnitView {
     }
 
     const row = rowOf(u.dir);
+    const anim = u.mount ? Anim.Idle : u.anim;
     if (!this.dead) {
       this.sprite.setFlipX(u.dir === Dir.Left);
       if (u.aseq !== this.lastAseq) {
@@ -141,23 +145,37 @@ export class UnitView {
         this.attacking = true;
         this.sprite.play(`${u.sprite}-attack-${row}`);
         if (MELEE.has(u.sprite)) this.slash(u.dir);
-      } else if (!this.attacking && (u.anim !== this.lastAnim || row !== this.lastRow)) {
-        if (u.anim === Anim.Walk) this.sprite.play(`${u.sprite}-walk-${row}`, true);
+      } else if (!this.attacking && (anim !== this.lastAnim || row !== this.lastRow)) {
+        if (anim === Anim.Walk) this.sprite.play(`${u.sprite}-walk-${row}`, true);
         else {
           this.sprite.stop();
           this.sprite.setFrame(row * 12);
         }
       }
-      this.lastAnim = u.anim;
+      this.lastAnim = anim;
       this.lastRow = row;
     }
 
     // позиция и глубина
-    const bob = !this.dead && u.anim === Anim.Idle && !this.attacking ? Math.round(Math.sin(this.scene.time.now / 380 + this.x) * 0.6) : 0;
-    this.sprite.setPosition(Math.round(this.x), Math.round(this.y) + bob).setDepth(this.y);
+    const bob = !this.dead && anim === Anim.Idle && !u.mount && !this.attacking ? Math.round(Math.sin(this.scene.time.now / 380 + this.x) * 0.6) : 0;
+    const mounted = !!u.mount && !this.dead && this.scene.textures.exists(`u_${mountSprite(u.mount)}`);
+    if (mounted && (!this.mountSpr || this.mountId !== u.mount)) {
+      this.mountSpr?.destroy();
+      this.mountId = u.mount;
+      this.mountSpr = this.scene.add.sprite(this.x, this.y, `u_${mountSprite(u.mount)}`, 0).setOrigin(0.5, 30 / 32);
+    }
+    if (this.mountSpr) {
+      const ms = this.mountSpr;
+      ms.setVisible(mounted).setPosition(Math.round(this.x), Math.round(this.y)).setDepth(this.y - 0.5).setFlipX(u.dir === Dir.Left).setScale(1.15);
+      const key = `${mountSprite(this.mountId)}-walk-0`;
+      if (u.anim === Anim.Walk) ms.play(key, true);
+      else if (ms.anims.isPlaying) { ms.stop(); ms.setFrame(0); }
+    }
+    const lift = mounted ? 9 : 0;
+    this.sprite.setPosition(Math.round(this.x), Math.round(this.y) + bob - lift).setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) - 2);
     this.ring.setPosition(Math.round(this.x), Math.round(this.y) - 1).setVisible(this.selected && !this.dead);
-    const top = this.y - (this.frame > 32 ? 58 : 27);
+    const top = this.y - (this.frame > 32 ? 58 : 27) - lift;
     this.label.setPosition(Math.round(this.x), Math.round(top - 4));
     const lt = this.labelText();
     if (lt !== this.lastLabel) { this.lastLabel = lt; this.label.setText(lt); }
@@ -240,6 +258,7 @@ export class UnitView {
 
   destroy() {
     this.sprite.destroy();
+    this.mountSpr?.destroy();
     this.shadow.destroy();
     this.label.destroy();
     this.bar.destroy();

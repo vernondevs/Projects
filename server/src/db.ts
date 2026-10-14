@@ -29,7 +29,9 @@ export interface PlayerSave {
   frame?: string;
   /** Активная еда: переживает релог (реальное время, мс). */
   food?: { id: string; until: number } | null;
-  /** Настройка: не принимать запросы на обмен. */
+  /** Маунты: купленные/полученные и выбранный. */
+  mounts?: string[];
+  mount?: string;
 }
 
 export class GameDB {

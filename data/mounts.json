@@ -1,0 +1,8 @@
+{
+  "castMs": 2000,
+  "combatLockMs": 5000,
+  "mounts": {
+    "horse": { "name": "Бурый конь", "speed": 1.6, "level": 10, "price": 0, "grantLevel": 10, "colors": ["#2e1c12", "#4e3020", "#74482e", "#9a6440"], "mane": ["#14100e", "#241a16", "#38281f", "#4c382a"] },
+    "ashwolf": { "name": "Пепельный волк", "speed": 1.6, "level": 15, "price": 800, "grantLevel": 25, "colors": ["#2a2c34", "#464a56", "#6e7380", "#9a9fac"], "mane": ["#4a2a1a", "#7a3a1a", "#b0501c", "#e08030"] }
+  }
+}

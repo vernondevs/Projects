@@ -5,6 +5,7 @@ import { PVP_DAMAGE_MULT } from "../../../shared/arena";
 import { generateMap, lineClear, moveWithCollision, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
 import { ELITE } from "../../../shared/elites";
 import { MOBS } from "../../../shared/mobs";
+import { MOUNTS, MOUNT_CAST_MS, MOUNT_COMBAT_LOCK_MS } from "../../../shared/mounts";
 import {
   Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Dir,
   type ChatLine, type Fx, type FxKind,
@@ -275,6 +276,7 @@ export class World {
     u.hp = Math.max(0, u.hp - v);
     if (this.isPlayer(dst)) {
       dst.combatAt = this.time;
+      if (v > 0) this.breakMount(dst);
       if (src && this.isPlayer(src)) src.combatAt = this.time;
       if (u.hp <= 0) this.killPlayer(dst, src);
     } else {
@@ -306,6 +308,7 @@ export class World {
   }
 
   killPlayer(p: Player, killer?: Actor) {
+    this.breakMount(p);
     p.dead = true;
     p.deadAt = this.time;
     p.unit.anim = Anim.Dead;
@@ -336,9 +339,39 @@ export class World {
     if (lost) p.send("toast", { text: `Потеряно ${lost} золота`, kind: "error" });
   }
 
+  // ---------- маунты ----------
+  /** Снимает маунт и отменяет призыв (атака, умение, урон). */
+  breakMount(p: Player) {
+    if (p.mountCast) {
+      p.mountCast = null;
+      p.send("mountcast", { ms: 0 });
+    }
+    if (p.unit.mount) {
+      p.unit.mount = "";
+      p.selfDirty = true;
+    }
+  }
+
+  /** X: сесть (с 2-секундным призывом) или слезть. */
+  toggleMount(p: Player) {
+    const err = (text: string) => p.send("toast", { text, kind: "error" });
+    if (p.dead) return;
+    if (p.unit.mount || p.mountCast) return this.breakMount(p);
+    if (this.opts.mobs === false || p.team !== 0) return err("На арене маунты недоступны");
+    const m = MOUNTS[p.save.mount ?? ""];
+    if (!m || !p.save.mounts?.includes(m.id)) return err("У вас нет маунта (конь с 10 уровня)");
+    if (p.level < m.level) return err(`${m.name}: нужен ${m.level} уровень`);
+    if (this.time - p.combatAt < MOUNT_COMBAT_LOCK_MS) return err("Нельзя призвать маунта в бою");
+    if (p.stunUntil > this.time || p.frozenUntil > this.time) return;
+    p.input = { mx: 0, my: 0 };
+    p.moveTo = null;
+    p.mountCast = { until: this.time + MOUNT_CAST_MS, x: p.x, y: p.y };
+    p.send("mountcast", { ms: MOUNT_CAST_MS, name: m.name });
+  }
+
   // ---------- игроки ----------
   playerSpeed(p: Player): number {
-    let s = PLAYER_SPEED;
+    let s = PLAYER_SPEED * (MOUNTS[p.unit.mount]?.speed ?? 1);
     if (p.slowUntil > this.time) s *= 1 - p.slowPct / 100;
     return s;
   }
@@ -377,6 +410,14 @@ export class World {
     u.buffs = b;
 
     p.checkFood();
+    if (p.mountCast) {
+      if (Math.hypot(u.x - p.mountCast.x, u.y - p.mountCast.y) > 0.5 || p.input.mx || p.input.my || p.moveTo || p.stunUntil > t) this.breakMount(p);
+      else if (t >= p.mountCast.until) {
+        p.mountCast = null;
+        u.mount = p.save.mount ?? "";
+        p.send("mountcast", { ms: 0 });
+      }
+    }
 
     // регенерация: вне боя быстрее, в городе ещё быстрее
     const town = this.inTown(u.x, u.y);
@@ -425,6 +466,7 @@ export class World {
 
   playerAttack(p: Player, target: Actor) {
     const u = p.unit;
+    this.breakMount(p);
     const haste = p.hasteUntil > this.time ? 1 + p.hastePct / 100 : 1;
     p.attackAt = this.time + (p.derived.attackCd * 1000) / haste;
     p.combatAt = this.time;
