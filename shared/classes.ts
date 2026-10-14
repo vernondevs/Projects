@@ -9,10 +9,10 @@ export const STAT_NAMES: Record<StatKey, string> = {
   vit: "Выносливость",
 };
 export const STAT_HINTS: Record<StatKey, string> = {
-  str: "урон воина, немного брони",
-  agi: "урон лучника, шанс крита, скорость атаки",
-  int: "урон мага, запас и восстановление маны",
-  vit: "здоровье и его восстановление",
+  str: "урон воина; всем — немного урона и здоровья",
+  agi: "урон лучника; всем — шанс крита, уклонение, скорость атаки; магу — урон",
+  int: "урон мага; всем — сила умений, запас и восстановление маны",
+  vit: "здоровье, броня и восстановление здоровья",
 };
 
 export interface ClassDef {
@@ -22,6 +22,8 @@ export interface ClassDef {
   base: Stats;
   perLevel: Partial<Stats>;
   mainStat: StatKey;
+  /** Прибавка урона за очко главной характеристики. */
+  mainK: number;
   attackRange: number;
   attackCd: number; // секунды
   projectile?: string;
@@ -37,6 +39,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     base: { str: 10, agi: 5, int: 3, vit: 9 },
     perLevel: { str: 1, vit: 1 },
     mainStat: "str",
+    mainK: 0.025,
     attackRange: 50,
     attackCd: 1.0,
     weaponTypes: ["sword", "axe"],
@@ -49,6 +52,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     base: { str: 3, agi: 5, int: 11, vit: 6 },
     perLevel: { int: 1, vit: 1 },
     mainStat: "int",
+    mainK: 0.022,
     attackRange: 230,
     attackCd: 1.1,
     projectile: "arcane",
@@ -62,6 +66,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     base: { str: 4, agi: 11, int: 4, vit: 7 },
     perLevel: { agi: 1, vit: 1 },
     mainStat: "agi",
+    mainK: 0.0235,
     attackRange: 260,
     attackCd: 0.85,
     projectile: "arrow",

@@ -237,6 +237,13 @@ export class World {
   /** Нанесение урона с бронёй, критом, вампиризмом и наградой за убийство. */
   hit(src: Actor, dst: Actor, o: HitOpts = {}): number {
     if (this.isDead(dst) || this.isDead(src)) return 0;
+    // уклонение (Ловкость): обычные удары мобов и игроков, кроме фиксированного урона (зоны боссов, отражение, DoT)
+    if (this.isPlayer(dst) && o.flat === undefined && src !== dst && Math.random() < dst.derived.dodge) {
+      dst.combatAt = this.time;
+      if (this.isPlayer(src)) src.combatAt = this.time;
+      this.emit({ t: "dmg", id: this.idOf(dst), v: 0, miss: true });
+      return 0;
+    }
     let amount: number, crit = false;
     if (this.isPlayer(src)) {
       const d = src.derived;

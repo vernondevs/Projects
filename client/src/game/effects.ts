@@ -63,7 +63,7 @@ export class Effects {
         const u = this.unit(f.id);
         if (!u) return;
         const y = u.y - (u.frame > 32 ? 56 : 28);
-        if (f.miss) return this.number(u.x, y, "мимо", "#c8c0b0");
+        if (f.miss) return this.number(u.x, y, "Уклонение", "#c8c0b0");
         if (f.heal) return this.number(u.x, y, `+${f.v}`, "#7aff7a");
         u.flash();
         const mine = f.id === this.selfId;

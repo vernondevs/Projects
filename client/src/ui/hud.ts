@@ -21,6 +21,7 @@ import { MOUNTS, MOUNT_IDS } from "../../../shared/mounts";
 import { PETS, PET_IDS, petUnitId } from "../../../shared/pets";
 import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
+import { DODGE_CAP, STAT_K } from "../../../shared/formulas";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
@@ -474,6 +475,8 @@ export class Hud {
         <span>Броня</span><span>${d.armor}</span>
         <span>Шанс крита</span><span>${(d.crit * 100).toFixed(1)}%</span>
         <span>Урон крита</span><span>${Math.round(d.critMult * 100)}%</span>
+        <span>Уклонение</span><span>${(d.dodge * 100).toFixed(1)}%</span>
+        <span>Сила умений</span><span>${Math.round(d.skillMult * 100)}%</span>
         <span>Атак в секунду</span><span>${(1 / d.attackCd).toFixed(2)}</span>
         <span>Реген здоровья</span><span>${d.hpRegen.toFixed(1)}/с</span>
         <span>Реген маны</span><span>${d.mpRegen.toFixed(1)}/с</span>
@@ -485,7 +488,7 @@ export class Hud {
     for (const k of ["str", "agi", "int", "vit"] as StatKey[]) {
       const main = CLASSES[s.cls].mainStat === k;
       const name = el("span", "k", `${STAT_NAMES[k]}${main ? ' <span class="gold">★</span>' : ""}`);
-      this.tipFor(name, () => `<div class="t">${STAT_NAMES[k]}</div><div>${STAT_HINTS[k]}</div><div class="d">Вложено: ${s.alloc[k]}</div>`);
+      this.tipFor(name, () => `<div class="t">${STAT_NAMES[k]}</div><div>${STAT_HINTS[k]}</div>${statTip(k, s)}<div class="d">Вложено: ${s.alloc[k]}</div>`);
       const plus = el("button", "btn plus", "+");
       plus.disabled = s.statPoints <= 0;
       plus.setAttribute("aria-label", `Добавить: ${STAT_NAMES[k]}`);
@@ -788,3 +791,28 @@ export class Hud {
 }
 
 export { MAX_LEVEL, SKILLS };
+
+const pct = (v: number) => `${+(v * 100).toFixed(2)}%`;
+/** Что даёт одно очко характеристики этому классу (в подсказке окна персонажа). */
+function statTip(k: StatKey, s: SelfState): string {
+  const c = CLASSES[s.cls], d = s.derived, main = c.mainStat === k;
+  const L: string[] = [];
+  if (k === "str") {
+    L.push(main ? `+${pct(c.mainK)} урона (ближний бой)` : `+${pct(STAT_K.strDmg)} урона`);
+    L.push(`+${STAT_K.strHp} здоровья`);
+  } else if (k === "agi") {
+    if (main) L.push(`+${pct(c.mainK)} урона`);
+    else if (c.projectile) L.push(`+${pct(STAT_K.agiRanged)} урона (дальний бой)`);
+    L.push(`+${pct(STAT_K.agiCrit)} шанса крита`, `+${pct(STAT_K.agiDodge)} уклонения (до ${pct(DODGE_CAP)})`, "+0.4% скорости атаки");
+  } else if (k === "int") {
+    if (main) L.push(`+${pct(c.mainK)} урона`);
+    L.push(`+${pct(STAT_K.intSkill)} силы умений`, "+6 маны", "+0.12 маны/с");
+  } else {
+    L.push(`+${STAT_K.vitHp} здоровья`, `+${STAT_K.vitArmor} брони`, "+0.12 здоровья/с");
+  }
+  const now = k === "str" ? `Здоровье ${d.maxHp}, урон ${d.dmgMin}–${d.dmgMax}`
+    : k === "agi" ? `Крит ${(d.crit * 100).toFixed(1)}%, уклонение ${(d.dodge * 100).toFixed(1)}%`
+    : k === "int" ? `Мана ${d.maxMp}, сила умений ${Math.round(d.skillMult * 100)}%`
+    : `Здоровье ${d.maxHp}, броня ${d.armor}`;
+  return `<div class="d">За 1 очко: ${L.join(", ")}.</div><div class="d">Сейчас: ${now}</div>`;
+}
