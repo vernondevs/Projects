@@ -12,6 +12,8 @@ import { ArenaUI } from "./arena";
 import { TradeUI } from "./trade";
 import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
+import { CookUI, foodTip } from "./cook";
+import { FOOD, foodOf } from "../../../shared/food";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
@@ -67,6 +69,9 @@ export class Hud {
   readonly trade: TradeUI;
   readonly bestiary: BestiaryUI;
   readonly rumor: RumorUI;
+  readonly cook: CookUI;
+  private foodUntil = 0;
+  private foodId = "";
 
   constructor(readonly root: HTMLElement) {
     root.append(this.player, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
@@ -92,6 +97,8 @@ export class Hud {
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
     this.bestiary = new BestiaryUI(root, icon);
     this.rumor = new RumorUI(root);
+    this.cook = new CookUI(root);
+    window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
       if (this.trade.isOpen) this.wins.inv.hidden = false;
@@ -127,6 +134,7 @@ export class Hud {
       n.on("toast", (t) => this.toast(t));
       n.on("arena:info", () => this.applyFrame());
       this.rumor.bind(n);
+      this.cook.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
     }
     this.arena.bind(n);
@@ -216,7 +224,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.rumor.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.rumor.close() || this.cook.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -252,6 +260,8 @@ export class Hud {
     const b = BASE_ITEMS[it.base];
     const lines: string[] = [`<div class="t r${it.rarity}">${esc(it.name)}</div>`];
     if (b.slot === "consumable") {
+      const dish = foodOf(it.base);
+      if (dish) return foodTip(dish) + `<div class="d">Клик — съесть · ${it.qty ?? 1} шт.</div>`;
       lines.push(`<div class="d">Расходуемое · ${it.qty ?? 1} шт.</div>`, `<div>${it.base === "hp_potion" ? "Восстанавливает 45% здоровья" : "Восстанавливает 50% маны"}</div>`, `<div class="d">Клавиша ${it.base === "hp_potion" ? "Q" : "E"} или клик</div>`);
     } else {
       lines.push(`<div class="d">${RARITY_NAMES[it.rarity]} · ${SLOT_NAMES[b.slot]} · ур. предмета ${it.ilvl}</div>`);
@@ -293,6 +303,9 @@ export class Hud {
   renderSelf(s: SelfState) {
     this.bestiary.update(s);
     if (!s) return;
+    this.foodId = s.food?.id ?? "";
+    this.foodUntil = s.food ? Date.now() + s.food.left : 0;
+    this.cook.update(s);
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
     this.lastSelfLevel = s.level;
     const net = this.ctx.net;
@@ -303,7 +316,8 @@ export class Hud {
       <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
       <div class="bar mp"><i id="mp-fill"></i><span id="mp-text"></span></div>
       <div class="bar xp" title="Опыт"><i style="width:${s.xpNext ? (s.xp / s.xpNext) * 100 : 100}%"></i></div>
-      <div class="pts"><span class="muted">Опыт ${s.xpNext ? `${s.xp} / ${s.xpNext}` : "максимум"}</span><span class="gold">${s.gold} з</span>${pts}</div>`;
+      <div class="pts"><span class="muted">Опыт ${s.xpNext ? `${s.xp} / ${s.xpNext}` : "максимум"}</span><span class="gold">${s.gold} з</span>${pts}</div><div class="food-buff" hidden></div>`;
+    this.updateFoodLabel();
     this.player.querySelectorAll<HTMLElement>("[data-open]").forEach((p) => (p.onclick = () => this.toggle(p.dataset.open!)));
 
     // панель умений
@@ -329,6 +343,21 @@ export class Hud {
     if (!this.wins.inv.hidden) this.renderInv(s);
     if (!this.wins.skills.hidden) this.renderSkills(s);
     if (!this.wins.shop.hidden) this.renderShop(s);
+  }
+
+  /** Иконка активной еды у рамки героя: оставшиеся минуты и подсказка с бонусами. */
+  private updateFoodLabel() {
+    const box = this.player.querySelector<HTMLElement>(".food-buff");
+    if (!box) return;
+    const d = FOOD[this.foodId];
+    const left = this.foodUntil - Date.now();
+    if (!d || left <= 0) { box.hidden = true; return; }
+    const min = Math.max(1, Math.ceil(left / 60000));
+    box.hidden = false;
+    box.innerHTML = `<img src="${icon(d.icon)}" alt=""><span>${min} мин.</span>`;
+    box.onmouseenter = (e) => { this.tip.innerHTML = foodTip(d, Math.max(1, Math.ceil((this.foodUntil - Date.now()) / 60000))); this.tip.hidden = false; this.moveTip(e); };
+    box.onmousemove = (e) => this.moveTip(e);
+    box.onmouseleave = () => (this.tip.hidden = true);
   }
 
   private renderChar(s: SelfState) {

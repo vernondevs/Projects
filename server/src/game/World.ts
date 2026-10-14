@@ -373,6 +373,8 @@ export class World {
     if (p.burnUntil > t) b |= BUFF_BURN;
     u.buffs = b;
 
+    p.checkFood();
+
     // регенерация: вне боя быстрее, в городе ещё быстрее
     const town = this.inTown(u.x, u.y);
     const calm = t - p.combatAt > 5000;

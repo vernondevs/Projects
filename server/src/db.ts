@@ -27,6 +27,8 @@ export interface PlayerSave {
   titles?: { id: string; name: string; rank: string }[];
   title?: string;
   frame?: string;
+  /** Активная еда: переживает релог (реальное время, мс). */
+  food?: { id: string; until: number } | null;
   /** Настройка: не принимать запросы на обмен. */
 }
 

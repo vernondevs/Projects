@@ -2,6 +2,7 @@ import { CLASSES, type ClassId, type StatKey } from "../../../shared/classes";
 import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
 import { derive, xpToNext, type Derived } from "../../../shared/formulas";
+import { FOOD } from "../../../shared/food";
 import { makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { Anim, UnitKind, type LootBag, type SelfState } from "../../../shared/protocol";
 import { starterSkill } from "../../../shared/skills";
@@ -126,7 +127,7 @@ export class Player {
   }
 
   recalc() {
-    this.derived = derive({ cls: this.save.cls, level: this.save.level, alloc: this.save.alloc, skills: this.save.skills, equip: this.save.equip });
+    this.derived = derive({ cls: this.save.cls, level: this.save.level, alloc: this.save.alloc, skills: this.save.skills, equip: this.save.equip, foodBuff: this.activeFood()?.stats });
     const u = this.unit;
     u.maxHp = this.derived.maxHp;
     u.maxMp = this.derived.maxMp;
@@ -136,6 +137,20 @@ export class Player {
     const w = this.save.equip.weapon;
     u.weapon = w ? `${w.base}:${w.rarity}` : "";
     this.selfDirty = true;
+  }
+
+  /** Действующая еда (null — нет или истекла). */
+  activeFood() {
+    const f = this.save.food;
+    return f && f.until > Date.now() ? FOOD[f.id] ?? null : null;
+  }
+  /** Снять истёкшую еду и пересчитать характеристики. */
+  checkFood() {
+    if (this.save.food && !this.activeFood()) {
+      this.save.food = null;
+      this.recalc();
+      this.send("toast", { text: "Действие еды закончилось", kind: "info" });
+    }
   }
 
   statPoints(): number {
@@ -175,6 +190,7 @@ export class Player {
       kills: this.save.kills,
       bossKills: this.save.bossKills,
       mobKills: (this.save.mobKills ??= {}),
+      food: this.activeFood() ? { id: this.save.food!.id, left: this.save.food!.until - Date.now() } : null,
     };
   }
 

@@ -32,6 +32,8 @@ export interface PlayerCore {
   alloc: Stats;
   skills: Record<string, number>;
   equip: Partial<Record<Slot, Item | null>>;
+  /** Бонусы активной еды (срок действия проверен вызывающим). */
+  foodBuff?: ItemStats | null;
 }
 
 export function gearStats(equip: PlayerCore["equip"]): ItemStats {
@@ -46,6 +48,7 @@ export function gearStats(equip: PlayerCore["equip"]): ItemStats {
 export function derive(p: PlayerCore): Derived {
   const c = CLASSES[p.cls];
   const g = gearStats(p.equip);
+  if (p.foodBuff) for (const [k, v] of Object.entries(p.foodBuff)) g[k as keyof ItemStats] = (g[k as keyof ItemStats] || 0) + (v as number);
   const st = { ...c.base };
   for (const k of Object.keys(st) as StatKey[]) st[k] += (c.perLevel[k] || 0) * (p.level - 1) + (p.alloc[k] || 0) + (g[k] || 0);
   const sk = (id: string) => p.skills[id] || 0;

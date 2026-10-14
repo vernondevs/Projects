@@ -4,6 +4,7 @@ import { generateMap, moveWithCollision, zoneAtPx, ZONES, type WorldMap, Zone } 
 import { Anim, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
 import { activeSkills, SKILLS } from "../../../shared/skills";
 import { RUMOR_NPCS } from "../../../shared/rumors";
+import { COOK } from "../../../shared/food";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
 import { net, type UnitState } from "../net";
 import type { Hud } from "../ui/hud";
@@ -11,7 +12,7 @@ import { Effects } from "./effects";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
 
-type NpcKind = "shop" | "arena" | "rumor";
+type NpcKind = "shop" | "arena" | "rumor" | "cook";
 type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string };
 
 export class GameScene extends Phaser.Scene {
@@ -82,6 +83,7 @@ export class GameScene extends Phaser.Scene {
     if (net.kind === "world") {
       this.addNpc("shop", "merchant", this.map.merchant, "Торговка Марфа", "#ffd27a");
       this.addNpc("arena", "arenamaster", ARENA_NPC, "Распорядитель арены", "#ff9a7a");
+      this.addNpc("cook", COOK.sprite, COOK, COOK.name, COOK.color, COOK.tint, COOK.id);
       for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
     }
 
@@ -110,7 +112,7 @@ export class GameScene extends Phaser.Scene {
     this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
     const label = { fontFamily: FONT, fontSize: "8px", color, stroke: "#120a10", strokeThickness: 3, resolution: 4 };
     this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
-    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : kind === "rumor" ? "…" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.setFrame(Math.random() < 0.5 ? 0 : 24) });
     this.npcs.push({ sprite: s, kind, id, name });
   }
@@ -346,6 +348,7 @@ export class GameScene extends Phaser.Scene {
   }
   private openNpc(n: Npc) {
     if (n.kind === "shop") this.hud.openShop();
+    else if (n.kind === "cook") this.hud.cook.open();
     else if (n.kind === "rumor") this.hud.rumor.open(n.id!, n.name!);
     else this.hud.arena.open();
   }

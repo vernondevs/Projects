@@ -1,4 +1,5 @@
 /** Инвентарь, экипировка, зелья, торговец, подбор добычи. Каждая операция проверяется на сервере. */
+import { COOK, FOOD, foodOf, type Dish } from "../../../shared/food";
 import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
 import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import type { Player } from "./Player";
@@ -71,6 +72,8 @@ export function useItem(w: World, p: Player, index: unknown) {
   if (!it) return;
   const base = BASE_ITEMS[it.base];
   if (base.slot !== "consumable") return equip(w, p, index);
+  const dish = foodOf(it.base);
+  if (dish) return eat(p, index, dish);
   const now = w.time;
   if (now < p.potionAt) return err(p, "Зелья ещё действуют");
   const u = p.unit;
@@ -85,6 +88,38 @@ export function useItem(w: World, p: Player, index: unknown) {
   w.emit({ t: "aoe", k: it.base === "hp_potion" ? "nature" : "frost", x: u.x, y: u.y, r: 24 });
   it.qty = (it.qty ?? 1) - 1;
   if (it.qty <= 0) p.save.inventory[index] = null;
+  p.selfDirty = true;
+}
+
+/** Съесть блюдо: мгновенное лечение и бафф; новый бафф заменяет старый. На арене нельзя. */
+function eat(p: Player, index: number, dish: Dish) {
+  if (p.team !== 0) return err(p, "На арене есть нельзя");
+  if (p.level < dish.req) return err(p, `Нужен ${dish.req} уровень`);
+  const it = p.save.inventory[index]!;
+  const u = p.unit;
+  p.save.food = { id: dish.id, until: Date.now() + dish.minutes * 60000 };
+  p.recalc();
+  u.hp = Math.min(u.maxHp, u.hp + Math.round((u.maxHp * dish.hpPct) / 100));
+  u.mp = Math.min(u.maxMp, u.mp + Math.round((u.maxMp * dish.mpPct) / 100));
+  it.qty = (it.qty ?? 1) - 1;
+  if (it.qty <= 0) p.save.inventory[index] = null;
+  p.selfDirty = true;
+  p.send("toast", { text: `${dish.name}: бафф на ${dish.minutes} мин.`, kind: "info" });
+}
+
+export function buyFood(w: World, p: Player, id: unknown, qtyRaw: unknown) {
+  const dish = typeof id === "string" ? FOOD[id] : undefined;
+  if (!dish) return;
+  if (w.dist(p, COOK) > MERCHANT_RANGE) return err(p, "Повар далеко");
+  const qty = Number.isInteger(qtyRaw) ? Math.max(1, Math.min(20, qtyRaw as number)) : 1;
+  const price = dish.price * qty;
+  if (p.save.gold < price) return err(p, "Не хватает золота");
+  const backup = JSON.stringify(p.save.inventory);
+  if (!addItem(p, { ...makeItem(`food_${dish.id}`, 1, Rarity.Common), qty })) {
+    p.save.inventory = JSON.parse(backup);
+    return err(p, "Сумка полна");
+  }
+  p.save.gold -= price;
   p.selfDirty = true;
 }
 

@@ -286,3 +286,9 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .win-rumor { left: 50%; bottom: 150px; top: auto; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); z-index: 4; }
 .rumor-text { margin: 8px 0 12px; line-height: 1.4; min-height: 3em; }
 .rumor-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+.win-cook { left: 50%; top: 90px; transform: translateX(-50%); width: min(460px, calc(100vw - 24px)); z-index: 4; }
+.cook-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.cook-list .shoprow img { width: 32px; height: 32px; }
+.food-buff { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
+.food-buff img { width: 20px; height: 20px; image-rendering: pixelated; }

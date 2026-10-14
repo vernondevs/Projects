@@ -1,4 +1,5 @@
 import type { ClassId, StatKey } from "./classes";
+import { FOOD } from "./food";
 
 export type Slot = "weapon" | "helmet" | "armor" | "boots" | "ring" | "amulet";
 export const SLOTS: Slot[] = ["weapon", "helmet", "armor", "boots", "ring", "amulet"];
@@ -73,6 +74,7 @@ export const BASE_ITEMS: Record<string, BaseItem> = {
   amulet: { id: "amulet", name: "Амулет", slot: "amulet", icon: "amulet", roll: (l) => ({ hp: r1(6 + l * 3) }) },
   hp_potion: { id: "hp_potion", name: "Зелье здоровья", slot: "consumable", icon: "potion_red", price: 15, stack: 20 },
   mp_potion: { id: "mp_potion", name: "Зелье маны", slot: "consumable", icon: "potion_blue", price: 15, stack: 20 },
+  ...Object.fromEntries(Object.values(FOOD).map((d) => [`food_${d.id}`, { id: `food_${d.id}`, name: d.name, slot: "consumable", icon: d.icon, price: d.price, stack: 20 } as BaseItem])),
 };
 export const EQUIP_BASES = Object.values(BASE_ITEMS).filter((b) => b.slot !== "consumable").map((b) => b.id);
 
@@ -145,7 +147,7 @@ export function iconVariant(it: Pick<Item, "base" | "stats" | "uid">): ClassId {
 
 /** Имя иконки: base.icon + вариант класса (для шлема/доспеха/сапог) + редкость. */
 export function iconId(icon: string, variant: ClassId, rarity: Rarity): string {
-  if (icon.startsWith("potion") || icon === "gold") return icon;
+  if (icon.startsWith("potion") || icon.startsWith("food_") || icon === "gold") return icon;
   return ICON_VARIANT_SLOTS.includes(icon) ? `${icon}_${variant}_${rarity}` : `${icon}_${rarity}`;
 }
 

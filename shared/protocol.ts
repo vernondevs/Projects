@@ -54,6 +54,7 @@ export interface ClientMessages {
   sell: { index: number };
   swap: { a: number; b: number };
   buy: { base: string; qty?: number };
+  "cook:buy": { id: string; qty?: number };
   pickup: { bag: string; index?: number };
   chat: { text: string };
   respawn: Record<string, never>;
@@ -79,6 +80,8 @@ export interface SelfState {
   bossKills: Record<string, number>;
   /** Убийства по типам мобов (бестиарий). */
   mobKills: Record<string, number>;
+  /** Еда: id блюда и сколько мс осталось. */
+  food?: { id: string; left: number } | null;
   /** Входящие запросы на обмен отключены. */
 }
 

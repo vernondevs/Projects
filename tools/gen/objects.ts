@@ -1,6 +1,7 @@
 /** Объекты мира, иконки предметов и умений, эффекты. Опорная точка объектов — нижняя середина. */
 import { PC, hash01, hex, mix, rng, shade, withA, type RGBA, type Ramp } from "./canvas";
 import { P } from "./palette";
+import { FOOD } from "../../shared/food";
 
 type Art = () => PC;
 
@@ -297,7 +298,31 @@ function iconFrame(bg: Ramp): PC {
   }
   return c;
 }
+/** Иконки блюд: форма (миска, мясо, хлеб, пирог, рыба) и цвет из data/food.json. */
+function foodIcon(shape: string, color: string): PC {
+  const c = new PC(32, 32);
+  const col = (P.cloth as Record<string, Ramp>)[color] ?? P.cloth.brown;
+  switch (shape) {
+    case "bowl":
+      c.shadedEllipse(16, 15, 8, 3, col, [-0.3, -0.6], false);
+      c.poly([[6, 15], [26, 15], [22, 25], [10, 25]], P.wood[2]); c.rect(8, 17, 16, 1, P.wood[3]);
+      c.set(12, 10, P.steel[3]); c.set(16, 8, P.steel[3]); c.set(20, 10, P.steel[3]); break;
+    case "meat":
+      c.line(8, 25, 15, 18, P.bone[2], 3); c.shadedEllipse(19, 14, 8, 7, col); c.ellipse(17, 12, 2, 1.5, withA(hex("#ffffff"), 140)); break;
+    case "loaf":
+      c.shadedEllipse(16, 18, 10, 6, col); for (const x of [11, 16, 21]) c.line(x - 1, 14, x + 1, 18, col[3], 1); break;
+    case "pie":
+      c.shadedEllipse(16, 19, 10, 5, P.leather); c.shadedEllipse(16, 16, 8, 4, col); c.line(10, 16, 22, 16, P.leather[3], 1); c.line(16, 12, 16, 20, P.leather[3], 1); break;
+    case "fish":
+      c.shadedEllipse(15, 17, 9, 5, col); c.poly([[23, 17], [29, 12], [29, 22]], col[2]); c.set(9, 16, P.bone[3]); c.line(13, 14, 13, 20, col[0], 1); break;
+  }
+  return c.outline();
+}
 function itemIcon(kind: string): PC {
+  if (kind.startsWith("food_")) {
+    const d = FOOD[kind.slice(5)];
+    return foodIcon(d.shape, d.color);
+  }
   const c = new PC(32, 32);
   const steel = P.steel;
   switch (kind) {
@@ -372,7 +397,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
   return c;
 }
 
-export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold"];
+export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`)];
 const R = P.cloth.red, B = P.cloth.blue, Pu = P.cloth.purple, G = P.cloth.green, Br = P.cloth.brown;
 export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_cleave: ["cleave", R, P.steel], sk_charge: ["charge", Br, P.gold], sk_toughness: ["toughness", Br, P.steel], sk_warcry: ["warcry", R, P.gold],
