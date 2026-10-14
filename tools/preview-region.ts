@@ -1,11 +1,18 @@
-/** Отладка: рендер участка карты тайлами (dual grid) в tools/out/region.png. Аргументы: x y w h (в тайлах). */
+/**
+ * Отладка: рендер участка карты тайлами (dual grid) и объектами в tools/out/region.png.
+ * Аргументы: x y w h (в тайлах) или «town» — весь Эмберхолл.
+ */
 import { PNG } from "pngjs";
 import fs from "node:fs";
 import { MAP_SEED } from "../shared/constants";
-import { CELL_WALL, generateMap, T } from "../shared/map";
+import { CELL_WALL, generateMap, T, TOWN } from "../shared/map";
+import { TOWN_HALF } from "../shared/town";
 import { PC } from "./gen/canvas";
 
-const [x0, y0, w, h] = (process.argv.slice(2).map(Number).length === 4 ? process.argv.slice(2).map(Number) : [20, 56, 30, 22]);
+const args = process.argv.slice(2);
+const [x0, y0, w, h] = args[0] === "town"
+  ? [TOWN.x - TOWN_HALF.x - 3, TOWN.y - TOWN_HALF.y - 4, TOWN_HALF.x * 2 + 7, TOWN_HALF.y * 2 + 8]
+  : args.length === 4 ? args.map(Number) : [20, 56, 30, 22];
 const m = generateMap(MAP_SEED);
 const read = (f: string) => {
   const png = PNG.sync.read(fs.readFileSync(f));
@@ -43,6 +50,23 @@ for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const below = m.cell[(cy + 1) * m.w + cx] & CELL_WALL;
     blitTile(below ? (cx + cy) % 2 : 2 + ((cx * 3 + cy) % 4), 10, x * 32, y * 32);
   }
+}
+// объекты: по глубине (нижний край), опора — нижняя середина
+const objs = m.objects.filter((o) => o.x > x0 * 32 - 128 && o.x < (x0 + w) * 32 + 128 && o.y > y0 * 32 && o.y < (y0 + h) * 32 + 200).sort((a, b) => a.y - b.y);
+const cache = new Map<string, PC | null>();
+for (const o of objs) {
+  if (!cache.has(o.kind)) {
+    const f = `client/public/assets/objects/${o.kind}.png`;
+    cache.set(o.kind, fs.existsSync(f) ? read(f) : null);
+  }
+  const img = cache.get(o.kind);
+  if (!img) continue;
+  out.blit(img, Math.round(o.x - x0 * 32 - img.w / 2), Math.round(o.y - y0 * 32 - img.h));
+}
+// отметки (x,y в пикселях мира) из MARKS="x,y;x,y"
+for (const mk of (process.env.MARKS ?? "").split(";").filter(Boolean)) {
+  const [mx, my] = mk.split(",").map(Number);
+  for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) out.set(mx - x0 * 32 + i, my - y0 * 32 + j, [255, 0, 255, 255]);
 }
 const png = new PNG({ width: out.w, height: out.h });
 Buffer.from(out.data.buffer).copy(png.data);

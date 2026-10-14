@@ -67,7 +67,20 @@ async function main() {
       const t = map.playerSpawn;
       return map.spawns.filter((s) => s.mob === mob).sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y))[0];
     };
-    if (scenario.startsWith("tp:")) {
+    if (scenario === "town") {
+      // город: ворота со стражей, таверна, кузница, общий вид с отдалением
+      const { TOWN } = await import("../shared/town");
+      const at = (dx: number, dy: number) => ({ op: "tp", x: (TOWN.x + dx) * 32 + 16, y: (TOWN.y + dy) * 32 + 16 });
+      for (const [name, dx, dy] of [["gate", 0, -15], ["tavern", -16, 0], ["forge", 17, 0], ["bank", -14, 9], ["east", 21, 2]] as const) {
+        await dbg(at(dx, dy));
+        await sleep(1500);
+        await page.screenshot({ path: path.join(OUT, `shot-town-${name}.png`) });
+      }
+      await dbg(at(0, 0));
+      await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(1));
+      await sleep(1500);
+      await page.screenshot({ path: path.join(OUT, "shot-town-wide.png") });
+    } else if (scenario.startsWith("tp:")) {
       // tp:<моб>[:level] — бой у точки появления моба
       const [, mob, lvl] = scenario.split(":");
       if (lvl) await dbg({ op: "level", v: Number(lvl) });

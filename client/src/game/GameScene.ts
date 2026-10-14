@@ -330,7 +330,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Враг ли юнит: мобы всегда, игроки — только на арене из другой команды. */
   isEnemy(v: UnitView): boolean {
-    if (v.u.kind === UnitKind.Pet) return false;
+    if (v.u.kind === UnitKind.Pet || v.npc) return false;
     if (v.u.kind !== UnitKind.Player) return true;
     return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team && !(v.u.buffs & BUFF_STEALTH);
   }
@@ -487,6 +487,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- кадр ----------
   override update(_time: number, deltaMs: number) {
     const dt = Math.min(0.05, deltaMs / 1000);
+    this.world.update(this.cameras.main);
     this.world.water.tilePositionX += dt * 6;
     this.world.water.tilePositionY += dt * 3;
 
@@ -559,7 +560,7 @@ export class GameScene extends Phaser.Scene {
     if (z !== this.zone) {
       this.zone = z;
       if (z === Zone.Arena) this.hud.showZone(`Арена · ${MODE_NAMES[net.arena?.mode ?? "1v1"]}`, "Победит тот, кто устоит");
-      else this.hud.showZone(ZONES[z].name, ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`);
+      else this.hud.showZone(ZONES[z].name, ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`));
     }
     const cam = this.cameras.main;
     const target = zoneTint(z).dark;

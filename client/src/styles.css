@@ -90,7 +90,7 @@ button { font: inherit; color: inherit; }
 .hud-zone.show { opacity: 1; }
 
 .hud-mini { position: absolute; right: 12px; top: 12px; width: 228px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
-.hud-mini canvas { width: 100%; height: auto; aspect-ratio: 180 / 140; image-rendering: pixelated; display: block; border-radius: 3px; }
+.hud-mini canvas { width: 100%; height: auto; aspect-ratio: 240 / 180; image-rendering: pixelated; display: block; border-radius: 3px; }
 .hud-mini.collapsed canvas { display: none; }
 .hud-mini .zn { font-size: 14px; text-align: center; color: var(--fg); }
 .hud-mini .zn small { color: var(--dim); }

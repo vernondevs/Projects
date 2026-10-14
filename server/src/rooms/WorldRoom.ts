@@ -5,7 +5,8 @@ import { NAME_RE, PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/co
 import { xpToNext } from "../../../shared/formulas";
 import { MOUNTS } from "../../../shared/mounts";
 import { buyPet, selectPet, togglePet } from "../game/Pet";
-import { MERCHANT_RANGE } from "../../../shared/constants";
+import { MERCHANT_RANGE, PLAYER_RADIUS } from "../../../shared/constants";
+import { MAP_VERSION, walkable } from "../../../shared/map";
 import { makeItem, makeUnique, Rarity } from "../../../shared/items";
 import type { JoinOptions } from "../../../shared/protocol";
 import { canLearn, SKILLS } from "../../../shared/skills";
@@ -96,6 +97,13 @@ export class WorldRoom extends Room<WorldState> {
   }
 
   override onJoin(client: Client, _options: JoinOptions, auth: AuthResult) {
+    // позиция из сохранения другой версии карты или в стене/воде — к фонтану
+    const s = auth.save, map = this.world.map;
+    if (s.mapVer !== MAP_VERSION || !walkable(map, s.x, s.y, PLAYER_RADIUS)) {
+      s.x = map.playerSpawn.x;
+      s.y = map.playerSpawn.y;
+    }
+    s.mapVer = MAP_VERSION;
     const p = new Player(client.sessionId, auth.name, auth.save, (type, msg) => client.send(type, msg));
     p.admin = WorldRoom.db.isAdmin(p.name);
     this.world.addPlayer(p, auth.fromArena ? `${p.name} возвращается с арены.` : undefined);

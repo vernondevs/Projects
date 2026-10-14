@@ -8,6 +8,7 @@ import path from "node:path";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 import { createServer } from "vite";
 import { PORT, sleep, startServer, stopServer } from "./harness";
+import { ARENA_NPC } from "../shared/arena";
 
 const OUT = path.resolve("tools/out");
 fs.mkdirSync(OUT, { recursive: true });
@@ -25,7 +26,7 @@ async function openClient(browser: Browser, name: string, cls: string): Promise<
   const page = await ctx.newPage();
   await page.setViewport({ width: 1280, height: 800 });
   page.on("console", (m) => { if (m.type() === "error") errors.push(`${name}: ${m.text()}`); });
-  page.on("pageerror", (e) => errors.push(`${name}: ${e}`));
+  page.on("pageerror", (e) => errors.push(`${name}: ${(e as Error).stack ?? e}`));
   await page.goto("http://localhost:5199/", { waitUntil: "networkidle0" });
   await page.type("#login-name", name);
   await page.type("#login-pass", "secret");
@@ -80,7 +81,7 @@ async function main() {
     const b = await openClient(browser, "Мирон", "mage");
     await buff(a);
     // A идёт к распорядителю арены в городе (клавиша F рядом с NPC открывает окно)
-    await dbg(a, { op: "tp", x: 30 * 32 + 16, y: 69 * 32 });
+    await dbg(a, { op: "tp", x: ARENA_NPC.x, y: ARENA_NPC.y + 24 });
     await sleep(500);
     await a.keyboard.press("f");
     try {

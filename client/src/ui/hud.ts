@@ -4,7 +4,8 @@ import * as sfx from "../game/sfx";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
 import { LEGENDARIES } from "../../../shared/legendary";
 import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
-import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
+import { T, Zone, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
+import { TOWN, WALL } from "../../../shared/town";
 import { MOBS } from "../../../shared/mobs";
 import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
 import { activeSkills, canLearn, classSkills, SKILLS, type SkillDef } from "../../../shared/skills";
@@ -107,8 +108,8 @@ export class Hud {
     this.chatInput.maxLength = 140;
     this.chatInput.id = "chat-input";
     this.chatBox.append(this.chatLog, this.chatInput);
-    this.miniCanvas.width = 180;
-    this.miniCanvas.height = 140;
+    this.miniCanvas.width = 240;
+    this.miniCanvas.height = 180;
     this.mini.innerHTML = `<div class="zn" id="mini-zone"></div>`;
     this.mini.prepend(this.miniCanvas);
     this.mini.append(this.menuBar);
@@ -679,8 +680,13 @@ export class Hud {
     const img = g.createImageData(m.w, m.h);
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
       let col = TERRAIN_COLORS[m.vtx[y * (m.w + 1) + x]];
+      const blocked = m.cell[y * m.w + x] & 1 && m.vtx[y * (m.w + 1) + x] !== T.Water && m.vtx[y * (m.w + 1) + x] !== T.Lava;
       if (m.cell[y * m.w + x] & 2) col = "#1c1822";
-      else if (m.cell[y * m.w + x] & 1 && m.vtx[y * (m.w + 1) + x] !== T.Water && m.vtx[y * (m.w + 1) + x] !== T.Lava) col = "#22402a";
+      else if (blocked && m.zone[y * m.w + x] === Zone.Town) {
+        // город: стены и башни — светлый камень, дома — черепица
+        const dx = Math.abs(x - TOWN.x), dy = Math.abs(y - TOWN.y);
+        col = dx >= WALL.x || dy >= WALL.y ? "#c8c0b0" : "#a04a30";
+      } else if (blocked) col = "#22402a";
       const i = (y * m.w + x) * 4;
       img.data[i] = parseInt(col.slice(1, 3), 16);
       img.data[i + 1] = parseInt(col.slice(3, 5), 16);
@@ -694,12 +700,17 @@ export class Hud {
     const g = this.miniCanvas.getContext("2d")!;
     g.imageSmoothingEnabled = false;
     const m = this.ctx.map;
-    // карта мира 180×140 рисуется один к одному, маленькая карта арены растягивается на весь холст
-    const k = Math.min(this.miniCanvas.width / m.w, this.miniCanvas.height / m.h);
-    const ox = (this.miniCanvas.width - m.w * k) / 2, oy = (this.miniCanvas.height - m.h * k) / 2;
+    // большой мир: окно 160×120 тайлов вокруг героя (1,5 px на тайл); маленькая карта арены — целиком на весь холст
+    const CW = this.miniCanvas.width, CH = this.miniCanvas.height;
+    const big = m.w > 200;
+    const vw = big ? 160 : m.w, vh = big ? 120 : m.h;
+    const k = Math.min(CW / vw, CH / vh);
+    const vx = big ? Math.max(0, Math.min(m.w - vw, info.pos.x / TILE - vw / 2)) : 0;
+    const vy = big ? Math.max(0, Math.min(m.h - vh, info.pos.y / TILE - vh / 2)) : 0;
+    const ox = (CW - vw * k) / 2 - vx * k, oy = (CH - vh * k) / 2 - vy * k;
     const X = (px: number) => ox + (px / TILE) * k, Y = (py: number) => oy + (py / TILE) * k;
     g.fillStyle = "#0e0b10";
-    g.fillRect(0, 0, this.miniCanvas.width, this.miniCanvas.height);
+    g.fillRect(0, 0, CW, CH);
     if (this.miniBase) g.drawImage(this.miniBase, ox, oy, m.w * k, m.h * k);
     const dot = Math.max(1.5, k * 0.9);
     for (const b of m.bosses) {
@@ -709,7 +720,7 @@ export class Hud {
     for (const [, v] of info.units) {
       if (v.dead) continue;
       const near = Math.hypot(v.x - info.pos.x, v.y - info.pos.y) < 900;
-      if (v.u.kind === UnitKind.Mob && !near) continue;
+      if ((v.u.kind === UnitKind.Mob && !near) || v.u.kind === UnitKind.Guard || v.u.kind === UnitKind.Citizen) continue;
       const enemy = v.u.kind === UnitKind.Player && this.ctx.net.kind === "arena" && v.u.team !== this.ctx.net.arena?.team;
       g.fillStyle = v.u.kind === UnitKind.Player ? (enemy ? "#ff6a5a" : "#6ac8ff") : v.u.kind === UnitKind.Boss ? "#ff3a1a" : "#e84a4a";
       const s = v.u.kind === UnitKind.Boss ? 3 : dot;
@@ -723,7 +734,7 @@ export class Hud {
     }
     const zi = zoneAtPx(m, info.pos.x, info.pos.y);
     const z = ZONES[zi];
-    const sub = this.ctx.net.kind === "arena" ? "PvP" : z.safe ? "безопасно" : `ур. ${z.levels[0]}–${z.levels[1]}`;
+    const sub = this.ctx.net.kind === "arena" ? "PvP" : z.safe ? "безопасно" : z.note ? "дикие края" : `ур. ${z.levels[0]}–${z.levels[1]}`;
     document.getElementById("mini-zone")!.innerHTML = `${esc(z.name)} <small>${sub}</small>`;
   }
 

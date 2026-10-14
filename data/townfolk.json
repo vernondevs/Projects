@@ -1,0 +1,29 @@
+{
+  "_doc": "Стражники и горожане Эмберхолла (server/src/game/townfolk.ts). Маршруты и посты — в shared/town.ts. Скорости в px/с, время в мс, урон стражника — доля макс. здоровья моба за удар.",
+  "guard": {
+    "name": "Стражник",
+    "sprite": "guard",
+    "level": 40,
+    "patrolSpeed": 58,
+    "chaseSpeed": 150,
+    "attackRange": 40,
+    "attackMs": 900,
+    "hitPct": 0.34,
+    "minHit": 60,
+    "lines": ["Стой! Город под защитой!", "Прочь от ворот!", "За Эмберхолл!", "Ещё одна тварь…"]
+  },
+  "citizen": {
+    "speed": 40,
+    "waitMs": [3000, 9000],
+    "people": [
+      { "name": "Горожанка Ольга", "sprite": "citizen1" },
+      { "name": "Плотник Ерёма", "sprite": "citizen2" },
+      { "name": "Прачка Дуня", "sprite": "citizen3" },
+      { "name": "Дед Фома", "sprite": "citizen4" },
+      { "name": "Горожанин Савва", "sprite": "citizen2" },
+      { "name": "Цветочница Нюра", "sprite": "citizen1" },
+      { "name": "Пекарша Глаша", "sprite": "citizen3" },
+      { "name": "Старик Митрич", "sprite": "citizen4" }
+    ]
+  }
+}

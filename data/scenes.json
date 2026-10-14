@@ -1,8 +1,8 @@
 {
-  "_doc": "Сценки Эмберхолла. Позиции — смещения в тайлах от TOWN. Тексты, периоды (сек) и радиус показа (px) настраиваются здесь.",
+  "_doc": "Сценки Эмберхолла. Позиции — смещения в тайлах от TOWN (см. shared/town.ts): драка и бард — на террасе таверны, музыканты — у фонтана, дети — на площади. Тексты, периоды (сек) и радиус показа (px) настраиваются здесь.",
   "nearRadius": 520,
   "brawl": {
-    "at": [-9, 3], "gap": 1.1, "period": 16, "fightSec": 6, "breakupSec": 3,
+    "at": [-19, -2], "gap": 1.1, "period": 16, "fightSec": 6, "breakupSec": 3,
     "patrons": [{ "sprite": "warrior", "tint": "0xd9a070" }, { "sprite": "rogue", "tint": "0xa0c080" }],
     "barmaid": { "sprite": "merchant", "tint": "0xffa0a0", "dx": 2.2 },
     "fightLines": ["Да я тебя!", "Ик! Ну иди сюда!", "Кто тут пьян?!", "Получай!"],
@@ -10,18 +10,18 @@
     "barmaidLines": ["Хватит, буяны!", "Не в мою смену!"]
   },
   "bard": {
-    "at": [5, 4], "sprite": "mage", "tint": "0xffd0a0", "noteEvery": 0.9, "lineEvery": 7, "lineSec": 4,
+    "at": [-14, -2], "sprite": "mage", "tint": "0xffd0a0", "noteEvery": 0.9, "lineEvery": 7, "lineSec": 4,
     "lines": ["Эмберхолл, мой дом родной...", "Ла-ла, огонь в очаге горит!", "О герое песнь сложу я!", "Пусть вино течёт рекой!", "Тра-ля-ля, дракон ушёл!"]
   },
   "musicians": {
-    "at": [-1, 2], "noteEvery": 0.7, "lineEvery": 9, "lineSec": 3,
+    "at": [-5, 4], "noteEvery": 0.7, "lineEvery": 9, "lineSec": 3,
     "players": [{ "sprite": "ranger", "tint": "0xe0b080", "dx": -1.2, "instrument": "лютня" }, { "sprite": "rogue", "tint": "0xb0b0e0", "dx": 1.2, "instrument": "барабан" }],
     "crowd": { "sprite": "healer", "tint": "0xf0c0d0", "dx": 0, "dy": 2.2 },
     "crowdLines": ["Браво!", "Ещё давайте!", "Славно играют!"],
     "lines": ["Тум-тум-тум!", "Бренчим для вас!"]
   },
   "kids": {
-    "at": [-8, -5], "radius": [2.6, 1.8], "speed": 0.9, "scale": 0.62, "lineEvery": 6, "lineSec": 2,
+    "at": [4, 4], "radius": [2.2, 1.4], "speed": 0.9, "scale": 0.62, "lineEvery": 6, "lineSec": 2,
     "sprites": [{ "sprite": "merchant", "tint": "0xffe080" }, { "sprite": "warrior", "tint": "0x90d0ff" }, { "sprite": "healer", "tint": "0xffa0c0" }],
     "lines": ["Хи-хи!", "Не догонишь!", "Ха-ха-ха!", "Ловлю!", "Чур, не я!"]
   }

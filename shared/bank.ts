@@ -37,6 +37,7 @@ export const BANKER = {
   tint: Number(data.banker.tint),
   color: data.banker.color,
   greeting: data.banker.greeting,
-  x: (TOWN.x + 8) * TILE + 16,
-  y: (TOWN.y - 2) * TILE + 16,
+  // на крыльце банка, перед дверями
+  x: (TOWN.x - 17) * TILE,
+  y: (TOWN.y + 7) * TILE + 16,
 };

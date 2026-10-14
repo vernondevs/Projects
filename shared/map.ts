@@ -5,6 +5,9 @@
  * результат был побитово одинаковым в браузере и в Node.
  */
 import { MAP_H, MAP_W, TILE } from "./constants";
+import { BUILDINGS, inTownRect, isGate, STALLS, TOWERS, TOWN, TOWN_HALF, townGround, WALL } from "./town";
+
+export { TOWN } from "./town";
 
 /** Типы поверхности в порядке отрисовки: следующий рисуется краем поверх предыдущего. */
 export enum T {
@@ -31,12 +34,15 @@ export enum Zone {
   Ashlands,
   Dungeon,
   Arena,
+  Frontier,
 }
 export interface ZoneInfo {
   name: string;
   levels: [number, number];
   safe: boolean;
   mobs: string[];
+  /** Подпись под названием зоны вместо уровней. */
+  note?: string;
 }
 export const ZONES: ZoneInfo[] = [
   { name: "Город Эмберхолл", levels: [0, 0], safe: true, mobs: [] },
@@ -46,7 +52,11 @@ export const ZONES: ZoneInfo[] = [
   { name: "Пепельная пустошь", levels: [22, 26], safe: false, mobs: ["imp", "golem", "skeleton"] },
   { name: "Пепельные чертоги", levels: [26, 30], safe: false, mobs: ["skeleton_knight", "imp", "golem"] },
   { name: "Арена", levels: [0, 0], safe: false, mobs: [] },
+  { name: "Неизведанные земли", levels: [0, 0], safe: false, mobs: [], note: "Дикие края, сюда ещё не добрались" },
 ];
+
+/** Версия раскладки мира: при смене позиции из старых сохранений сбрасываются к точке появления. */
+export const MAP_VERSION = 2;
 
 export const CELL_BLOCK = 1;
 export const CELL_WALL = 2;
@@ -101,11 +111,26 @@ export const OBJECT_FOOTPRINT: Record<string, { w: number; h: number } | undefin
   lamp: { w: 1, h: 1 },
   well: { w: 1, h: 1 },
   barrel: { w: 1, h: 1 },
+  stall_blue: { w: 2, h: 1 },
+  stall_green: { w: 2, h: 1 },
+  wall_h: { w: 1, h: 1 },
+  wall_v: { w: 1, h: 1 },
+  tower: { w: 2, h: 2 },
+  tavern: { w: 7, h: 4 },
+  bank: { w: 6, h: 4 },
+  forge: { w: 5, h: 3 },
+  arena_gate: { w: 4, h: 2 },
+  anvil: { w: 1, h: 1 },
+  cauldron: { w: 1, h: 1 },
+  dummy: { w: 1, h: 1 },
+  weapon_rack: { w: 1, h: 1 },
+  hay: { w: 1, h: 1 },
 };
 
-export const TOWN = { x: 36, y: 70 };
-const DUNGEON = { x0: 120, y0: 52, x1: 176, y1: 90 };
-const DUNGEON_ROOMS: [number, number, number, number][] = [
+/** Сдвиг данжа относительно прежней карты 180×140 (данж нарисован вручную и не масштабируется). */
+const DG = { x: 82, y: 50 };
+const DUNGEON = { x0: 120 + DG.x, y0: 52 + DG.y, x1: 176 + DG.x, y1: 90 + DG.y };
+const DUNGEON_ROOMS = ([
   [122, 66, 133, 77], // прихожая
   [120, 70, 124, 73], // ворота
   [133, 70, 141, 73],
@@ -114,25 +139,42 @@ const DUNGEON_ROOMS: [number, number, number, number][] = [
   [143, 68, 148, 76],
   [151, 70, 157, 73],
   [156, 59, 175, 84], // зал босса
-];
-const LAVA_POOLS: [number, number, number][] = [
+] as const).map(([x0, y0, x1, y1]) => [x0 + DG.x, y0 + DG.y, x1 + DG.x, y1 + DG.y] as [number, number, number, number]);
+const LAVA_POOLS: [number, number, number][] = ([
   [145.5, 61.5, 2.6],
   [146, 81.5, 2.4],
   [127.5, 74.5, 1.6],
   [160.5, 63.5, 1.8],
   [160.5, 79.5, 1.8],
-];
+] as const).map(([x, y, r]) => [x + DG.x, y + DG.y, r] as [number, number, number]);
+/**
+ * Освоенная часть мира (зоны 1–30). Вокруг неё — «Неизведанные земли» под будущие города и биомы:
+ * запад (пустыня), север (снега), восток (вулкан), юг (побережье и подводный мир).
+ */
+export const CORE = { x0: 52, y0: 36, x1: 268, y1: 204 };
+/** Масштаб освоенной части относительно прежней карты (границы зон, уровни мобов). */
+const S = 1.2;
+const sx = (x: number) => CORE.x0 + x * S, sy = (y: number) => CORE.y0 + y * S;
+const HUB = { x: 136, y: 121 };
 const ROADS: [number, number][][] = [
-  [[TOWN.x + 12, TOWN.y], [70, 71], [98, 71], [121, 71.5]],
-  [[70, 71], [76, 52], [96, 34], [124, 24], [142, 20]],
-  [[70, 71], [77, 92], [100, 110], [124, 119], [142, 121]],
-  [[TOWN.x - 12, TOWN.y], [12, 72]],
+  [[TOWN.x + TOWN_HALF.x, TOWN.y + 0.5], [HUB.x, HUB.y], [170, 121], [DUNGEON.x0, 121.5]],
+  [[HUB.x, HUB.y], [143, 98], [167, 77], [201, 65], [222, 60]],
+  [[HUB.x, HUB.y], [144, 146], [172, 168], [201, 179], [222, 181]],
+  [[TOWN.x - TOWN_HALF.x, TOWN.y + 0.5], [40, 122], [3, 120]],
+  [[TOWN.x + 0.5, TOWN.y - TOWN_HALF.y], [88, 70], [92, 3]],
+  [[TOWN.x + 0.5, TOWN.y + TOWN_HALF.y + 1], [88, 175], [91, 237]],
 ];
 export const BOSS_SPAWNS: BossSpawn[] = [
-  { id: "ent", x: 152 * TILE, y: 20 * TILE, arena: 10 * TILE },
-  { id: "witch", x: 152 * TILE, y: 121 * TILE, arena: 10 * TILE },
-  { id: "ashlord", x: 168 * TILE, y: 71.5 * TILE, arena: 12 * TILE },
+  { id: "ent", x: 234 * TILE, y: 60 * TILE, arena: 10 * TILE },
+  { id: "witch", x: 234 * TILE, y: 181 * TILE, arena: 10 * TILE },
+  { id: "ashlord", x: (168 + DG.x) * TILE, y: (71.5 + DG.y) * TILE, arena: 12 * TILE },
 ];
+/** Расстояние в тайлах от точки (в тайлах) до прямоугольника города (0 внутри). */
+export function townDist(x: number, y: number): number {
+  const ex = Math.max(0, Math.abs(x - (TOWN.x + 0.5)) - TOWN_HALF.x - 0.5);
+  const ey = Math.max(0, Math.abs(y - (TOWN.y + 0.5)) - TOWN_HALF.y - 0.5);
+  return Math.sqrt(ex * ex + ey * ey);
+}
 
 // ---------- шум и случайность ----------
 function hash(x: number, y: number, s: number): number {
@@ -193,12 +235,13 @@ function bossNear(x: number, y: number, extra: number): BossSpawn | null {
 
 export function zoneAt(x: number, y: number, seed: number): Zone {
   if (inDungeon(x, y)) return Zone.Dungeon;
-  const dx = x - TOWN.x, dy = y - TOWN.y;
-  if (dx * dx + dy * dy < 15 * 15) return Zone.Town;
-  const w = (fbm(x, y, seed + 5) - 0.5) * 30;
-  if (x + w > 98 && y + w * 0.5 > 44 && y + w * 0.5 < 97) return Zone.Ashlands;
-  if (x > 54 + w * 0.5 && y + w < 44) return Zone.Forest;
-  if (x > 54 + w * 0.5 && y + w > 97) return Zone.Swamp;
+  if (inTownRect(Math.floor(x) - TOWN.x, Math.floor(y) - TOWN.y)) return Zone.Town;
+  const e = (fbm(x, y, seed + 17) - 0.5) * 16;
+  if (x < CORE.x0 + e || x > CORE.x1 - e || y < CORE.y0 + e || y > CORE.y1 - e) return Zone.Frontier;
+  const w = (fbm(x, y, seed + 5) - 0.5) * 30 * S;
+  if (x + w > sx(98) && y + w * 0.5 > sy(44) && y + w * 0.5 < sy(97)) return Zone.Ashlands;
+  if (x > sx(54) + w * 0.5 && y + w < sy(44)) return Zone.Forest;
+  if (x > sx(54) + w * 0.5 && y + w > sy(97)) return Zone.Swamp;
   return Zone.Meadow;
 }
 
@@ -220,12 +263,17 @@ function terrainAt(x: number, y: number, seed: number): T {
   const arena = bossNear(x, y, 0);
   switch (z) {
     case Zone.Town: {
-      const dx = x - TOWN.x, dy = y - TOWN.y;
-      if (dx * dx + dy * dy < (6.5 + n * 1.5) ** 2) return T.Cobble;
-      if ((Math.abs(dx) < 1.6 && Math.abs(dy) < 13) || (Math.abs(dy) < 1.6 && Math.abs(dx) < 13)) return T.Cobble;
-      if (road < roadW) return T.Dirt;
-      return T.Grass;
+      // вершина dual grid — мостовая, если хоть одна из 4 соседних клеток мощёная
+      const vx = Math.round(x) - TOWN.x, vy = Math.round(y) - TOWN.y;
+      let dirt = false;
+      for (const [ox, oy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) {
+        const g = townGround(vx + ox, vy + oy);
+        if (g === "cobble") return T.Cobble;
+        if (g === "dirt") dirt = true;
+      }
+      return dirt ? T.Dirt : T.Grass;
     }
+    case Zone.Frontier:
     case Zone.Meadow: {
       if (road < roadW) return T.Dirt;
       const p = fbm(x, y, seed + 40);
@@ -259,6 +307,64 @@ function terrainAt(x: number, y: number, seed: number): T {
   return T.Grass;
 }
 
+type Place = (kind: string, x: number, y: number, jitter?: number) => void;
+
+/** Эмберхолл: стены с башнями и воротами, дома, таверна, кузница, банк, рынок, площадь с фонтаном. */
+function buildTown(seed: number, w: number, cell: Uint8Array, vtx: Uint8Array, objects: MapObject[], place: Place) {
+  const X = (dx: number) => TOWN.x + dx, Y = (dy: number) => TOWN.y + dy;
+  const fits = (kind: string, x: number, y: number) => {
+    const f = OBJECT_FOOTPRINT[kind] ?? { w: 1, h: 1 };
+    for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) if (cell[(y - j) * w + x + i] & CELL_BLOCK) return false;
+    return true;
+  };
+  const put = (kind: string, dx: number, dy: number) => {
+    if (fits(kind, X(dx), Y(dy))) place(kind, X(dx), Y(dy));
+  };
+  // башни и стены
+  const towerCells = new Set<number>();
+  for (const [dx, dy] of TOWERS) {
+    place("tower", X(dx), Y(dy));
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) towerCells.add((dy - j) * 1000 + dx + i);
+  }
+  const wallOk = (dx: number, dy: number) => !isGate(dx, dy) && !towerCells.has(dy * 1000 + dx);
+  for (let dx = -WALL.x; dx <= WALL.x; dx++) for (const dy of [-WALL.y, WALL.y]) if (wallOk(dx, dy)) place("wall_h", X(dx), Y(dy));
+  for (let dy = -WALL.y + 1; dy < WALL.y; dy++) for (const dx of [-WALL.x, WALL.x]) if (wallOk(dx, dy)) place("wall_v", X(dx), Y(dy));
+  for (const dy of [-WALL.y, WALL.y]) objects.push({ kind: "gate_arch", x: X(0) * TILE + 16, y: (Y(dy) + 1) * TILE - 2 });
+  // здания (двери проходимы — в них можно «зайти»)
+  for (const b of BUILDINGS) {
+    place(b.kind, X(b.x), Y(b.y));
+    for (const d of b.door ?? []) cell[Y(b.y) * w + X(b.x + d)] &= ~CELL_BLOCK;
+  }
+  place("fountain", X(-1), Y(0));
+  for (const s of STALLS) place(s.kind, X(s.x), Y(s.y));
+  const decor: [string, number, number][] = [
+    ["cauldron", -10, -5], ["barrel", -10, -6], ["crate", -3, -6], ["barrel", 9, -6], ["crate", 10, -6],
+    ["anvil", 19, -3], ["barrel", 20, -3], ["crate", 21, -3], ["hay", 21, -6], ["barrel", 13, -3],
+    ["barrel", -21, -3], ["barrel", -21, -4], ["crate", -13, -3], ["barrel", -13, -4],
+    ["lamp", -20, 7], ["lamp", -14, 7], ["barrel", -21, 3],
+    ["dummy", 14, 6], ["dummy", 20, 6], ["weapon_rack", 13, 4], ["weapon_rack", 20, 3],
+    ["lamp", -10, -7], ["lamp", 10, -7], ["lamp", -10, 7], ["lamp", 10, 7],
+    ["lamp", -3, -2], ["lamp", 3, -2], ["lamp", -2, 2], ["lamp", 2, 2],
+    ["oak", -10, 3], ["oak", -7, 6], ["oak", 8, 3], ["oak", 10, 5], ["pine", 7, 7], ["oak", -10, 7],
+    ["lamp", -2, -10], ["lamp", 2, -10], ["lamp", -13, -10], ["lamp", 13, -10],
+    ["lamp", -2, 10], ["lamp", 2, 10], ["lamp", -13, 10], ["lamp", 13, 10],
+    ["well", -9, 6],
+  ];
+  for (const [k, dx, dy] of decor) put(k, dx, dy);
+  // сады за домами и цветы во дворах
+  const r = rng(seed + 7);
+  for (let dy = -WALL.y + 1; dy < WALL.y; dy++) for (let dx = -WALL.x + 1; dx < WALL.x; dx++) {
+    const x = X(dx), y = Y(dy);
+    if (cell[y * w + x] & CELL_BLOCK || townGround(dx, dy) !== "grass") continue;
+    const garden = (dy >= -16 && dy <= -14) || (dy >= 10 && dy <= 12);
+    const roll = r();
+    if (garden && roll < 0.14 && townGround(dx, dy + 1) === "grass") place(roll < 0.1 ? "oak" : "pine", x, y, Math.floor((r() - 0.5) * 8));
+    else if (roll < (garden ? 0.24 : Math.abs(dx) <= 10 && dy >= 2 && dy <= 7 ? 0.07 : 0)) objects.push({ kind: "bush", x: x * TILE + 16, y: y * TILE + 30 });
+    else if (hash(x, y, seed + 3) < 0.16) objects.push({ kind: "flowers", x: x * TILE + 16, y: y * TILE + 30 });
+  }
+  void vtx;
+}
+
 export function generateMap(seed: number): WorldMap {
   const w = MAP_W, h = MAP_H;
   const vtx = new Uint8Array((w + 1) * (h + 1));
@@ -274,7 +380,7 @@ export function generateMap(seed: number): WorldMap {
     let f = 0;
     if (BLOCKING.has(terrainAt(cx, cy, seed))) f |= CELL_BLOCK;
     if (z === Zone.Dungeon && !inRooms(x, y)) f |= CELL_BLOCK | CELL_WALL;
-    if (z === Zone.Town || roadDist(cx, cy) < 2.2 || bossNear(cx, cy, 1)) f |= CELL_RESERVED;
+    if (z === Zone.Town || roadDist(cx, cy) < 2.2 || bossNear(cx, cy, 1) || townDist(cx, cy) < 3) f |= CELL_RESERVED;
     cell[i] = f;
   }
 
@@ -291,32 +397,7 @@ export function generateMap(seed: number): WorldMap {
     objects.push({ kind, x: (x + fw / 2) * TILE + jitter, y: (y + 1) * TILE - 2 });
   };
 
-  // Город: дома по кварталам, фонтан, лавка, фонари.
-  const T0 = TOWN;
-  place("fountain", T0.x - 1, T0.y);
-  place("house", T0.x - 12, T0.y - 6);
-  place("house_blue", T0.x + 7, T0.y - 6);
-  place("house_blue", T0.x - 12, T0.y + 7);
-  place("house", T0.x + 7, T0.y + 7);
-  place("stall", T0.x + 3, T0.y - 4);
-  place("well", T0.x - 5, T0.y + 4);
-  for (const [dx, dy] of [[-3, -3], [3, 3], [-3, 3], [3, -7], [-8, -2], [8, 2], [-2, -9], [2, 10], [10, -2], [-10, 2]])
-    place("lamp", T0.x + dx, T0.y + dy);
-  for (const [dx, dy] of [[-6, -4], [-7, -4], [6, 4], [12, 4], [-13, -1], [5, -8]]) place("barrel", T0.x + dx, T0.y + dy);
-  const r0 = rng(seed + 7);
-  for (let k = 0; k < 160; k++) {
-    const rr = 12 + r0() * 3;
-    // точка на окружности без тригонометрии: случайный вектор, нормированный к радиусу
-    const px = r0() * 2 - 1, py = r0() * 2 - 1, l = Math.sqrt(px * px + py * py) || 1;
-    const x = Math.floor(T0.x + (px / l) * rr), y = Math.floor(T0.y + (py / l) * rr);
-    if (roadDist(x + 0.5, y + 0.5) < 2.5) continue;
-    if (free(x, y) && !(at(x, y) & CELL_WALL) && r0() < 0.5) place(r0() < 0.7 ? "oak" : "bush", x, y);
-  }
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const dx = x - T0.x, dy = y - T0.y;
-    if (dx * dx + dy * dy < 13 * 13 && !(cell[y * w + x] & CELL_BLOCK) && vtx[y * (w + 1) + x] === T.Grass && hash(x, y, seed + 3) < 0.1)
-      objects.push({ kind: "flowers", x: x * TILE + 16, y: y * TILE + 30 });
-  }
+  buildTown(seed, w, cell, vtx, objects, place);
 
   // Природа по зонам.
   const r = rng(seed + 99);
@@ -334,7 +415,7 @@ export function generateMap(seed: number): WorldMap {
     const t = vtx[y * (w + 1) + x];
     const z = zone[i];
     const nearWater = (at(x + 1, y) | at(x - 1, y) | at(x, y + 1) | at(x, y - 1)) & CELL_BLOCK;
-    if (z === Zone.Meadow) {
+    if (z === Zone.Meadow || z === Zone.Frontier) {
       if (t === T.Forest && roll < 0.16) place(roll < 0.08 ? "pine" : "oak", x, y, jit);
       else if (roll < 0.022) place("oak", x, y, jit);
       else if (roll < 0.04) objects.push({ kind: "bush", x: x * TILE + 16 + jit, y: y * TILE + 30 });
@@ -369,35 +450,36 @@ export function generateMap(seed: number): WorldMap {
   }
   // Данж: колонны, факелы на стенах.
   for (const [px, py] of [[142, 58], [149, 58], [142, 66], [149, 66], [142, 77], [149, 77], [142, 85], [149, 85], [159, 62], [172, 62], [159, 81], [172, 81]])
-    place("pillar", px, py);
+    place("pillar", px + DG.x, py + DG.y);
   for (let y = DUNGEON.y0; y < DUNGEON.y1 - 1; y++) for (let x = DUNGEON.x0; x < DUNGEON.x1; x++) {
     const wall = at(x, y) & CELL_WALL, below = at(x, y + 1) & CELL_WALL;
     if (wall && !below && hash(x, y, seed + 9) < 0.22) objects.push({ kind: "torch", x: x * TILE + 16, y: y * TILE + 26 });
   }
-  objects.push({ kind: "torch", x: 120 * TILE + 16, y: 69 * TILE + 26 }, { kind: "torch", x: 120 * TILE + 16, y: 74 * TILE - 6 });
+  objects.push({ kind: "torch", x: DUNGEON.x0 * TILE + 16, y: (69 + DG.y) * TILE + 26 }, { kind: "torch", x: DUNGEON.x0 * TILE + 16, y: (74 + DG.y) * TILE - 6 });
 
   // Точки появления мобов.
   const spawns: SpawnPoint[] = [];
-  const quota: Record<number, number> = { [Zone.Meadow]: 56, [Zone.Forest]: 46, [Zone.Swamp]: 44, [Zone.Ashlands]: 22, [Zone.Dungeon]: 30 };
+  const quota: Record<number, number> = { [Zone.Meadow]: 76, [Zone.Forest]: 64, [Zone.Swamp]: 62, [Zone.Ashlands]: 30, [Zone.Dungeon]: 30 };
   const rs = rng(seed + 555);
   const taken: { x: number; y: number }[] = [];
   let guard = 0;
-  while (Object.values(quota).some((q) => q > 0) && guard++ < 60000) {
+  while (Object.values(quota).some((q) => q > 0) && guard++ < 300000) {
     const x = 2 + Math.floor(rs() * (w - 4)), y = 2 + Math.floor(rs() * (h - 4));
     const i = y * w + x;
     const z = zone[i] as Zone;
     if (!quota[z] || cell[i] & CELL_BLOCK) continue;
     if (z !== Zone.Dungeon && cell[i] & CELL_RESERVED && roadDist(x + 0.5, y + 0.5) < 2.2 && rs() < 0.8) continue;
     if (bossNear(x, y, 4)) continue;
-    const dt = Math.sqrt((x - TOWN.x) ** 2 + (y - TOWN.y) ** 2);
-    if (dt < 20) continue;
+    // вокруг стен — полоса без мобов (стражи и так их не пустят)
+    const dt = townDist(x + 0.5, y + 0.5);
+    if (dt < 11) continue;
     if (taken.some((p) => (p.x - x) ** 2 + (p.y - y) ** 2 < 16)) continue;
     const info = ZONES[z];
     const [lo, hi] = info.levels;
     let k: number;
-    if (z === Zone.Meadow) k = Math.min(1, (dt - 20) / 50);
-    else if (z === Zone.Dungeon) k = (x - DUNGEON.x0) / (156 - DUNGEON.x0);
-    else k = Math.min(1, Math.max(0, (x - 54) / 110));
+    if (z === Zone.Meadow) k = Math.min(1, (dt - 11) / 58);
+    else if (z === Zone.Dungeon) k = (x - DUNGEON.x0) / (156 - 120);
+    else k = Math.min(1, Math.max(0, (x - sx(54)) / (110 * S)));
     const level = Math.max(lo, Math.min(hi, Math.round(lo + (hi - lo) * k + (rs() - 0.5) * 2)));
     const mobs = info.mobs;
     // первый моб в списке зоны слабее и чаще ближе к началу
@@ -417,8 +499,9 @@ export function generateMap(seed: number): WorldMap {
     objects,
     spawns,
     bosses: BOSS_SPAWNS,
-    playerSpawn: { x: TOWN.x * TILE + 16, y: (TOWN.y + 4) * TILE + 16 },
-    merchant: { x: (TOWN.x + 4) * TILE, y: (TOWN.y - 3) * TILE + 8 },
+    playerSpawn: { x: TOWN.x * TILE + 16, y: (TOWN.y + 3) * TILE + 16 },
+    // торговка Марфа — за прилавком на рынке (прилавок STALLS[2])
+    merchant: { x: (TOWN.x + 5) * TILE, y: (TOWN.y - 5) * TILE + 8 },
   };
 }
 

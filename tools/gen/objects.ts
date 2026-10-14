@@ -2,6 +2,7 @@
 import { PC, hash01, hex, mix, rng, shade, withA, type RGBA, type Ramp } from "./canvas";
 import { P } from "./palette";
 import { FOOD } from "../../shared/food";
+import { TOWN_ART } from "./town";
 
 type Art = () => PC;
 
@@ -287,6 +288,7 @@ export const OBJECT_ART: Record<string, Art> = {
   flowers: () => tuft("flowers"), tallgrass: () => tuft("tallgrass"), fern: () => tuft("fern"), reeds: () => tuft("reeds"),
   mushrooms: mushrooms(false), mushrooms_glow: mushrooms(true), lilypad, bones, ember_vent: emberVent, crystal,
   bag: bag(false), bag_boss: bag(true),
+  ...TOWN_ART,
 };
 
 // ---------------- иконки 32×32 ----------------

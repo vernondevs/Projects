@@ -1,6 +1,7 @@
 import { CLASSES, type ClassId, type StatKey } from "../../../shared/classes";
 import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
+import { MAP_VERSION } from "../../../shared/map";
 import { derive, xpToNext, type Derived } from "../../../shared/formulas";
 import { FOOD } from "../../../shared/food";
 import { MOUNTS } from "../../../shared/mounts";
@@ -29,6 +30,7 @@ export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSa
     equip,
     x: spawn.x,
     y: spawn.y,
+    mapVer: MAP_VERSION,
     hp: -1,
     mp: -1,
     kills: 0,
@@ -245,6 +247,7 @@ export class Player {
     const s = this.save;
     s.x = this.dead ? spawn.x : this.unit.x;
     s.y = this.dead ? spawn.y : this.unit.y;
+    s.mapVer = MAP_VERSION;
     s.hp = this.dead ? -1 : this.unit.hp;
     s.mp = this.unit.mp;
     return s;

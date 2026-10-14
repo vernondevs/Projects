@@ -38,7 +38,7 @@ const get = (w: World) => encs.get(w) ?? encs.set(w, new Map()).get(w)!;
 
 const npcDef = (k: "traveler" | "merchant") => D[k].npc as { name: string; sprite: string; tint: string; color: string; icon: string; lying?: boolean };
 const classPool = (p: Player) => EQUIP_BASES.filter((b) => !BASE_ITEMS[b].classes || BASE_ITEMS[b].classes!.includes(p.cls));
-const badZone = (z: Zone) => z === Zone.Town || z === Zone.Dungeon || z === Zone.Arena;
+const badZone = (z: Zone) => z === Zone.Town || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Frontier;
 
 /** Подходящая точка рядом с игроком: проходимая, не в городе/подземелье, по возможности у дороги. */
 function findSpot(w: World, p: Player): { x: number; y: number } | null {

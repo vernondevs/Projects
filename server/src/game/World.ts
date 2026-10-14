@@ -18,6 +18,7 @@ import { rogueProc } from "./rogue";
 import { grantKillRewards } from "./rewards";
 import { tickEncounters } from "./encounters";
 import { Mob } from "./Mob";
+import { Townfolk } from "./townfolk";
 import { grantPets, mobAttackPet, tickPetCast, updatePet, dismissPet, type Pet } from "./Pet";
 import type { Player } from "./Player";
 
@@ -71,6 +72,8 @@ export class World {
   private timers: { at: number; fn: () => void }[] = [];
   private nextId = 1;
   /** Постоянные зоны урона (лужи яда, огонь). */
+  /** Стражники и горожане города (только в мире, не на арене). */
+  town: Townfolk | null = null;
   hazards: { id: string; x: number; y: number; r: number; until: number; dps: number; kind: FxKind; owner: Mob; tickAt: number }[] = [];
 
   constructor(
@@ -80,6 +83,7 @@ export class World {
   ) {
     this.map = opts.map ?? generateMap(MAP_SEED);
     if (opts.mobs !== false) this.spawnAll();
+    if (opts.mobs !== false && !opts.map) this.town = new Townfolk(this);
   }
 
   // ---------- инфраструктура ----------
@@ -177,6 +181,7 @@ export class World {
     for (const p of this.players.values()) this.updatePlayer(p, dt);
     for (const m of this.mobs.values()) this.updateMob(m, dt);
     for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
+    this.town?.update(dt);
     this.updateHazards();
     if (this.opts.mobs !== false) tickEncounters(this);
     this.flush();

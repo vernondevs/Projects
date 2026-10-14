@@ -8,7 +8,7 @@ import { DEPTH } from "./terrain";
 import { mountSprite } from "../../../shared/mounts";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
-const MELEE = new Set(["pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
+const MELEE = new Set(["guard", "pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
 const rowOf = (dir: number) => (dir === Dir.Down ? 0 : dir === Dir.Up ? 1 : 2);
 
 export class UnitView {
@@ -39,6 +39,8 @@ export class UnitView {
   dead = false;
   selected = false;
   hovered = false;
+  /** Городской NPC (стражник, горожанин): не цель, без полоски здоровья. */
+  readonly npc: boolean;
 
   constructor(
     readonly scene: Phaser.Scene,
@@ -48,6 +50,7 @@ export class UnitView {
   ) {
     this.x = u.x;
     this.y = u.y;
+    this.npc = u.kind === UnitKind.Guard || u.kind === UnitKind.Citizen;
     const tex = scene.textures.exists(`u_${u.sprite}`) ? `u_${u.sprite}` : "u_slime";
     this.frame = scene.textures.get(tex).get(0).width;
     const big = this.frame > 32;
@@ -59,9 +62,10 @@ export class UnitView {
       this.shadow.setScale(0.8);
     }
     this.lastAseq = u.aseq;
-    const color = u.kind === UnitKind.Player ? (isSelf ? "#ffe9a8" : "#a8e0ff") : u.kind === UnitKind.Boss ? "#ff8a5a" : u.kind === UnitKind.Pet ? "#8ae88a" : "#f0e6d2";
+    const color = u.kind === UnitKind.Player ? (isSelf ? "#ffe9a8" : "#a8e0ff") : u.kind === UnitKind.Boss ? "#ff8a5a" : u.kind === UnitKind.Pet ? "#8ae88a"
+      : u.kind === UnitKind.Guard ? "#ffc861" : u.kind === UnitKind.Citizen ? "#d8cfc0" : "#f0e6d2";
     this.label = scene.add
-      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "11px" : u.kind === UnitKind.Pet ? "8px" : "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 })
+      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "11px" : u.kind === UnitKind.Pet || u.kind === UnitKind.Citizen ? "8px" : "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 })
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.top - 5);
     this.bar = scene.add.graphics().setDepth(DEPTH.top - 6);
@@ -79,7 +83,7 @@ export class UnitView {
   private labelText() {
     const u = this.u;
     if (u.kind === UnitKind.Mob) return `${u.name} · ${u.level}`;
-    if (u.kind === UnitKind.Boss) return `${u.name}`;
+    if (u.kind === UnitKind.Boss || u.kind === UnitKind.Guard || u.kind === UnitKind.Citizen) return u.name;
     if (u.kind === UnitKind.Pet) return `${u.name} (${net.unit(u.ownerId)?.name ?? "?"}) · ${u.level}`;
     return `${u.name} · ${u.level}`;
   }
@@ -122,6 +126,12 @@ export class UnitView {
       if (dx * dx + dy * dy > 160 * 160) {
         this.x = u.x;
         this.y = u.y;
+      } else if (this.npc) {
+        // стражники и горожане шлют позицию редко (5 раз в секунду): ровное движение к ней
+        const d = Math.hypot(dx, dy);
+        const k = d > 0.01 ? Math.min(1, (Math.max(40, d * 5) * dt) / d) : 1;
+        this.x += dx * k;
+        this.y += dy * k;
       } else {
         const k = Math.min(1, dt * 12);
         this.x += dx * k;
@@ -235,7 +245,7 @@ export class UnitView {
     else if (b & BUFF_POISON) this.sprite.setTint(0xb0ff90);
     else if (b & BUFF_BURN) this.sprite.setTint(0xffb080);
     else if (b & BUFF_ENRAGE) this.sprite.setTint(0xff8a7a);
-    else if (this.hovered && u.kind !== UnitKind.Player) this.sprite.setTint(0xffe0c0);
+    else if (this.hovered && u.kind !== UnitKind.Player && !this.npc) this.sprite.setTint(0xffe0c0);
     else this.sprite.clearTint();
 
     const auraOn = (!!(b & (BUFF_WARCRY | BUFF_HASTE | BUFF_ENRAGE)) || !!u.elite) && !this.dead;
@@ -250,7 +260,7 @@ export class UnitView {
     } else this.stun?.setVisible(false);
 
     // полоска здоровья
-    const showBar = !this.dead && (u.kind !== UnitKind.Player || u.hp < u.maxHp || this.isSelf);
+    const showBar = !this.dead && !this.npc && (u.kind !== UnitKind.Player || u.hp < u.maxHp || this.isSelf);
     if (!showBar) this.bar.clear();
     else if (u.hp !== this.lastHp || true) {
       this.lastHp = u.hp;

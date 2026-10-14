@@ -32,6 +32,7 @@ export const COOK = {
   tint: Number(data.cook.tint),
   color: data.cook.color,
   greeting: data.cook.greeting,
-  x: (TOWN.x - 4) * TILE + 16,
-  y: (TOWN.y + 5) * TILE + 16,
+  // за зелёным прилавком на рынке, рядом котёл
+  x: (TOWN.x - 8) * TILE,
+  y: (TOWN.y - 5) * TILE + 8,
 };

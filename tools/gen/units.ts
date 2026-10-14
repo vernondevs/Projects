@@ -545,6 +545,27 @@ const SPECS: Record<string, HSpec> = {
     skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: P.cloth.red, legs: P.cloth.black, boots: P.leather, belt: P.gold,
     head: "helmet", headRamp: P.gold, weapon: "sword", shield: P.cloth.red, armorPlates: P.gold, cape: P.cloth.red, beard: P.hair.black,
   },
+  /** Стражник Эмберхолла: латы, алый табард с золотом, шлем, меч и щит в цветах города. */
+  guard: {
+    skin: P.skin, hair: P.hair.brown, hairStyle: "short", torso: ramp_("#5a1018", "#8a1c24", "#b8302e", "#e05a40"), legs: P.steel, boots: P.darkSteel, belt: P.gold,
+    head: "helmet", headRamp: P.steel, weapon: "sword", shield: ramp_("#6a4210", "#a8681c", "#e0a630", "#ffd864"), armorPlates: P.steel, cape: P.cloth.red, beard: P.hair.brown,
+  },
+  citizen1: {
+    skin: P.skin, hair: P.hair.brown, hairStyle: "long", torso: P.cloth.green, legs: P.cloth.brown, boots: P.leather, belt: P.leather,
+    robe: ramp_("#3a4a22", "#56683a", "#768a52", "#98ac6e"), weapon: "none", bodyW: 10,
+  },
+  citizen2: {
+    skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: ramp_("#5a3a14", "#8a5a22", "#b07e34", "#d4a24e"), legs: P.cloth.brown, boots: P.leather, belt: P.cloth.brown,
+    head: "cap", headRamp: P.cloth.blue, weapon: "none", bodyW: 10, beard: P.hair.black,
+  },
+  citizen3: {
+    skin: P.skin, hair: P.hair.blond, hairStyle: "long", torso: P.cloth.purple, legs: P.cloth.purple, boots: P.leather, robe: ramp_("#4a2a4a", "#6e3e6a", "#94588c", "#b67aae"),
+    apron: ramp_("#8a7a60", "#b8a684", "#d8c8a4", "#efe2c4"), weapon: "none", bodyW: 10,
+  },
+  citizen4: {
+    skin: P.skin, hair: P.hair.white, hairStyle: "short", torso: P.cloth.rag, legs: P.cloth.brown, boots: P.leather, belt: P.leather,
+    head: "hood", headRamp: P.cloth.brown, weapon: "none", bodyW: 11, beard: P.hair.white,
+  },
   goblin: {
     skin: P.goblin, torso: P.cloth.rag, legs: P.cloth.brown, boots: P.leather, belt: P.leather, ears: true, weapon: "dagger", legLen: 5, headR: 6, bodyW: 9,
     eye: hex("#ffd040"), hairStyle: "none",
@@ -635,6 +656,11 @@ export const UNIT_ART: Record<string, UnitArt> = {
   rogue: humanoidArt(SPECS.rogue),
   merchant: humanoidArt(SPECS.merchant),
   arenamaster: humanoidArt(SPECS.arenamaster),
+  guard: humanoidArt(SPECS.guard),
+  citizen1: humanoidArt(SPECS.citizen1),
+  citizen2: humanoidArt(SPECS.citizen2),
+  citizen3: humanoidArt(SPECS.citizen3),
+  citizen4: humanoidArt(SPECS.citizen4),
   goblin: humanoidArt(SPECS.goblin),
   goblin_shaman: humanoidArt(SPECS.goblin_shaman),
   skeleton: humanoidArt(SPECS.skeleton),

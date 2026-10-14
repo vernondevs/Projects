@@ -2,8 +2,8 @@ export const GAME_TITLE = "Пепельный Предел";
 
 /** Размер тайла и базовая сетка пиксель-арта. */
 export const TILE = 32;
-export const MAP_W = 180;
-export const MAP_H = 140;
+export const MAP_W = 320;
+export const MAP_H = 240;
 export const MAP_SEED = 20261014;
 
 /** Сервер: частота симуляции и рассылки патчей. */

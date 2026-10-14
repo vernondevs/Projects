@@ -36,6 +36,21 @@
   "arenamaster": {
    "frame": 32
   },
+  "guard": {
+   "frame": 32
+  },
+  "citizen1": {
+   "frame": 32
+  },
+  "citizen2": {
+   "frame": 32
+  },
+  "citizen3": {
+   "frame": 32
+  },
+  "citizen4": {
+   "frame": 32
+  },
   "goblin": {
    "frame": 32
   },
@@ -195,6 +210,66 @@
    "h": 32
   },
   "bag_boss": {
+   "w": 32,
+   "h": 32
+  },
+  "wall_h": {
+   "w": 32,
+   "h": 56
+  },
+  "wall_v": {
+   "w": 32,
+   "h": 56
+  },
+  "tower": {
+   "w": 64,
+   "h": 136
+  },
+  "gate_arch": {
+   "w": 96,
+   "h": 92
+  },
+  "tavern": {
+   "w": 224,
+   "h": 184
+  },
+  "bank": {
+   "w": 192,
+   "h": 168
+  },
+  "forge": {
+   "w": 160,
+   "h": 140
+  },
+  "arena_gate": {
+   "w": 128,
+   "h": 132
+  },
+  "stall_blue": {
+   "w": 64,
+   "h": 72
+  },
+  "stall_green": {
+   "w": 64,
+   "h": 72
+  },
+  "anvil": {
+   "w": 32,
+   "h": 32
+  },
+  "cauldron": {
+   "w": 32,
+   "h": 36
+  },
+  "dummy": {
+   "w": 32,
+   "h": 48
+  },
+  "weapon_rack": {
+   "w": 32,
+   "h": 48
+  },
+  "hay": {
    "w": 32,
    "h": 32
   }

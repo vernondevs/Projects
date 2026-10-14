@@ -14,8 +14,8 @@ export interface RumorNpc {
   y: number;
 }
 
-/** Смещения от центра города (в тайлах): у площади, вокруг фонтана. */
-const AT: Record<string, [number, number]> = { marta: [4, 1], ivor: [-5, 0], lei: [3, 6] };
+/** Смещения от центра города (в тайлах): Марта — на рынке, Ивор — у северных ворот, Лей — в сквере. */
+const AT: Record<string, [number, number]> = { marta: [2, -4], ivor: [6, -17], lei: [-9, 3] };
 
 export const RUMOR_NPCS: RumorNpc[] = Object.entries(data.npcs).map(([id, n]) => ({
   id,

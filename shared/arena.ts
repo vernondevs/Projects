@@ -3,10 +3,10 @@ import { TILE } from "./constants";
 import type { ClassId } from "./classes";
 import { CELL_BLOCK, CELL_WALL, T, TOWN, Zone, type WorldMap } from "./map";
 
-/** Распорядитель арены в городе (рядом с площадью, напротив торговки). */
+/** Распорядитель арены в городе: у врат арены во дворе восточного квартала (shared/town.ts). */
 export const ARENA_NPC = {
-  x: (TOWN.x - 6) * TILE + 16,
-  y: (TOWN.y - 2) * TILE,
+  x: (TOWN.x + 17) * TILE,
+  y: (TOWN.y + 6) * TILE + 16,
 };
 
 export type ArenaMode = "1v1" | "2v2";

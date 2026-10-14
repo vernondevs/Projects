@@ -29,6 +29,7 @@ export const SMITH = {
   tint: Number(data.smith.tint),
   color: data.smith.color,
   greeting: data.smith.greeting,
-  x: (TOWN.x - 2) * TILE + 16,
-  y: (TOWN.y - 5) * TILE + 16,
+  // во дворе кузницы, у наковальни
+  x: (TOWN.x + 18) * TILE + 16,
+  y: (TOWN.y - 2) * TILE + 16,
 };
