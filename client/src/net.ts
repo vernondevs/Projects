@@ -57,6 +57,7 @@ export interface UnitState {
   team: number;
   title: string;
   frame: string;
+  elite: number;
 }
 
 export function serverUrl(): string {

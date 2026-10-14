@@ -170,6 +170,14 @@ export class UnitView {
     const showName = !this.dead && this.label.visible;
     this.titleText.setVisible(showName && !!u.title).setPosition(Math.round(this.x), Math.round(top - 13));
     this.frameGfx.clear();
+    if (u.elite && showName) {
+      const w = this.label.width + 6, h = 11;
+      const fx = Math.round(this.x - w / 2), fy = Math.round(top - 4 - h + 1);
+      this.frameGfx.fillStyle(0x120a10, 0.55).fillRoundedRect(fx, fy, w, h, 3);
+      this.frameGfx.lineStyle(1, 0xf0c040, 1).strokeRoundedRect(fx, fy, w, h, 3);
+      this.frameGfx.fillStyle(0xf0c040, 1).fillRect(fx - 2, fy + h / 2 - 1, 2, 2).fillRect(fx + w, fy + h / 2 - 1, 2, 2);
+      if (this.lastColor !== "#ffd24a") { this.lastColor = "#ffd24a"; this.label.setColor("#ffd24a"); }
+    }
     const rank = u.frame ? rankById(u.frame) : undefined;
     if (rank && showName) {
       const w = this.label.width + 6, h = 11;
@@ -191,11 +199,11 @@ export class UnitView {
     else if (this.hovered && u.kind !== UnitKind.Player) this.sprite.setTint(0xffe0c0);
     else this.sprite.clearTint();
 
-    const auraOn = !!(b & (BUFF_WARCRY | BUFF_HASTE | BUFF_ENRAGE)) && !this.dead;
+    const auraOn = (!!(b & (BUFF_WARCRY | BUFF_HASTE | BUFF_ENRAGE)) || !!u.elite) && !this.dead;
     if (auraOn && !this.aura) this.aura = this.scene.add.image(0, 0, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35);
     if (this.aura) {
       this.aura.setVisible(auraOn).setPosition(this.x, this.y - 12).setDepth(this.y - 1).setScale(this.frame > 32 ? 2.2 : 1.1);
-      this.aura.setTint(b & BUFF_ENRAGE ? 0xff3a1a : b & BUFF_WARCRY ? 0xff6a3a : 0x6aff8a);
+      this.aura.setTint(u.elite && !(b & BUFF_ENRAGE) ? 0xf0c040 : b & BUFF_ENRAGE ? 0xff3a1a : b & BUFF_WARCRY ? 0xff6a3a : 0x6aff8a);
     }
     if (b & BUFF_STUN && !this.dead) {
       this.stun ??= this.scene.add.text(0, 0, "✦ ✦", { fontFamily: FONT, fontSize: "8px", color: "#fff070", stroke: "#000", strokeThickness: 2, resolution: 4 }).setOrigin(0.5).setDepth(DEPTH.top - 4);
@@ -207,11 +215,12 @@ export class UnitView {
     if (!showBar) this.bar.clear();
     else if (u.hp !== this.lastHp || true) {
       this.lastHp = u.hp;
-      const w = this.frame > 32 ? 44 : 22;
+      const w = (this.frame > 32 ? 44 : 22) + (u.elite ? 8 : 0);
       const bx = Math.round(this.x - w / 2), by = Math.round(top - 2);
       const k = Math.max(0, Math.min(1, u.hp / Math.max(1, u.maxHp)));
       this.bar.clear();
-      this.bar.fillStyle(0x0a0608, 0.9).fillRect(bx - 1, by - 1, w + 2, 4);
+      this.bar.fillStyle(u.elite ? 0xf0c040 : 0x0a0608, 0.9).fillRect(bx - 1, by - 1, w + 2, 4);
+      if (u.elite) this.bar.fillStyle(0x0a0608, 1).fillRect(bx, by, w, 2);
       const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : 0x4ab0ff) : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
       this.bar.fillStyle(col, 1).fillRect(bx, by, Math.round(w * k), 2);
       if (u.kind === UnitKind.Player && u.weapon) {

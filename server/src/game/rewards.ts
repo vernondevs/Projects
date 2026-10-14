@@ -2,7 +2,8 @@
 import { CLASSES } from "../../../shared/classes";
 import { LOOT_BAG_TTL_MS, MAX_LEVEL } from "../../../shared/constants";
 import { xpForKill, xpToNext } from "../../../shared/formulas";
-import { BASE_ITEMS, EQUIP_BASES, makeItem, makeUnique, rollRarity, UNIQUES, type Item } from "../../../shared/items";
+import { BASE_ITEMS, EQUIP_BASES, makeItem, makeUnique, rollRarity, Rarity, UNIQUES, type Item } from "../../../shared/items";
+import { ELITE } from "../../../shared/elites";
 import type { LootBag } from "../../../shared/protocol";
 import type { Mob } from "./Mob";
 import type { Player } from "./Player";
@@ -87,6 +88,10 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
       if (Math.random() < chance) items.push(makeItem(pickBase(p), m.level, rollRarity(Math.random)));
       if (Math.random() < (p.forceDrop ? 0 : 0.08)) items.push(makeItem(pickBase(p), m.level, rollRarity(Math.random)));
       if (Math.random() < 0.1) items.push({ ...makeItem(Math.random() < 0.6 ? "hp_potion" : "mp_potion", 1, 0), qty: 1 });
+    }
+    if (m.elite) {
+      const r = Math.max(rollRarity(Math.random, ELITE.lootBonus), Rarity.Rare) as Rarity;
+      items.push(makeItem(pickBase(p), m.level, r));
     }
     dropBag(w, p, m.x, m.y, items, boss);
     if (boss) p.send("toast", { text: `${m.def.name} повержен! Заберите добычу.`, kind: "loot" });

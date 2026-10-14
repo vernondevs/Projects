@@ -3,6 +3,7 @@ import { MAP_SEED, PLAYER_RADIUS, PLAYER_SPEED, RESPAWN_DELAY_MS, TICK_MS } from
 import { armorReduction } from "../../../shared/formulas";
 import { PVP_DAMAGE_MULT } from "../../../shared/arena";
 import { generateMap, lineClear, moveWithCollision, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
+import { ELITE } from "../../../shared/elites";
 import { MOBS } from "../../../shared/mobs";
 import {
   Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Dir,
@@ -131,7 +132,9 @@ export class World {
     for (const s of this.map.spawns) {
       const def = MOBS[s.mob];
       if (!def) continue;
-      this.addMob(new Mob(this.uid("m"), def, s.level, { x: s.x, y: s.y }));
+      const mob = new Mob(this.uid("m"), def, s.level, { x: s.x, y: s.y });
+      mob.rollElite();
+      this.addMob(mob);
     }
     for (const b of this.map.bosses) {
       const def = MOBS[b.id];
@@ -441,7 +444,7 @@ export class World {
 
   // ---------- мобы ----------
   mobSpeed(m: Mob) {
-    let s = m.def.speed;
+    let s = m.def.speed * m.speedMul;
     if (m.slowUntil > this.time) s *= 1 - m.slowPct / 100;
     return s;
   }
@@ -483,12 +486,21 @@ export class World {
     return best;
   }
 
+  private announceElite(m: Mob) {
+    const r = ELITE.announceTiles * 32;
+    for (const p of this.players.values()) if (this.dist(p, m) < r) p.send("toast", { text: `Рядом появился элитный моб: ${m.unit.name}`, kind: "loot" });
+  }
+
   updateMob(m: Mob, dt: number) {
     const u = m.unit;
     const t = this.time;
     if (m.dead) {
       if (!m.summoned && t >= m.respawnAt) {
-        m.reset();
+        if (m.def.boss) m.reset();
+        else {
+          m.rollElite();
+          if (m.elite) this.announceElite(m);
+        }
         this.emit({ t: "spawn", id: m.id, k: m.def.boss ? "smoke" : "smoke" });
       }
       return;

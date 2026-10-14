@@ -2,6 +2,7 @@ import { mobStats, type MobStats } from "../../../shared/formulas";
 import { Nav } from "../../../shared/path";
 import type { MobDef } from "../../../shared/mobs";
 import { Anim, UnitKind } from "../../../shared/protocol";
+import { ELITE } from "../../../shared/elites";
 import { Unit } from "../rooms/schema";
 
 export type MobState = "idle" | "chase" | "return" | "dead";
@@ -9,6 +10,9 @@ export type MobState = "idle" | "chase" | "return" | "dead";
 export class Mob {
   readonly unit = new Unit();
   stats: MobStats;
+  baseStats: MobStats;
+  elite = false;
+  speedMul = 1;
   state: MobState = "idle";
   targetId: string | null = null;
   nav = new Nav();
@@ -36,7 +40,7 @@ export class Mob {
     public level: number,
     readonly home: { x: number; y: number },
   ) {
-    this.stats = mobStats(def, level);
+    this.baseStats = this.stats = mobStats(def, level);
     const u = this.unit;
     u.kind = def.boss ? UnitKind.Boss : UnitKind.Mob;
     u.name = def.name;
@@ -53,6 +57,31 @@ export class Mob {
   }
   get dead() {
     return this.state === "dead";
+  }
+
+  /** Бросок шанса элитности (спавн/возрождение обычного моба) со сбросом состояния. */
+  rollElite() {
+    const b = this.baseStats;
+    this.elite = false;
+    this.speedMul = 1;
+    this.stats = b;
+    this.unit.name = this.def.name;
+    this.unit.elite = 0;
+    if (!this.def.boss && Math.random() < ELITE.chance) {
+      const f = ELITE.prefixes[Math.floor(Math.random() * ELITE.prefixes.length)];
+      this.elite = true;
+      this.speedMul = f.speed ?? 1;
+      this.stats = {
+        maxHp: Math.round(b.maxHp * ELITE.hp * (f.hp ?? 1)),
+        dmg: b.dmg * ELITE.dmg * (f.dmg ?? 1),
+        armor: Math.round(b.armor * (f.armor ?? 1)),
+        xp: b.xp * ELITE.xp,
+        gold: [b.gold[0] * ELITE.gold, b.gold[1] * ELITE.gold],
+      };
+      this.unit.name = `${f.name} ${this.def.name}`;
+      this.unit.elite = 1;
+    }
+    this.reset();
   }
 
   reset() {
