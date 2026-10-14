@@ -2,6 +2,7 @@
 import { assert, Bot, check, passedCount, sleep, startServer, stopServer } from "./harness";
 import { BOSS_SPAWNS, generateMap } from "../shared/map";
 import { MOBS } from "../shared/mobs";
+import { BESTIARY } from "../shared/bestiary";
 import { MAP_SEED } from "../shared/constants";
 
 const MAP = generateMap(MAP_SEED);
@@ -112,6 +113,8 @@ async function main() {
       b.fx.length = 0;
       await killNear(a, "slime");
       await a.until(() => (a.self?.xp ?? 0) > 0 && a.self!.kills === 1, 2000, "опыт за убийство");
+      await a.until(() => a.self!.mobKills?.slime === 1, 2000, "бестиарий: счётчик убийств слизня");
+      assert(BESTIARY.slime?.desc, "бестиарий: нет записи слизня");
       assert(a.fx.some((f) => f.t === "dmg"), "нет событий урона");
     });
     await check("умение тратит ману и уходит на перезарядку", async () => {

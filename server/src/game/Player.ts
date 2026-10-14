@@ -30,6 +30,7 @@ export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSa
     mp: -1,
     kills: 0,
     bossKills: {},
+    mobKills: {},
   };
 }
 
@@ -173,6 +174,7 @@ export class Player {
       derived: this.derived,
       kills: this.save.kills,
       bossKills: this.save.bossKills,
+      mobKills: (this.save.mobKills ??= {}),
     };
   }
 

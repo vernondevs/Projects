@@ -18,7 +18,7 @@ export const MODE_NAMES: Record<ArenaMode, string> = {
 export const TEAM_SIZE: Record<ArenaMode, number> = { "1v1": 1, "2v2": 2 };
 
 /** Множитель урона игрока по игроку: PvP длится дольше, чем по мобам. */
-export const PVP_DAMAGE_MULT = 0.25;
+export const PVP_DAMAGE_MULT = 0.3;
 export const START_RATING = 1000;
 export const ELO_K = 32;
 /** Окно подбора по рейтингу: ±100, затем +50 каждые 10 с ожидания, не больше ±1000. */
@@ -30,7 +30,7 @@ export const ACCEPT_MS = 15_000;
 export const COUNTDOWN_MS = 5_000;
 export const MATCH_MS = 180_000;
 /** Одних и тех же соперников нельзя получить больше 3 раз подряд. */
-export const MAX_REPEAT = 3;
+export const MAX_REPEAT = 5;
 export const SEASON_DAYS = 28;
 /** Мягкий сброс в конце сезона: рейтинг сдвигается к 1000 на половину расстояния. */
 export const SEASON_RESET_KEEP = 0.5;

@@ -65,6 +65,8 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
     const gold = Math.round((g0 + Math.random() * (g1 - g0)) * (boss ? 25 : 1));
     p.save.gold += gold;
     p.save.kills++;
+    const mk = (p.save.mobKills ??= {});
+    mk[m.def.id] = (mk[m.def.id] || 0) + 1;
     if (boss) p.save.bossKills[m.def.id] = (p.save.bossKills[m.def.id] || 0) + 1;
     gainXp(w, p, xp);
     p.selfDirty = true;

@@ -1,6 +1,7 @@
 /** Проверки PvP-арены ботами: 1×1, 2×2, подтверждение, Elo, история, повторы, таймер, сезоны. Запуск: npm run test:arena */
 import { generateMap } from "../shared/map";
 import { MAP_SEED } from "../shared/constants";
+import { MAX_REPEAT } from "../shared/arena";
 import { assert, Bot, check, passedCount, sleep, startServer, stopServer } from "./harness";
 
 const MAP = generateMap(MAP_SEED);
@@ -122,14 +123,13 @@ async function main() {
       await B.until(() => B.info && !B.info.queue && !B.info.pending, 2000, "B вне очереди");
       A.send("arena:cancel");
     });
-    await check("одних соперников нельзя получить больше 3 раз подряд", async () => {
-      await quickDuel(A, B);
-      await quickDuel(A, B); // всего три матча подряд
+    await check("одних соперников нельзя получить больше MAX_REPEAT раз подряд", async () => {
+      for (let i = 1; i < MAX_REPEAT; i++) await quickDuel(A, B); // всего MAX_REPEAT матчей подряд
       A.found = B.found = null;
       A.send("arena:queue", { mode: "1v1" });
       B.send("arena:queue", { mode: "1v1" });
       await sleep(3500);
-      assert(!A.found && !B.found, "подобрали в 4-й раз подряд");
+      assert(!A.found && !B.found, `подобрали в ${MAX_REPEAT + 1}-й раз подряд`);
       A.send("arena:info");
       await A.until(() => !!A.info?.queue?.note, 2000, "подсказка о повторе");
       const C = await Bot.join("Новичок", "pass", "ranger");

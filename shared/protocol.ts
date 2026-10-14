@@ -77,6 +77,8 @@ export interface SelfState {
   derived: Derived;
   kills: number;
   bossKills: Record<string, number>;
+  /** Убийства по типам мобов (бестиарий). */
+  mobKills: Record<string, number>;
   /** Входящие запросы на обмен отключены. */
 }
 

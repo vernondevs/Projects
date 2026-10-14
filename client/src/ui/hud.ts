@@ -10,6 +10,7 @@ import type { Net, UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { ArenaUI } from "./arena";
 import { TradeUI } from "./trade";
+import { BestiaryUI } from "./bestiary";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
@@ -63,6 +64,7 @@ export class Hud {
   private tradeBound = false;
   readonly arena: ArenaUI;
   readonly trade: TradeUI;
+  readonly bestiary: BestiaryUI;
 
   constructor(readonly root: HTMLElement) {
     root.append(this.player, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
@@ -78,7 +80,7 @@ export class Hud {
     this.mini.innerHTML = `<div class="zn" id="mini-zone"></div>`;
     this.mini.prepend(this.miniCanvas);
     const menu = el("div", "menu");
-    for (const [k, label, key] of [["char", "Герой", "C"], ["inv", "Сумка", "I"], ["skills", "Умения", "K"], ["arena", "Арена", "P"]]) {
+    for (const [k, label, key] of [["char", "Герой", "C"], ["inv", "Сумка", "I"], ["skills", "Умения", "K"], ["arena", "Арена", "P"], ["bestiary", "Бестиарий", "B"]]) {
       const b = el("button", "btn small", `${label} <span class="muted">${key}</span>`);
       b.onclick = () => this.toggle(k);
       menu.append(b);
@@ -86,6 +88,7 @@ export class Hud {
     this.mini.append(menu);
     this.makeWindows();
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
+    this.bestiary = new BestiaryUI(root, icon);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
       if (this.trade.isOpen) this.wins.inv.hidden = false;
@@ -201,6 +204,7 @@ export class Hud {
 
   toggle(id: string) {
     if (id === "arena") return this.arena.toggle();
+    if (id === "bestiary") return this.bestiary.toggle(this.ctx.net.self);
     if (this.ctx.net.kind === "arena" && id === "shop") return;
     const w = this.wins[id];
     w.hidden = !w.hidden;
@@ -208,7 +212,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -283,6 +287,7 @@ export class Hud {
 
   // ---------- личное состояние ----------
   renderSelf(s: SelfState) {
+    this.bestiary.update(s);
     if (!s) return;
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
     this.lastSelfLevel = s.level;

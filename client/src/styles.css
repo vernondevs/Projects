@@ -266,3 +266,18 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .ctx-menu[hidden] { display: none; }
 .ctx-menu .d { color: var(--dim); font-size: 12px; text-align: center; }
 @media (max-width: 520px) { .trade-cols { grid-template-columns: 1fr; } }
+
+/* ---------- бестиарий ---------- */
+.win-bestiary { left: 50%; top: 70px; transform: translateX(-50%); width: min(680px, calc(100vw - 24px)); }
+.bst { display: grid; grid-template-columns: 200px 1fr; gap: 12px; min-height: 280px; }
+.bst-list { display: flex; flex-direction: column; gap: 3px; max-height: 360px; overflow: auto; }
+.bst-list .btn { text-align: left; padding: 4px 8px; font-size: 13px; }
+.bst-list .btn[aria-pressed="true"] { border-color: var(--gold); }
+.bst-list .btn.locked { color: var(--dim); }
+.bst-det { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bst-head { display: flex; gap: 10px; align-items: center; }
+.bst-sprite { image-rendering: pixelated; background-repeat: no-repeat; flex: none; }
+.bst-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bst-loot { display: flex; flex-wrap: wrap; gap: 6px; }
+.bst-loot img { width: 32px; height: 32px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 4px; background: #1a141e; }
+@media (max-width: 560px) { .bst { grid-template-columns: 1fr; } }

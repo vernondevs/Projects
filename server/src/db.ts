@@ -21,6 +21,8 @@ export interface PlayerSave {
   mp: number;
   kills: number;
   bossKills: Record<string, number>;
+  /** Убийства по типам мобов (бестиарий); нет в старых сохранениях. */
+  mobKills?: Record<string, number>;
   /** Сезонные награды арены. */
   titles?: { id: string; name: string; rank: string }[];
   title?: string;
