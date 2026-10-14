@@ -14,6 +14,7 @@ import { GameDB, type PlayerSave } from "../db";
 import { addItem, buy, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
+import { forgetRumors, rumorFor } from "../game/rumors";
 import { World } from "../game/World";
 import { TradeManager } from "../trade/TradeManager";
 import type { ArenaOptions, Participant } from "./ArenaRoom";
@@ -89,6 +90,7 @@ export class WorldRoom extends Room<WorldState> {
   override onLeave(client: Client) {
     const p = this.world.players.get(client.sessionId);
     if (p) {
+      forgetRumors(p.id);
       this.trade.leave(p);
       WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
       const key = p.name.toLowerCase();
@@ -240,6 +242,10 @@ export class WorldRoom extends Room<WorldState> {
   private registerMessages(on: On) {
     const w = () => this.world;
     on("respawn", (p) => w().respawn(p));
+    on<{ npc: unknown }>("rumor", (p, m) => {
+      const r = rumorFor(w(), p, m.npc);
+      if (r) p.send("rumor", r);
+    });
     on<{ stat: unknown }>("alloc", (p, m) => {
       if (typeof m.stat !== "string" || !(m.stat in STAT_NAMES)) return;
       if (!p.allocate(m.stat as StatKey)) p.send("toast", { text: "Нет свободных очков", kind: "error" });

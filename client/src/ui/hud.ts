@@ -11,6 +11,7 @@ import { rankById } from "../../../shared/arena";
 import { ArenaUI } from "./arena";
 import { TradeUI } from "./trade";
 import { BestiaryUI } from "./bestiary";
+import { RumorUI } from "./rumor";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
@@ -65,6 +66,7 @@ export class Hud {
   readonly arena: ArenaUI;
   readonly trade: TradeUI;
   readonly bestiary: BestiaryUI;
+  readonly rumor: RumorUI;
 
   constructor(readonly root: HTMLElement) {
     root.append(this.player, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
@@ -89,6 +91,7 @@ export class Hud {
     this.makeWindows();
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
     this.bestiary = new BestiaryUI(root, icon);
+    this.rumor = new RumorUI(root);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
       if (this.trade.isOpen) this.wins.inv.hidden = false;
@@ -123,6 +126,7 @@ export class Hud {
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
       n.on("arena:info", () => this.applyFrame());
+      this.rumor.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
     }
     this.arena.bind(n);
@@ -212,7 +216,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.rumor.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;

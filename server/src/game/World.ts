@@ -48,6 +48,8 @@ export class World {
   onPlayerKilled?: (p: Player, killer?: Actor) => void;
   readonly players = new Map<string, Player>();
   readonly mobs = new Map<string, Mob>();
+  /** Кто и когда последним убил босса (id моба → запись); для городских слухов. */
+  readonly bossKills = new Map<string, { by: string; at: number }>();
   /** Время симуляции в мс (растёт только в тиках). */
   time = 0;
   private fx: Fx[] = [];
@@ -295,6 +297,7 @@ export class World {
     const respawn = m.def.respawn ? m.def.respawn * 1000 : rnd(14000, 24000);
     m.respawnAt = this.time + respawn;
     m.boss?.onDeath();
+    if (m.boss) this.bossKills.set(m.def.id, { by: killer && this.isPlayer(killer) ? killer.name : "неизвестный герой", at: this.time });
     grantKillRewards(this, m, killer && this.isPlayer(killer) ? killer : undefined);
     if (m.summoned) this.later(2500, () => this.removeMob(m));
   }

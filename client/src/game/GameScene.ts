@@ -3,12 +3,16 @@ import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from 
 import { generateMap, moveWithCollision, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
 import { Anim, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
 import { activeSkills, SKILLS } from "../../../shared/skills";
+import { RUMOR_NPCS } from "../../../shared/rumors";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
 import { net, type UnitState } from "../net";
 import type { Hud } from "../ui/hud";
 import { Effects } from "./effects";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
+
+type NpcKind = "shop" | "arena" | "rumor";
+type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string };
 
 export class GameScene extends Phaser.Scene {
   map!: WorldMap;
@@ -25,8 +29,8 @@ export class GameScene extends Phaser.Scene {
   bagViews = new Map<string, Phaser.GameObjects.Image>();
   pendingPickup: string | null = null;
   /** NPC города (только в мире): торговка и распорядитель арены. */
-  npcs: { sprite: Phaser.GameObjects.Sprite; kind: "shop" | "arena" }[] = [];
-  pendingNpc: "shop" | "arena" | null = null;
+  npcs: Npc[] = [];
+  pendingNpc: Npc | null = null;
   private cleanup: (() => void)[] = [];
   bubbles: { t: Phaser.GameObjects.Text; id: string; until: number }[] = [];
   zone: Zone = Zone.Town;
@@ -78,6 +82,7 @@ export class GameScene extends Phaser.Scene {
     if (net.kind === "world") {
       this.addNpc("shop", "merchant", this.map.merchant, "Торговка Марфа", "#ffd27a");
       this.addNpc("arena", "arenamaster", ARENA_NPC, "Распорядитель арены", "#ff9a7a");
+      for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
     }
 
     this.clickMark = this.add.image(0, 0, "fx_target").setDepth(DEPTH.ground + 7).setVisible(false).setScale(0.6);
@@ -98,15 +103,16 @@ export class GameScene extends Phaser.Scene {
     this.setupAmbient();
   }
 
-  private addNpc(kind: "shop" | "arena", sprite: string, at: { x: number; y: number }, name: string, color: string) {
+  private addNpc(kind: NpcKind, sprite: string, at: { x: number; y: number }, name: string, color: string, tint?: number, id?: string) {
     const tex = this.textures.exists(`u_${sprite}`) ? `u_${sprite}` : "u_merchant";
     const s = this.add.sprite(at.x, at.y, tex, 0).setOrigin(0.5, 30 / 32).setDepth(at.y);
+    if (tint) s.setTint(tint);
     this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
     const label = { fontFamily: FONT, fontSize: "8px", color, stroke: "#120a10", strokeThickness: 3, resolution: 4 };
     this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
-    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : kind === "rumor" ? "…" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.setFrame(Math.random() < 0.5 ? 0 : 24) });
-    this.npcs.push({ sprite: s, kind });
+    this.npcs.push({ sprite: s, kind, id, name });
   }
 
   /** Атмосферные частицы по зонам, пыль из-под ног, свет героя в темноте. */
@@ -328,18 +334,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Подойти к NPC и открыть его окно. */
-  talk(n: { sprite: Phaser.GameObjects.Sprite; kind: "shop" | "arena" }) {
+  talk(n: Npc) {
     const d = Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y);
     if (d < MERCHANT_RANGE - 10) {
       this.pendingNpc = null;
-      this.openNpc(n.kind);
+      this.openNpc(n);
     } else {
-      this.pendingNpc = n.kind;
+      this.pendingNpc = n;
       net.send("moveTo", { x: n.sprite.x, y: n.sprite.y + 26 });
     }
   }
-  private openNpc(kind: "shop" | "arena") {
-    if (kind === "shop") this.hud.openShop();
+  private openNpc(n: Npc) {
+    if (n.kind === "shop") this.hud.openShop();
+    else if (n.kind === "rumor") this.hud.rumor.open(n.id!, n.name!);
     else this.hud.arena.open();
   }
 
@@ -423,10 +430,10 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (this.pendingNpc) {
-      const n = this.npcs.find((x) => x.kind === this.pendingNpc);
-      if (n && Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y) < MERCHANT_RANGE - 10) {
+      const n = this.pendingNpc;
+      if (Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y) < MERCHANT_RANGE - 10) {
         this.pendingNpc = null;
-        this.openNpc(n.kind);
+        this.openNpc(n);
       }
     }
 

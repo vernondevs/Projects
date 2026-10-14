@@ -1,6 +1,7 @@
 /** Сетевой слой клиента: комната Colyseus (мир или арена), личное состояние и подписки. */
 import { Client, getStateCallbacks, type Room } from "colyseus.js";
 import type { ArenaInfo, ArenaMode, ArenaResultMsg, HistoryRow, LeaderRow, MatchFoundMsg, PartyState, Reservation } from "../../shared/arena";
+import type { RumorMsg } from "../../shared/rumors";
 import type { TradeView } from "../../shared/trade";
 import type { ChatLine, CooldownMsg, Fx, JoinOptions, LootBag, SelfState, ToastMsg } from "../../shared/protocol";
 import { ROOM_NAME } from "../../shared/protocol";
@@ -20,6 +21,7 @@ type Events = {
   "arena:result": ArenaResultMsg;
   "arena:top": { mode: ArenaMode; rows: LeaderRow[] };
   "arena:history": HistoryRow[];
+  rumor: RumorMsg;
   party: PartyState | null;
   "party:invite": { from: string };
   "trade:request": { from: string; ms: number } | null;
@@ -138,7 +140,7 @@ export class Net {
       this.party = m;
       this.emit("party", m);
     });
-    for (const t of ["arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done"] as const)
+    for (const t of ["rumor", "arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done"] as const)
       room.onMessage(t, (m: any) => this.emit(t, m));
     room.onMessage("arena:go", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
     room.onMessage("arena:return", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
