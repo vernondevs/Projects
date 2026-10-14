@@ -33,6 +33,9 @@ export interface PlayerSave {
   /** Маунты: купленные/полученные и выбранный. */
   mounts?: string[];
   mount?: string;
+  /** Питомцы: уровень и опыт каждого, выбранный. */
+  pets?: Record<string, { level: number; xp: number }>;
+  pet?: string;
   /** Банк: вкладки и золото. Хранится в той же строке, что и сумка, — перенос сохраняется одной записью. */
   bank?: BankSave;
 }

@@ -4,6 +4,7 @@ import { INVENTORY_SIZE } from "../../../shared/constants";
 import { derive, xpToNext, type Derived } from "../../../shared/formulas";
 import { FOOD } from "../../../shared/food";
 import { MOUNTS } from "../../../shared/mounts";
+import { petXpToNext } from "../../../shared/pets";
 import { makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { Anim, UnitKind, type LootBag, type SelfState } from "../../../shared/protocol";
 import { starterSkill } from "../../../shared/skills";
@@ -84,6 +85,9 @@ export class Player {
   lastSave = 0;
   /** Призыв маунта: момент готовности и точка начала (движение отменяет). */
   mountCast: { until: number; x: number; y: number } | null = null;
+  /** Призыв питомца (2 с на месте) и момент, когда можно призвать снова после гибели. */
+  petCast: { until: number; x: number; y: number } | null = null;
+  petCdUntil = 0;
 
   constructor(
     readonly id: string,
@@ -193,6 +197,8 @@ export class Player {
       isAdmin: this.admin,
       mounts: this.save.mounts,
       mount: this.save.mount ?? "",
+      pets: Object.fromEntries(Object.entries(this.save.pets ?? {}).map(([id, r]) => [id, { level: r.level, xp: r.xp, next: petXpToNext(r.level) }])),
+      pet: this.save.pet ?? "",
       id: this.id,
       name: this.name,
       cls: this.save.cls,

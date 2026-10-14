@@ -573,6 +573,26 @@ function ramp_(...cs: string[]): Ramp {
   return cs.map((x) => hex(x));
 }
 
+/** Черепашка-питомец: панцирь-купол, голова и четыре лапки. */
+function turtle(pose: Pose): PC {
+  const c = new PC(32, 32);
+  const walk = pose.kind === "walk" ? pose.i : 0;
+  const atk = pose.kind === "attack" ? pose.i : -1;
+  const bob = [0, -1, 0, -1][walk];
+  const lunge = atk >= 0 ? [-1, 3, 2, 0][atk] : 0;
+  const skin = ramp_("#3e5a2a", "#5e8438", "#86ae4c", "#b0d470");
+  const shell = ramp_("#2c4a3a", "#3e6c52", "#5a9470", "#86bc98");
+  const cx = 15 + lunge * 0.3, cy = 22 + bob;
+  const ph = [0, 1.5, 0, -1.5][walk];
+  for (const [lx, s] of [[cx - 6, ph], [cx + 3, -ph], [cx - 3, -ph], [cx + 6, ph]] as [number, number][]) c.rect(lx, 24 + Math.max(0, s * 0.5), 3, 4, skin[1]);
+  c.ellipse(cx + 9 + lunge, cy - 2 + (atk === 1 ? 1 : 0), 4, 3.2, skin[2]);
+  c.set(Math.round(cx + 10 + lunge), Math.round(cy - 3), hex("#14100e"));
+  c.shadedEllipse(cx, cy - 1, 10, 7.5, shell);
+  for (const [px, py] of [[-4, -3], [0, -4], [4, -3], [-2, 0], [2, 0]]) c.set(Math.round(cx + px), Math.round(cy + py), shell[3]);
+  c.ellipse(cx - 11, cy + 2, 2.5, 1.5, skin[1]);
+  return c.outline();
+}
+
 export interface UnitArt {
   frame: number;
   squashDeath?: boolean;
@@ -596,6 +616,10 @@ const MOUNT_ART: Record<string, UnitArt> = Object.fromEntries(
 
 export const UNIT_ART: Record<string, UnitArt> = {
   ...MOUNT_ART,
+  /** Питомцы (data/pets.json): волчонок, огонёк, черепашка. */
+  pet_wolf: sideOnly((p) => quadruped({ body: ramp_("#5a4a34", "#86704c", "#b09468", "#d8c090"), belly: P.bone, ears: "point", tail: "bushy" }, p)),
+  pet_ember: sideOnly((p) => slime(ramp_("#8a2410", "#d0501c", "#f08a2c", "#ffd060"), p, 1, true)),
+  pet_turtle: sideOnly(turtle),
   warrior: humanoidArt(SPECS.warrior),
   mage: humanoidArt(SPECS.mage),
   ranger: humanoidArt(SPECS.ranger),

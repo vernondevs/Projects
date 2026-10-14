@@ -6,6 +6,15 @@
   "mount_ashwolf": {
    "frame": 32
   },
+  "pet_wolf": {
+   "frame": 32
+  },
+  "pet_ember": {
+   "frame": 32
+  },
+  "pet_turtle": {
+   "frame": 32
+  },
   "warrior": {
    "frame": 32
   },

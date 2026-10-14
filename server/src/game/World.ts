@@ -15,6 +15,7 @@ import { createBoss } from "./bosses";
 import * as legendary from "./legendary";
 import { grantKillRewards } from "./rewards";
 import { Mob } from "./Mob";
+import { grantPets, mobAttackPet, tickPetCast, updatePet, dismissPet, type Pet } from "./Pet";
 import type { Player } from "./Player";
 
 export type Broadcast = (type: string, msg: unknown) => void;
@@ -53,6 +54,8 @@ export class World {
   onPlayerKilled?: (p: Player, killer?: Actor) => void;
   readonly players = new Map<string, Player>();
   readonly mobs = new Map<string, Mob>();
+  /** Призванные питомцы по id юнита (pet_<id хозяина>). */
+  readonly pets = new Map<string, Pet>();
   /** Кто и когда последним убил босса (id моба → запись); для городских слухов. */
   readonly bossKills = new Map<string, { by: string; at: number }>();
   /** Время симуляции в мс (растёт только в тиках). */
@@ -92,11 +95,13 @@ export class World {
   addPlayer(p: Player, note = `${p.name} входит в мир.`) {
     this.players.set(p.id, p);
     this.state.players.set(p.id, p.unit);
+    if (this.opts.mobs !== false) this.later(2500, () => grantPets(this, p));
     if (!this.opts.quiet) this.system(note);
   }
   removePlayer(id: string, note?: string) {
     const p = this.players.get(id);
     if (!p) return;
+    dismissPet(this, p);
     this.players.delete(id);
     this.state.players.delete(id);
     for (const m of this.mobs.values()) {
@@ -164,6 +169,7 @@ export class World {
     this.runTimers();
     for (const p of this.players.values()) this.updatePlayer(p, dt);
     for (const m of this.mobs.values()) this.updateMob(m, dt);
+    for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
     this.updateHazards();
     this.flush();
   }
@@ -316,6 +322,7 @@ export class World {
 
   killPlayer(p: Player, killer?: Actor) {
     this.breakMount(p);
+    p.petCast = null;
     p.dead = true;
     p.deadAt = this.time;
     p.unit.anim = Anim.Dead;
@@ -417,6 +424,7 @@ export class World {
     u.buffs = b;
 
     p.checkFood();
+    tickPetCast(this, p);
     if (p.mountCast) {
       if (Math.hypot(u.x - p.mountCast.x, u.y - p.mountCast.y) > 0.5 || p.input.mx || p.input.my || p.moveTo || p.stunUntil > t) this.breakMount(p);
       else if (t >= p.mountCast.until) {
@@ -535,6 +543,16 @@ export class World {
     return best;
   }
 
+  /** Питомец с наибольшей угрозой у моба (угроза хранится по id юнита питомца). */
+  private threatPet(m: Mob): Pet | null {
+    let best: Pet | null = null, bt = 0;
+    for (const [id, th] of m.threat) {
+      const pet = this.pets.get(id);
+      if (pet && !pet.dead && th > bt && this.dist(pet, m.home) < m.def.aggro * 3 + 300) { bt = th; best = pet; }
+    }
+    return best;
+  }
+
   private announceElite(m: Mob) {
     const r = ELITE.announceTiles * 32;
     for (const p of this.players.values()) if (this.dist(p, m) < r) p.send("toast", { text: `Рядом появился элитный моб: ${m.unit.name}`, kind: "loot" });
@@ -576,7 +594,24 @@ export class World {
       }
     } else {
       const target = this.pickTarget(m);
-      if (target) {
+      const pet = this.threatPet(m);
+      if (pet && (!target || (m.threat.get(pet.id) || 0) > (m.threat.get(target.id) || 0))) {
+        m.state = "chase";
+        m.targetId = pet.id;
+        u.target = pet.id;
+        if (this.dist(u, m.home) > (m.def.boss ? 1.4 : 2.5) * m.def.aggro + 260) {
+          m.state = "return";
+          m.targetId = null;
+          u.target = "";
+          m.threat.clear();
+        } else {
+          const reach = m.def.range + pet.def.radius;
+          const clear = !m.def.projectile || lineClear(this.map, u.x, u.y, pet.x, pet.y);
+          const d = this.dist(u, pet);
+          if ((d > reach || !clear) && canMove) moving = this.moveMob(m, pet.x, pet.y, dt, this.mobSpeed(m), m.def.projectile ? reach * 0.8 : reach - 6);
+          else if (d <= reach + 4 && clear && t >= m.attackAt) mobAttackPet(this, m, pet);
+        }
+      } else if (target) {
         m.state = "chase";
         m.targetId = target.id;
         u.target = target.id;

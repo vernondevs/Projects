@@ -4,6 +4,7 @@ import { CLASS_IDS, STAT_NAMES, type ClassId, type StatKey } from "../../../shar
 import { NAME_RE, PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
 import { xpToNext } from "../../../shared/formulas";
 import { MOUNTS } from "../../../shared/mounts";
+import { buyPet, selectPet, togglePet } from "../game/Pet";
 import { MERCHANT_RANGE } from "../../../shared/constants";
 import { makeItem, makeUnique, Rarity } from "../../../shared/items";
 import type { JoinOptions } from "../../../shared/protocol";
@@ -265,6 +266,13 @@ export class WorldRoom extends Room<WorldState> {
       if (typeof m.id !== "string" || !p.save.mounts?.includes(m.id)) return;
       p.save.mount = m.id;
       p.selfDirty = true;
+    });
+    on("pet:toggle", (p) => togglePet(w(), p));
+    on<{ id: unknown }>("pet:select", (p, m) => typeof m.id === "string" && selectPet(w(), p, m.id));
+    on<{ id: unknown }>("pet:buy", (p, m) => {
+      if (typeof m.id !== "string" || p.dead) return;
+      if (w().dist(p, w().map.merchant) > MERCHANT_RANGE) return p.send("toast", { text: "Подойдите к торговке", kind: "error" });
+      buyPet(w(), p, m.id);
     });
     on<{ id: unknown }>("mount:buy", (p, m) => {
       const def = typeof m.id === "string" ? MOUNTS[m.id] : undefined;

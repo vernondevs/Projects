@@ -8,7 +8,7 @@ import { DEPTH } from "./terrain";
 import { mountSprite } from "../../../shared/mounts";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
-const MELEE = new Set(["warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
+const MELEE = new Set(["pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
 const rowOf = (dir: number) => (dir === Dir.Down ? 0 : dir === Dir.Up ? 1 : 2);
 
 export class UnitView {
@@ -54,10 +54,14 @@ export class UnitView {
     this.shadow = scene.add.image(u.x, u.y, "fx_shadow_blob").setScale(big ? 2.2 : 1, big ? 2 : 1).setDepth(DEPTH.ground + 5);
     this.ring = scene.add.image(u.x, u.y, "fx_target").setVisible(false).setDepth(DEPTH.ground + 6).setScale(big ? 2 : 1);
     this.sprite = scene.add.sprite(u.x, u.y, tex, 0).setOrigin(0.5, 30 / 32);
+    if (u.kind === UnitKind.Pet) {
+      this.sprite.setScale(0.8);
+      this.shadow.setScale(0.8);
+    }
     this.lastAseq = u.aseq;
-    const color = u.kind === UnitKind.Player ? (isSelf ? "#ffe9a8" : "#a8e0ff") : u.kind === UnitKind.Boss ? "#ff8a5a" : "#f0e6d2";
+    const color = u.kind === UnitKind.Player ? (isSelf ? "#ffe9a8" : "#a8e0ff") : u.kind === UnitKind.Boss ? "#ff8a5a" : u.kind === UnitKind.Pet ? "#8ae88a" : "#f0e6d2";
     this.label = scene.add
-      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "11px" : "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 })
+      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "11px" : u.kind === UnitKind.Pet ? "8px" : "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 })
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.top - 5);
     this.bar = scene.add.graphics().setDepth(DEPTH.top - 6);
@@ -76,6 +80,7 @@ export class UnitView {
     const u = this.u;
     if (u.kind === UnitKind.Mob) return `${u.name} · ${u.level}`;
     if (u.kind === UnitKind.Boss) return `${u.name}`;
+    if (u.kind === UnitKind.Pet) return `${u.name} (${net.unit(u.ownerId)?.name ?? "?"}) · ${u.level}`;
     return `${u.name} · ${u.level}`;
   }
 
@@ -175,7 +180,7 @@ export class UnitView {
     this.sprite.setPosition(Math.round(this.x), Math.round(this.y) + bob - lift).setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) - 2);
     this.ring.setPosition(Math.round(this.x), Math.round(this.y) - 1).setVisible(this.selected && !this.dead);
-    const top = this.y - (this.frame > 32 ? 58 : 27) - lift;
+    const top = this.y - (this.frame > 32 ? 58 : u.kind === UnitKind.Pet ? 22 : 27) - lift;
     this.label.setPosition(Math.round(this.x), Math.round(top - 4));
     const lt = this.labelText();
     if (lt !== this.lastLabel) { this.lastLabel = lt; this.label.setText(lt); }
@@ -239,7 +244,7 @@ export class UnitView {
       this.bar.clear();
       this.bar.fillStyle(u.elite ? 0xf0c040 : 0x0a0608, 0.9).fillRect(bx - 1, by - 1, w + 2, 4);
       if (u.elite) this.bar.fillStyle(0x0a0608, 1).fillRect(bx, by, w, 2);
-      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : 0x4ab0ff) : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
+      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : 0x4ab0ff) : u.kind === UnitKind.Pet ? 0x6ad06a : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
       this.bar.fillStyle(col, 1).fillRect(bx, by, Math.round(w * k), 2);
       if (u.kind === UnitKind.Player && u.weapon) {
         const r = Number(u.weapon.split(":")[1] || 0);

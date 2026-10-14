@@ -1,0 +1,30 @@
+{
+  "castMs": 2000,
+  "resummonMs": 60000,
+  "followDist": 64,
+  "teleportDist": 480,
+  "dropChance": 0.004,
+  "pets": {
+    "wolf": {
+      "name": "Волчонок", "sprite": "pet_wolf", "price": 0, "level": 5, "hp": 1.0, "dmg": 1.0, "armor": 1.0, "speed": 150, "range": 34, "attackCd": 1.2, "radius": 10,
+      "skills": [
+        { "id": "bite", "name": "Укус", "type": "bleed", "cd": 8, "mult": 1.2, "ms": 5000, "desc": "Рана: кровотечение 5 с" },
+        { "id": "howl", "name": "Вой", "type": "howl", "cd": 30, "pct": 12, "ms": 10000, "desc": "+12% урона хозяину на 10 с" }
+      ]
+    },
+    "ember": {
+      "name": "Огоньёк", "sprite": "pet_ember", "price": 600, "level": 10, "hp": 0.7, "dmg": 1.1, "armor": 0.5, "speed": 130, "range": 170, "attackCd": 1.6, "radius": 9, "projectile": "fire",
+      "skills": [
+        { "id": "firebolt", "name": "Огненная стрела", "type": "bolt", "cd": 5, "mult": 2.2, "desc": "Мощный огненный выстрел" },
+        { "id": "mend", "name": "Искра жизни", "type": "heal", "cd": 20, "pct": 12, "desc": "Лечит хозяина на 12% здоровья" }
+      ]
+    },
+    "turtle": {
+      "name": "Черепашка", "sprite": "pet_turtle", "price": 500, "level": 8, "hp": 1.8, "dmg": 0.6, "armor": 1.8, "speed": 105, "range": 32, "attackCd": 1.5, "radius": 10,
+      "skills": [
+        { "id": "taunt", "name": "Провокация", "type": "taunt", "cd": 12, "range": 160, "desc": "Враги рядом переключаются на питомца" },
+        { "id": "shell", "name": "Панцирь", "type": "shell", "cd": 25, "pct": 60, "ms": 6000, "desc": "-60% получаемого урона 6 с" }
+      ]
+    }
+  }
+}

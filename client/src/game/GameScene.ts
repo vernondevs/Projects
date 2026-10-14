@@ -10,6 +10,7 @@ import { BANKER } from "../../../shared/bank";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
 import { MOUNTS } from "../../../shared/mounts";
 import { net, type UnitState } from "../net";
+import { PETS } from "../../../shared/pets";
 import type { Hud } from "../ui/hud";
 import { Effects } from "./effects";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
@@ -102,6 +103,7 @@ export class GameScene extends Phaser.Scene {
       map: this.map,
       useSkill: (i) => this.useSkill(i),
       toggleMount: () => this.toggleMount(),
+      togglePet: () => this.togglePet(),
       usePotion: (k) => this.usePotion(k),
       closeTarget: () => this.setTarget(null),
       focusGame: () => this.game.canvas.focus(),
@@ -213,6 +215,7 @@ export class GameScene extends Phaser.Scene {
       else if (code === "Space") { e.preventDefault(); this.pickupNearest(); }
       else if (code === "KeyF") this.talkNearest();
       else if (code === "KeyX") { if (e.shiftKey) this.cycleMount(); else this.toggleMount(); }
+      else if (code === "KeyG") { if (e.shiftKey) this.cyclePet(); else this.togglePet(); }
       else if (code === "KeyP") this.hud.toggle("arena");
       else if (code === "KeyB") this.hud.toggle("bestiary");
       else if (code === "F10") { e.preventDefault(); this.hud.toggle("admin"); }
@@ -278,6 +281,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Враг ли юнит: мобы всегда, игроки — только на арене из другой команды. */
   isEnemy(v: UnitView): boolean {
+    if (v.u.kind === UnitKind.Pet) return false;
     if (v.u.kind !== UnitKind.Player) return true;
     return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team;
   }
@@ -305,6 +309,20 @@ export class GameScene extends Phaser.Scene {
   toggleMount() {
     if (!this.me || this.me.dead) return;
     net.send("mount:toggle");
+  }
+
+  togglePet() {
+    if (!this.me || this.me.dead) return;
+    net.send("pet:toggle");
+  }
+
+  /** Shift+G: выбрать следующего из своих питомцев. */
+  cyclePet() {
+    const own = Object.keys(net.self?.pets ?? {});
+    if (own.length < 2) return;
+    const next = own[(own.indexOf(net.self?.pet ?? "") + 1) % own.length];
+    net.send("pet:select", { id: next });
+    this.hud.toast({ text: `Питомец: ${PETS[next]?.name ?? next}`, kind: "info" });
   }
 
   /** Shift+X: выбрать следующий из своих маунтов. */

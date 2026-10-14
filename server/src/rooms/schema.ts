@@ -29,6 +29,8 @@ export class Unit extends Schema {
   @type("string") mount = "";
   /** Элитный моб: 1. */
   @type("uint8") elite = 0;
+  /** Питомец: id хозяина. */
+  @type("string") ownerId = "";
 }
 
 export class WorldState extends Schema {

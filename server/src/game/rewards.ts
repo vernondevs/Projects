@@ -10,6 +10,7 @@ import type { LootBag } from "../../../shared/protocol";
 import type { Mob } from "./Mob";
 import type { Player } from "./Player";
 import type { World } from "./World";
+import { grantPets, petXp, rollPetDrop } from "./Pet";
 
 export function gainXp(w: World, p: Player, xp: number) {
   const s = p.save;
@@ -28,6 +29,7 @@ export function gainXp(w: World, p: Player, xp: number) {
     p.unit.hp = p.unit.maxHp;
     p.unit.mp = p.unit.maxMp;
     w.emit({ t: "lvl", id: p.id, level: s.level });
+    grantPets(w, p);
     if (s.level % 5 === 0 || s.level === MAX_LEVEL) w.system(`${p.name} достигает ${s.level} уровня!`);
   }
   p.selfDirty = true;
@@ -72,6 +74,8 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
     mk[m.def.id] = (mk[m.def.id] || 0) + 1;
     if (boss) p.save.bossKills[m.def.id] = (p.save.bossKills[m.def.id] || 0) + 1;
     gainXp(w, p, xp);
+    petXp(w, p, Math.round(xp * 0.7));
+    rollPetDrop(w, p, boss ? 25 : m.elite ? 5 : 1);
     p.selfDirty = true;
 
     // добыча: у каждого своя

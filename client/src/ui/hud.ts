@@ -18,6 +18,7 @@ import { CookUI, foodTip } from "./cook";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
 import { MOUNTS, MOUNT_IDS } from "../../../shared/mounts";
+import { PETS, PET_IDS, petUnitId } from "../../../shared/pets";
 import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
 
@@ -32,6 +33,7 @@ export interface HudCtx {
   useSkill: (i: number) => void;
   usePotion: (base: string) => void;
   toggleMount?: () => void;
+  togglePet?: () => void;
   closeTarget: () => void;
   focusGame: () => void;
 }
@@ -57,6 +59,7 @@ export class Hud {
   aimAtCursor = false;
   private player = el("div", "panel hud-player");
   private targetBox = el("div", "panel hud-target");
+  private petBox = el("div", "panel hud-pet");
   private zoneBanner = el("div", "hud-zone passthru");
   private mini = el("div", "panel hud-mini");
   private miniCanvas = el("canvas");
@@ -91,8 +94,9 @@ export class Hud {
   private foodId = "";
 
   constructor(readonly root: HTMLElement) {
-    root.append(this.player, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
+    root.append(this.player, this.petBox, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
     this.targetBox.hidden = true;
+    this.petBox.hidden = true;
     this.death.hidden = true;
     this.tip.hidden = true;
     this.chatInput.placeholder = "Enter — написать в чат";
@@ -427,6 +431,17 @@ export class Hud {
       this.tipFor(b, () => md ? `<div class="t">${md.name}</div><div class="d">Скорость ×${md.speed} · призыв 2 с, стоя на месте. X — сесть/слезть, Shift+X — сменить. Не в бою, не на арене.</div>` : `<div class="t">Маунт</div><div class="d">Бурый конь — с 10 уровня</div>`);
       this.bar.append(b);
     }
+    {
+      const pd = PETS[s.pet ?? ""];
+      const rec = s.pets?.[s.pet ?? ""];
+      const out = !!this.ctx.net.unit(petUnitId(s.id));
+      const b = el("button", `slot ${pd ? "" : "empty"}`, `<span style="font-size:26px;line-height:50px;display:block;text-align:center">${out ? "✕" : "🐾"}</span><kbd>G</kbd>`);
+      b.onclick = () => this.ctx.togglePet?.();
+      this.tipFor(b, () => pd && rec
+        ? `<div class="t">${pd.name} · ур. ${rec.level}</div><div class="d">${pd.skills.map((k) => `${k.name}: ${k.desc}`).join("<br>")}<br>G — призвать (2 с) / отпустить, Shift+G — сменить. Погиб — призыв через 60 с. Не на арене.</div>`
+        : `<div class="t">Питомец</div><div class="d">Волчонок — с 5 уровня. Другие — у торговки или редкая добыча.</div>`);
+      this.bar.append(b);
+    }
     if (!this.wins.char.hidden) this.renderChar(s);
     if (!this.wins.inv.hidden) this.renderInv(s);
     if (!this.wins.skills.hidden) this.renderSkills(s);
@@ -620,6 +635,16 @@ export class Hud {
       row.append(btn);
       b.append(row);
     }
+    for (const id of PET_IDS) {
+      const d = PETS[id];
+      if (d.price <= 0 || s.pets?.[id]) continue;
+      const row = el("div", "shoprow", `<div>${d.name}<br><span class="muted">Питомец · ур. ${d.level} · ${d.skills.map((k) => k.name).join(", ")}</span></div>`);
+      const btn = el("button", "btn small", `<span class="gold">${d.price} з</span>`);
+      btn.disabled = s.gold < d.price || s.level < d.level;
+      btn.onclick = () => this.ctx.net.send("pet:buy", { id });
+      row.append(btn);
+      b.append(row);
+    }
     const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
     const junkSum = junk.reduce((a, [it]) => a + this.sellInfo(it!).price * (it!.qty ?? 1), 0);
     const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · ~<span class="gold">${junkSum} з</span>`);
@@ -723,6 +748,18 @@ export class Hud {
         this.targetBox.innerHTML = `<div class="nm">${esc(t.name)} ${t.kind === UnitKind.Player ? "" : `<span class="muted">ур. ${t.level}</span>`}</div><div class="bar hp"><i style="width:${(t.hp / Math.max(1, t.maxHp)) * 100}%"></i><span>${t.hp} / ${t.maxHp}</span></div>${phase}`;
       }
     } else this.targetBox.hidden = true;
+
+    // рамка питомца под рамкой героя
+    const sid = this.ctx.net.self?.id;
+    const pu = sid ? this.ctx.net.unit(petUnitId(sid)) : undefined;
+    if (pu) {
+      this.petBox.hidden = false;
+      const sig = `${pu.name}|${pu.level}|${pu.hp}|${pu.maxHp}`;
+      if (this.petBox.dataset.sig !== sig) {
+        this.petBox.dataset.sig = sig;
+        this.petBox.innerHTML = `<div class="row1"><span class="nm">${esc(pu.name)}</span><span class="lv">ур. ${pu.level}</span></div><div class="bar hp"><i style="width:${(pu.hp / Math.max(1, pu.maxHp)) * 100}%"></i><span>${pu.hp} / ${pu.maxHp}</span></div>`;
+      }
+    } else this.petBox.hidden = true;
 
     // перезарядки и мана
     const self = this.ctx.net.self;

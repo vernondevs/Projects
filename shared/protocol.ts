@@ -29,6 +29,7 @@ export enum UnitKind {
   Player = 0,
   Mob = 1,
   Boss = 2,
+  Pet = 3,
 }
 /** Битовые флаги эффектов на юните (видны всем). */
 export const BUFF_SLOW = 1;
@@ -63,6 +64,9 @@ export interface ClientMessages {
   "mount:toggle": Record<string, never>;
   "mount:select": { id: string };
   "mount:buy": { id: string };
+  "pet:toggle": Record<string, never>;
+  "pet:select": { id: string };
+  "pet:buy": { id: string };
 }
 
 // ---------- сервер -> клиент ----------
@@ -92,6 +96,10 @@ export interface SelfState {
   isAdmin?: boolean;
   mounts?: string[];
   mount?: string;
+  /** Питомцы: владение (уровень, опыт, опыт до уровня), выбранный, осталось мс до повторного призыва. */
+  pets?: Record<string, { level: number; xp: number; next: number }>;
+  pet?: string;
+  petCd?: number;
   /** Входящие запросы на обмен отключены. */
 }
 

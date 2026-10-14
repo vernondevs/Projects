@@ -65,6 +65,7 @@ export interface UnitState {
   title: string;
   frame: string;
   elite: number;
+  ownerId: string;
   mount: string;
 }
 
