@@ -84,7 +84,7 @@ button { font: inherit; color: inherit; }
 .hud-mini canvas { width: 216px; height: 168px; image-rendering: pixelated; display: block; border-radius: 3px; }
 .hud-mini .zn { font-size: 13px; text-align: center; color: var(--fg); }
 .hud-mini .zn small { color: var(--dim); }
-.hud-mini .menu { display: flex; gap: 4px; justify-content: center; }
+.hud-mini .menu { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
 
 .hud-bar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; align-items: flex-end; }
 .slot { position: relative; width: 52px; height: 52px; border: 1px solid var(--line-hi); border-radius: 5px; background: #0e0b10; cursor: pointer; padding: 0; }
