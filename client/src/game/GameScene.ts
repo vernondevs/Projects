@@ -13,6 +13,7 @@ import { net, type UnitState } from "../net";
 import { PETS } from "../../../shared/pets";
 import type { Hud } from "../ui/hud";
 import { Effects } from "./effects";
+import { Scenes } from "./scenes";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
 
@@ -49,6 +50,8 @@ export class GameScene extends Phaser.Scene {
   constructor() {
     super("game");
   }
+
+  private scenes: Scenes | null = null;
 
   create() {
     // сцена перезапускается при переходе мир ⇄ арена: сбрасываем состояние прошлого запуска
@@ -91,7 +94,8 @@ export class GameScene extends Phaser.Scene {
       this.addNpc("smith", SMITH.sprite, SMITH, SMITH.name, SMITH.color, SMITH.tint, SMITH.id);
       this.addNpc("bank", BANKER.sprite, BANKER, BANKER.name, BANKER.color, BANKER.tint, BANKER.id);
       for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
-    }
+      this.scenes = new Scenes(this, this.map);
+    } else this.scenes = null;
 
     this.clickMark = this.add.image(0, 0, "fx_target").setDepth(DEPTH.ground + 7).setVisible(false).setScale(0.6);
 
@@ -476,6 +480,7 @@ export class GameScene extends Phaser.Scene {
       me.update(dt, this.pos.x, this.pos.y);
     }
     for (const [id, v] of this.units) if (id !== net.id) v.update(dt);
+    this.scenes?.update(this.pos.x, this.pos.y);
     if (this.targetId && !this.units.get(this.targetId)) this.targetId = null;
 
     // отложенные действия по прибытии

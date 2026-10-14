@@ -31,7 +31,7 @@ async function login(page: Page, name: string, cls: string) {
   await page.waitForSelector("#login-name");
   await page.type("#login-name", name);
   await page.type("#login-pass", "secret");
-  await page.click(`[data-cls="${cls}"]`);
+  await page.$eval(`[data-cls="${cls}"]`, (b) => (b as HTMLElement).click());
   await page.click("#login-go");
   await page.waitForFunction(() => document.getElementById("login")!.hidden, { timeout: 15000 });
   await page.waitForFunction(() => (window as any).__game?.scene?.isActive("game"), { timeout: 20000 });

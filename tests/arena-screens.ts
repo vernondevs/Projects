@@ -29,7 +29,7 @@ async function openClient(browser: Browser, name: string, cls: string): Promise<
   await page.goto("http://localhost:5199/", { waitUntil: "networkidle0" });
   await page.type("#login-name", name);
   await page.type("#login-pass", "secret");
-  await page.click(`[data-cls="${cls}"]`);
+  await page.$eval(`[data-cls="${cls}"]`, (b) => (b as HTMLElement).click());
   await page.click("#login-go");
   await page.waitForFunction(() => (window as any).__game?.scene?.isActive("game"), { timeout: 60000 });
   await sleep(800);
