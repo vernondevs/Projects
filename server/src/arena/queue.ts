@@ -227,7 +227,7 @@ export class ArenaQueue {
         if (d < bd) { bd = d; best = b; }
       }
       for (const k of teamMembers(a)) {
-        if (why === "repeat" && !best) this.notes.set(k, "Свободные соперники недавно играли с вами 3 раза подряд — ждём других");
+        if (why === "repeat" && !best) this.notes.set(k, `Свободные соперники недавно играли с вами ${MAX_REPEAT} раз подряд — ждём других`);
         else this.notes.delete(k);
       }
       if (!best) continue;

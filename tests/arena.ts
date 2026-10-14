@@ -124,7 +124,14 @@ async function main() {
       A.send("arena:cancel");
     });
     await check("одних соперников нельзя получить больше MAX_REPEAT раз подряд", async () => {
-      for (let i = 1; i < MAX_REPEAT; i++) await quickDuel(A, B); // всего MAX_REPEAT матчей подряд
+      // рейтинг сбрасывается, чтобы серия побед не вывела пару за окно подбора
+      for (let i = 1; i < MAX_REPEAT; i++) {
+        for (const p of [A, B]) p.send("dbg", { op: "rating", mode: "1v1", v: 1000 });
+        await sleep(200);
+        await quickDuel(A, B);
+      } // всего MAX_REPEAT матчей подряд
+      for (const p of [A, B]) p.send("dbg", { op: "rating", mode: "1v1", v: 1000 });
+      await sleep(200);
       A.found = B.found = null;
       A.send("arena:queue", { mode: "1v1" });
       B.send("arena:queue", { mode: "1v1" });
