@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Пепельный Предел</title>
+    <link rel="icon" href="/assets/icons/sword.png" />
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="ui"></div>
+    <div id="login" class="screen">
+      <form id="login-form" class="panel login" autocomplete="on">
+        <h1>Пепельный Предел</h1>
+        <p class="sub">2D MMORPG. Войдите существующим героем или создайте нового: персонаж создаётся при первом входе.</p>
+        <label>Имя героя <input id="login-name" name="username" minlength="3" maxlength="16" required autocomplete="username" /></label>
+        <label>Пароль <input id="login-pass" name="password" type="password" minlength="4" maxlength="64" required autocomplete="current-password" /></label>
+        <fieldset class="classes" id="login-classes">
+          <legend>Класс нового героя</legend>
+        </fieldset>
+        <button type="submit" class="btn primary" id="login-go">Войти в мир</button>
+        <p class="error" id="login-error" role="alert"></p>
+        <p class="hint">WASD или клик — идти · клик по врагу — атака · 1–4 умения · Q/E зелья · I, C, K — окна · Enter — чат</p>
+      </form>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

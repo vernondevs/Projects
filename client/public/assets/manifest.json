@@ -1,0 +1,236 @@
+{
+ "units": {
+  "warrior": {
+   "frame": 32
+  },
+  "mage": {
+   "frame": 32
+  },
+  "ranger": {
+   "frame": 32
+  },
+  "merchant": {
+   "frame": 32
+  },
+  "arenamaster": {
+   "frame": 32
+  },
+  "goblin": {
+   "frame": 32
+  },
+  "goblin_shaman": {
+   "frame": 32
+  },
+  "skeleton": {
+   "frame": 32
+  },
+  "skeleton_knight": {
+   "frame": 32
+  },
+  "drowned": {
+   "frame": 32
+  },
+  "imp": {
+   "frame": 32
+  },
+  "slime": {
+   "frame": 32
+  },
+  "toxic_slime": {
+   "frame": 32
+  },
+  "boar": {
+   "frame": 32
+  },
+  "wolf": {
+   "frame": 32
+  },
+  "spider": {
+   "frame": 32
+  },
+  "golem": {
+   "frame": 32
+  },
+  "sapling": {
+   "frame": 32
+  },
+  "ent": {
+   "frame": 64
+  },
+  "witch": {
+   "frame": 64
+  },
+  "ashlord": {
+   "frame": 64
+  }
+ },
+ "objects": {
+  "oak": {
+   "w": 64,
+   "h": 64
+  },
+  "pine": {
+   "w": 48,
+   "h": 64
+  },
+  "dead_tree": {
+   "w": 48,
+   "h": 64
+  },
+  "bush": {
+   "w": 32,
+   "h": 32
+  },
+  "rock": {
+   "w": 32,
+   "h": 28
+  },
+  "big_rock": {
+   "w": 64,
+   "h": 44
+  },
+  "house": {
+   "w": 128,
+   "h": 128
+  },
+  "house_blue": {
+   "w": 128,
+   "h": 128
+  },
+  "fountain": {
+   "w": 64,
+   "h": 72
+  },
+  "stall": {
+   "w": 64,
+   "h": 72
+  },
+  "lamp": {
+   "w": 32,
+   "h": 64
+  },
+  "well": {
+   "w": 32,
+   "h": 48
+  },
+  "barrel": {
+   "w": 32,
+   "h": 32
+  },
+  "crate": {
+   "w": 32,
+   "h": 32
+  },
+  "pillar": {
+   "w": 32,
+   "h": 64
+  },
+  "torch": {
+   "w": 32,
+   "h": 32
+  },
+  "flowers": {
+   "w": 32,
+   "h": 32
+  },
+  "tallgrass": {
+   "w": 32,
+   "h": 32
+  },
+  "fern": {
+   "w": 32,
+   "h": 32
+  },
+  "reeds": {
+   "w": 32,
+   "h": 32
+  },
+  "mushrooms": {
+   "w": 32,
+   "h": 32
+  },
+  "mushrooms_glow": {
+   "w": 32,
+   "h": 32
+  },
+  "lilypad": {
+   "w": 32,
+   "h": 32
+  },
+  "bones": {
+   "w": 32,
+   "h": 32
+  },
+  "ember_vent": {
+   "w": 32,
+   "h": 32
+  },
+  "crystal": {
+   "w": 32,
+   "h": 32
+  },
+  "bag": {
+   "w": 32,
+   "h": 32
+  },
+  "bag_boss": {
+   "w": 32,
+   "h": 32
+  }
+ },
+ "icons": [
+  "sword",
+  "axe",
+  "staff",
+  "bow",
+  "helmet",
+  "armor",
+  "boots",
+  "ring",
+  "amulet",
+  "potion_red",
+  "potion_blue",
+  "gold",
+  "sk_cleave",
+  "sk_charge",
+  "sk_toughness",
+  "sk_warcry",
+  "sk_bloodlust",
+  "sk_whirlwind",
+  "sk_berserk",
+  "sk_fireball",
+  "sk_frostnova",
+  "sk_wisdom",
+  "sk_blink",
+  "sk_focus",
+  "sk_meteor",
+  "sk_shield",
+  "sk_aimed",
+  "sk_volley",
+  "sk_precision",
+  "sk_roll",
+  "sk_quickhands",
+  "sk_rain",
+  "sk_hunter"
+ ],
+ "fx": [
+  "arrow",
+  "arcane",
+  "fireball",
+  "fire",
+  "poison",
+  "shadow",
+  "frost",
+  "spark",
+  "glow",
+  "smoke",
+  "ember",
+  "leaf",
+  "shard",
+  "bubble",
+  "shadow_blob",
+  "slash",
+  "ring",
+  "target"
+ ]
+}

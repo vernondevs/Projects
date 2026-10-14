@@ -1,0 +1,580 @@
+/** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
+import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
+import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
+import { BASE_ITEMS, canEquip, isBound, ITEM_STAT_NAMES, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
+import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
+import { MOBS } from "../../../shared/mobs";
+import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
+import { activeSkills, canLearn, classSkills, SKILLS, type SkillDef } from "../../../shared/skills";
+import type { Net, UnitState } from "../net";
+import { rankById } from "../../../shared/arena";
+import { ArenaUI } from "./arena";
+import { TradeUI } from "./trade";
+
+const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const icon = (name: string) => `/assets/icons/${name}.png`;
+const CLASS_COLOR: Record<string, string> = { warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a" };
+const TERRAIN_COLORS = ["#2a5a9e", "#e05412", "#d0b07e", "#3c432c", "#463e40", "#86593a", "#4f873c", "#2f5336", "#746e7a", "#3a3444"];
+
+export interface HudCtx {
+  net: Net;
+  map: WorldMap;
+  useSkill: (i: number) => void;
+  usePotion: (base: string) => void;
+  closeTarget: () => void;
+  focusGame: () => void;
+}
+export interface FrameInfo {
+  me: UnitState | null;
+  target: UnitState | null;
+  pos: { x: number; y: number };
+  units: Map<string, { u: UnitState; x: number; y: number; dead: boolean }>;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", html = ""): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html) e.innerHTML = html;
+  return e;
+}
+
+export class Hud {
+  ctx!: HudCtx;
+  aimAtCursor = false;
+  private player = el("div", "panel hud-player");
+  private targetBox = el("div", "panel hud-target");
+  private zoneBanner = el("div", "hud-zone passthru");
+  private mini = el("div", "panel hud-mini");
+  private miniCanvas = el("canvas");
+  private miniBase: HTMLCanvasElement | null = null;
+  private bar = el("div", "panel hud-bar");
+  private chatBox = el("div", "hud-chat");
+  private chatLog = el("div", "log");
+  private chatInput = el("input");
+  private toasts = el("div", "toasts");
+  private death = el("div", "death");
+  private tip = el("div", "panel tip");
+  private wins: Record<string, HTMLElement> = {};
+  private lastMini = 0;
+  private deadSince = 0;
+  private zoneTimer = 0;
+  private lastSelfLevel = 0;
+  private netBound = false;
+  private tradeBound = false;
+  private tradeToggle!: HTMLButtonElement;
+  readonly arena: ArenaUI;
+  readonly trade: TradeUI;
+
+  constructor(readonly root: HTMLElement) {
+    root.append(this.player, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
+    this.targetBox.hidden = true;
+    this.death.hidden = true;
+    this.tip.hidden = true;
+    this.chatInput.placeholder = "Enter — написать в чат";
+    this.chatInput.maxLength = 140;
+    this.chatInput.id = "chat-input";
+    this.chatBox.append(this.chatLog, this.chatInput);
+    this.miniCanvas.width = 180;
+    this.miniCanvas.height = 140;
+    this.mini.innerHTML = `<div class="zn" id="mini-zone"></div>`;
+    this.mini.prepend(this.miniCanvas);
+    const menu = el("div", "menu");
+    for (const [k, label, key] of [["char", "Герой", "C"], ["inv", "Сумка", "I"], ["skills", "Умения", "K"], ["arena", "Арена", "P"]]) {
+      const b = el("button", "btn small", `${label} <span class="muted">${key}</span>`);
+      b.onclick = () => this.toggle(k);
+      menu.append(b);
+    }
+    this.mini.append(menu);
+    this.makeWindows();
+    this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
+    this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
+    this.trade.onChange = () => {
+      if (this.trade.isOpen) this.wins.inv.hidden = false;
+      if (this.ctx?.net.self) this.renderSelf(this.ctx.net.self);
+    };
+    const tb = el("button", "btn small", "Обмен");
+    tb.onclick = () => this.ctx.net.send("trade:setting", { allow: !!this.ctx.net.self?.noTrade });
+    menu.append(tb);
+    this.tradeToggle = tb;
+    this.chatInput.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        const text = this.chatInput.value.trim();
+        if (text) this.ctx.net.send("chat", { text });
+        this.chatInput.value = "";
+        this.chatInput.blur();
+      } else if (e.key === "Escape") this.chatInput.blur();
+    });
+    document.addEventListener("mousemove", (e) => this.moveTip(e));
+  }
+
+  /** Вызывается при каждом запуске сцены (мир или арена); подписки на сеть — один раз. */
+  bind(ctx: HudCtx) {
+    this.ctx = ctx;
+    const n = ctx.net;
+    if (!this.netBound) {
+      this.netBound = true;
+      n.on("self", (s) => this.renderSelf(s));
+      n.on("chat", (l) => this.chatLine(l));
+      n.on("toast", (t) => this.toast(t));
+      n.on("arena:info", () => this.applyFrame());
+      this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
+    }
+    this.arena.bind(n);
+    if (!this.tradeBound) { this.tradeBound = true; this.trade.bind(n); }
+    for (const w of Object.values(this.wins)) w.hidden = true;
+    this.deadSince = 0;
+    this.death.hidden = true;
+    if (n.self) this.renderSelf(n.self);
+    this.buildMiniBase();
+  }
+
+  /** Рамка за сезонную награду вокруг панели героя. */
+  private applyFrame() {
+    const r = rankById(this.ctx?.net.arenaInfo?.frame ?? "");
+    this.player.style.borderColor = r ? r.color : "";
+    this.player.style.boxShadow = r ? `0 0 0 1px #000, 0 0 14px ${r.color}66` : "";
+  }
+
+  isTyping() {
+    const a = document.activeElement;
+    return !!a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA");
+  }
+  focusChat() {
+    this.chatInput.focus();
+  }
+
+  // ---------- сообщения ----------
+  toast(t: ToastMsg) {
+    const d = el("div", `toast ${t.kind ?? "info"}`);
+    d.textContent = t.text;
+    this.toasts.append(d);
+    while (this.toasts.children.length > 4) this.toasts.firstElementChild!.remove();
+    setTimeout(() => d.remove(), 3300);
+    if (t.kind === "loot") this.chatLine({ from: "", text: t.text, sys: true, loot: true } as ChatLine & { loot: boolean });
+  }
+  chatLine(l: ChatLine & { loot?: boolean }) {
+    const d = el("div", l.sys ? (l.loot ? "loot" : "sys") : "");
+    if (l.sys) d.textContent = l.text;
+    else d.innerHTML = `<b style="color:${CLASS_COLOR[l.cls ?? ""] ?? "#ffb070"}">${esc(l.from)}:</b> ${esc(l.text)}`;
+    const atBottom = this.chatLog.scrollTop + this.chatLog.clientHeight >= this.chatLog.scrollHeight - 4;
+    this.chatLog.append(d);
+    while (this.chatLog.children.length > 80) this.chatLog.firstElementChild!.remove();
+    if (atBottom) this.chatLog.scrollTop = this.chatLog.scrollHeight;
+  }
+  showZone(name: string, sub: string) {
+    this.zoneBanner.innerHTML = `${esc(name)}<small>${esc(sub)}</small>`;
+    this.zoneBanner.classList.add("show");
+    clearTimeout(this.zoneTimer);
+    this.zoneTimer = window.setTimeout(() => this.zoneBanner.classList.remove("show"), 2600);
+  }
+
+  // ---------- окна ----------
+  private makeWindows() {
+    const mk = (id: string, cls: string, title: string) => {
+      const w = el("div", `panel win ${cls}`);
+      w.hidden = true;
+      w.innerHTML = `<h2><span>${title}</span><button class="x" aria-label="Закрыть">×</button></h2><div class="body"></div>`;
+      w.querySelector<HTMLButtonElement>(".x")!.onclick = () => (w.hidden = true);
+      this.root.append(w);
+      this.wins[id] = w;
+    };
+    mk("char", "win-char", "Герой");
+    mk("inv", "win-inv", "Снаряжение и сумка");
+    mk("skills", "win-skills", "Дерево умений");
+    mk("shop", "win-shop", "Торговка Марфа");
+  }
+  toggle(id: string) {
+    if (id === "arena") return this.arena.toggle();
+    if (this.ctx.net.kind === "arena" && id === "shop") return;
+    const w = this.wins[id];
+    w.hidden = !w.hidden;
+    if (!w.hidden && this.ctx.net.self) this.renderSelf(this.ctx.net.self);
+    if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
+  }
+  closeAll(): boolean {
+    let any = this.arena.close() || this.trade.close();
+    for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
+    this.tip.hidden = true;
+    return any;
+  }
+  openShop() {
+    this.wins.shop.hidden = false;
+    this.wins.inv.hidden = false;
+    if (this.ctx.net.self) this.renderSelf(this.ctx.net.self);
+  }
+  private body(id: string) {
+    return this.wins[id].querySelector<HTMLElement>(".body")!;
+  }
+
+  // ---------- подсказки ----------
+  tipFor(elm: HTMLElement, html: () => string) {
+    elm.addEventListener("mouseenter", (e) => {
+      this.tip.innerHTML = html();
+      this.tip.hidden = false;
+      this.moveTip(e);
+    });
+    elm.addEventListener("mouseleave", () => (this.tip.hidden = true));
+  }
+  private moveTip(e: MouseEvent) {
+    if (this.tip.hidden) return;
+    const r = this.tip.getBoundingClientRect();
+    let x = e.clientX + 16, y = e.clientY + 16;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 12;
+    if (y + r.height > innerHeight - 8) y = innerHeight - r.height - 8;
+    this.tip.style.left = x + "px";
+    this.tip.style.top = y + "px";
+  }
+  itemTip(it: Item, s: SelfState, equipped = false): string {
+    const b = BASE_ITEMS[it.base];
+    const lines: string[] = [`<div class="t r${it.rarity}">${esc(it.name)}</div>`];
+    if (b.slot === "consumable") {
+      lines.push(`<div class="d">Расходуемое · ${it.qty ?? 1} шт.</div>`, `<div>${it.base === "hp_potion" ? "Восстанавливает 45% здоровья" : "Восстанавливает 50% маны"}</div>`, `<div class="d">Клавиша ${it.base === "hp_potion" ? "Q" : "E"} или клик</div>`);
+    } else {
+      lines.push(`<div class="d">${RARITY_NAMES[it.rarity]} · ${SLOT_NAMES[b.slot]} · ур. предмета ${it.ilvl}</div>`);
+      const st = it.stats;
+      if (st.dmgMin) lines.push(`<div>Урон: ${st.dmgMin}–${st.dmgMax}</div>`);
+      if (st.armor) lines.push(`<div>Броня: ${st.armor}</div>`);
+      for (const [k, v] of Object.entries(st)) if (!["dmgMin", "dmgMax", "armor"].includes(k)) lines.push(`<div class="st">+${v}${k === "crit" ? "%" : ""} ${ITEM_STAT_NAMES[k as ItemStatKey]}</div>`);
+      if (b.classes) lines.push(`<div class="${b.classes.includes(s.cls) ? "d" : "warn"}">Класс: ${b.classes.map((c) => CLASSES[c].name).join(", ")}</div>`);
+      lines.push(`<div class="${it.req > s.level ? "warn" : "d"}">Требуется уровень ${it.req}</div>`);
+      if (isBound(it)) lines.push(`<div class="warn">Привязан к персонажу</div>`);
+      if (it.unique) lines.push(`<div class="lore">${esc(UNIQUES[it.unique].lore)}</div>`);
+      if (!equipped) {
+        const cur = s.equip[b.slot];
+        if (cur && cur.uid !== it.uid) {
+          const diff = (k: ItemStatKey) => (it.stats[k] || 0) - (cur.stats[k] || 0);
+          const parts = (["dmgMax", "armor", "str", "agi", "int", "vit", "hp", "crit"] as ItemStatKey[]).map((k) => [k, diff(k)] as const).filter(([, v]) => v !== 0);
+          if (parts.length) lines.push(`<div class="d">Сравнение с надетым: ${parts.map(([k, v]) => `<span style="color:${v > 0 ? "var(--ok)" : "var(--bad)"}">${v > 0 ? "+" : ""}${v} ${k === "dmgMax" ? "урон" : ITEM_STAT_NAMES[k].toLowerCase()}</span>`).join(", ")}</div>`);
+        }
+      }
+    }
+    lines.push(`<div class="d">${!this.wins.shop.hidden && !equipped ? "Клик — продать за " : "Цена у торговца: "}<span class="gold">${itemValue(it)} з</span></div>`);
+    if (equipped) lines.push(`<div class="d">Клик — снять</div>`);
+    else if (b.slot !== "consumable" && this.wins.shop.hidden) lines.push(`<div class="d">Клик — надеть · перетаскивание — переложить</div>`);
+    return lines.join("");
+  }
+  skillTip(def: SkillDef, s: SelfState): string {
+    const r = s.skills[def.id] || 0;
+    const lines = [`<div class="t">${def.name}</div>`, `<div class="d">${def.kind === "active" ? `Активное · клавиша ${(def.slot ?? 0) + 1}` : "Пассивное"} · ранг ${r}/${def.maxRank}</div>`];
+    lines.push(`<div>${def.desc(Math.max(1, r))}</div>`);
+    if (def.kind === "active") lines.push(`<div class="d">Мана: ${def.mana!(Math.max(1, r))} · Перезарядка: ${def.cd!(Math.max(1, r)).toFixed(1)} с${def.range ? ` · Дальность: ${Math.round(def.range / TILE)} кл.` : ""}</div>`);
+    if (r > 0 && r < def.maxRank) lines.push(`<div class="st">След. ранг: ${def.desc(r + 1)}</div>`);
+    const why = canLearn(def, s.skills, s.level, s.skillPoints);
+    if (why && r < def.maxRank) lines.push(`<div class="warn">${why}</div>`);
+    else if (!why) lines.push(`<div class="st">Клик — вложить очко</div>`);
+    return lines.join("");
+  }
+
+  // ---------- личное состояние ----------
+  renderSelf(s: SelfState) {
+    if (!s) return;
+    if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
+    this.lastSelfLevel = s.level;
+    const net = this.ctx.net;
+    // панель героя
+    const pts = [s.statPoints ? `<span class="pill" data-open="char">+${s.statPoints} хар.</span>` : "", s.skillPoints ? `<span class="pill" data-open="skills">+${s.skillPoints} ум.</span>` : ""].join("");
+    this.player.innerHTML = `
+      <div class="row1"><span class="nm">${esc(s.name)}</span><span class="lv">${CLASSES[s.cls].name} · ур. ${s.level}</span></div>
+      <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
+      <div class="bar mp"><i id="mp-fill"></i><span id="mp-text"></span></div>
+      <div class="bar xp" title="Опыт"><i style="width:${s.xpNext ? (s.xp / s.xpNext) * 100 : 100}%"></i></div>
+      <div class="pts"><span class="muted">Опыт ${s.xpNext ? `${s.xp} / ${s.xpNext}` : "максимум"}</span><span class="gold">${s.gold} з</span>${pts}</div>`;
+    this.player.querySelectorAll<HTMLElement>("[data-open]").forEach((p) => (p.onclick = () => this.toggle(p.dataset.open!)));
+
+    // панель умений
+    this.bar.innerHTML = "";
+    activeSkills(s.cls).forEach((def, i) => {
+      const r = s.skills[def.id] || 0;
+      const b = el("button", `slot ${r ? "" : "locked"}`, `<img src="${icon(def.icon)}" alt=""><kbd>${i + 1}</kbd><i class="cd" data-cd="${def.id}" style="transform:scaleY(0)"></i><span class="cdt" data-cdt="${def.id}"></span>`);
+      b.dataset.skill = def.id;
+      b.onclick = () => this.ctx.useSkill(i);
+      this.tipFor(b, () => this.skillTip(def, net.self!));
+      this.bar.append(b);
+    });
+    this.bar.append(el("span", "sep"));
+    for (const [base, key] of [["hp_potion", "Q"], ["mp_potion", "E"]]) {
+      const qty = s.inventory.reduce((a, it) => a + (it && it.base === base ? it.qty ?? 1 : 0), 0);
+      const b = el("button", `slot ${qty ? "" : "empty"}`, `<img src="${icon(BASE_ITEMS[base].icon)}" alt=""><kbd>${key}</kbd><span class="qty">${qty}</span>`);
+      b.onclick = () => this.ctx.usePotion(base);
+      this.tipFor(b, () => `<div class="t">${BASE_ITEMS[base].name}</div><div class="d">${qty} шт. · клавиша ${key}</div>`);
+      this.bar.append(b);
+    }
+
+    if (!this.wins.char.hidden) this.renderChar(s);
+    if (!this.wins.inv.hidden) this.renderInv(s);
+    if (!this.wins.skills.hidden) this.renderSkills(s);
+    if (!this.wins.shop.hidden) this.renderShop(s);
+  }
+
+  private renderChar(s: SelfState) {
+    const b = this.body("char");
+    const d = s.derived;
+    b.innerHTML = `<p class="muted">Свободно очков: <b class="gold">${s.statPoints}</b> (3 за уровень)</p><div class="stats"></div>
+      <div class="derived">
+        <span>Урон</span><span>${d.dmgMin}–${d.dmgMax}</span>
+        <span>Здоровье</span><span>${d.maxHp}</span>
+        <span>Мана</span><span>${d.maxMp}</span>
+        <span>Броня</span><span>${d.armor}</span>
+        <span>Шанс крита</span><span>${(d.crit * 100).toFixed(1)}%</span>
+        <span>Урон крита</span><span>${Math.round(d.critMult * 100)}%</span>
+        <span>Атак в секунду</span><span>${(1 / d.attackCd).toFixed(2)}</span>
+        <span>Реген здоровья</span><span>${d.hpRegen.toFixed(1)}/с</span>
+        <span>Реген маны</span><span>${d.mpRegen.toFixed(1)}/с</span>
+        ${d.lifesteal ? `<span>Вампиризм</span><span>${Math.round(d.lifesteal * 100)}%</span>` : ""}
+        <span>Убито врагов</span><span>${s.kills}</span>
+        <span>Повержено боссов</span><span>${Object.values(s.bossKills).reduce((a, c) => a + c, 0)}</span>
+      </div>`;
+    const grid = b.querySelector(".stats")!;
+    for (const k of ["str", "agi", "int", "vit"] as StatKey[]) {
+      const main = CLASSES[s.cls].mainStat === k;
+      const name = el("span", "k", `${STAT_NAMES[k]}${main ? ' <span class="gold">★</span>' : ""}`);
+      this.tipFor(name, () => `<div class="t">${STAT_NAMES[k]}</div><div>${STAT_HINTS[k]}</div><div class="d">Вложено: ${s.alloc[k]}</div>`);
+      const plus = el("button", "btn plus", "+");
+      plus.disabled = s.statPoints <= 0;
+      plus.setAttribute("aria-label", `Добавить: ${STAT_NAMES[k]}`);
+      plus.onclick = () => this.ctx.net.send("alloc", { stat: k });
+      grid.append(name, el("span", "v", String(d.stats[k])), plus);
+    }
+  }
+
+  private cell(it: Item | null, s: SelfState, cls = "", label = ""): HTMLButtonElement {
+    const c = el("button", `cell ${cls}`);
+    if (it) {
+      c.classList.add(`r${it.rarity}`);
+      if (BASE_ITEMS[it.base].slot !== "consumable" && canEquip(it, s.cls, s.level)) c.classList.add("cant");
+      c.innerHTML = `<img src="${icon(BASE_ITEMS[it.base].icon)}" alt="${esc(it.name)}">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
+    } else if (label) c.innerHTML = `<span class="lbl">${label}</span>`;
+    return c;
+  }
+  private renderInv(s: SelfState) {
+    const b = this.body("inv");
+    const shop = !this.wins.shop.hidden;
+    b.innerHTML = `<div class="equip"></div><p class="muted">${shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+    const eq = b.querySelector(".equip")!;
+    for (const slot of SLOTS) {
+      const it = s.equip[slot];
+      const c = this.cell(it, s, "", SLOT_NAMES[slot]);
+      if (it) {
+        c.onclick = () => this.ctx.net.send("unequip", { slot });
+        this.tipFor(c, () => this.itemTip(it, this.ctx.net.self!, true));
+      }
+      eq.append(c);
+    }
+    const grid = b.querySelector(".grid")!;
+    const locked = this.trade.lockedIndices();
+    this.tradeToggle.innerHTML = `Обмен <span class="muted">${s.noTrade ? "выкл" : "вкл"}</span>`;
+    this.tradeToggle.title = s.noTrade ? "Входящие запросы на обмен отключены — нажмите, чтобы включить" : "Входящие запросы на обмен разрешены — нажмите, чтобы отключить";
+    s.inventory.forEach((it, i) => {
+      const c = this.cell(it, s, locked.has(i) ? "locked" : "");
+      c.draggable = !!it;
+      c.ondragstart = (e) => e.dataTransfer!.setData("text/plain", String(i));
+      c.ondragover = (e) => { e.preventDefault(); c.classList.add("drag"); };
+      c.ondragleave = () => c.classList.remove("drag");
+      c.ondrop = (e) => {
+        e.preventDefault();
+        c.classList.remove("drag");
+        const from = Number(e.dataTransfer!.getData("text/plain"));
+        if (Number.isInteger(from) && from !== i) this.ctx.net.send("swap", { a: from, b: i });
+      };
+      if (it) {
+        c.onclick = () => {
+          this.tip.hidden = true;
+          if (this.trade.isOpen) { if (!locked.has(i)) this.trade.offer(i); }
+          else if (!this.wins.shop.hidden) this.ctx.net.send("sell", { index: i });
+          else if (BASE_ITEMS[it.base].slot === "consumable") this.ctx.net.send("use", { index: i });
+          else this.ctx.net.send("equip", { index: i });
+        };
+        this.tipFor(c, () => this.itemTip(it, this.ctx.net.self!));
+      }
+      grid.append(c);
+    });
+  }
+
+  private renderSkills(s: SelfState) {
+    const b = this.body("skills");
+    b.innerHTML = `<p class="muted">Свободно очков умений: <b class="gold">${s.skillPoints}</b> (1 за уровень). Активные — квадратные, пассивные — круглые.</p><div class="tree"></div>`;
+    const tree = b.querySelector<HTMLElement>(".tree")!;
+    const defs = classSkills(s.cls);
+    const rows = Math.max(...defs.map((d) => d.tree[0])) + 1;
+    tree.style.gridTemplateRows = `repeat(${rows}, auto)`;
+    const nodes = new Map<string, HTMLElement>();
+    for (const def of defs) {
+      const r = s.skills[def.id] || 0;
+      const can = !canLearn(def, s.skills, s.level, s.skillPoints);
+      const n = el("div", `node ${def.kind === "passive" ? "passive" : ""} ${can ? "can" : ""}`);
+      n.style.gridRow = String(def.tree[0] + 1);
+      n.style.gridColumn = String(def.tree[1] + 1);
+      const btn = el("button", `slot ${r ? "" : "locked"}`, `<img src="${icon(def.icon)}" alt="">`);
+      btn.onclick = () => this.ctx.net.send("learn", { id: def.id });
+      this.tipFor(btn, () => this.skillTip(def, this.ctx.net.self!));
+      n.append(btn, el("span", "nm", def.name), el("span", "rk", `${r}/${def.maxRank} · ур.${def.reqLevel}`));
+      tree.append(n);
+      nodes.set(def.id, n);
+    }
+    requestAnimationFrame(() => {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const tr = tree.getBoundingClientRect();
+      for (const def of defs) {
+        if (!def.req) continue;
+        const a = nodes.get(def.req.id)?.querySelector(".slot")?.getBoundingClientRect();
+        const c = nodes.get(def.id)?.querySelector(".slot")?.getBoundingClientRect();
+        if (!a || !c) continue;
+        const ok = (s.skills[def.req.id] || 0) >= def.req.rank;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(a.left + a.width / 2 - tr.left));
+        line.setAttribute("y1", String(a.top + a.height / 2 - tr.top));
+        line.setAttribute("x2", String(c.left + c.width / 2 - tr.left));
+        line.setAttribute("y2", String(c.top + c.height / 2 - tr.top));
+        line.setAttribute("stroke", ok ? "#f0c050" : "#4d3f4a");
+        line.setAttribute("stroke-width", "3");
+        svg.append(line);
+      }
+      tree.prepend(svg);
+    });
+  }
+
+  private renderShop(s: SelfState) {
+    const b = this.body("shop");
+    b.innerHTML = `<p class="muted">«Зелья свежие, цены честные. Ненужное снаряжение тоже возьму.» Клик по предмету в сумке — продать.</p>`;
+    for (const base of ["hp_potion", "mp_potion"]) {
+      const def = BASE_ITEMS[base];
+      const row = el("div", "shoprow", `<img src="${icon(def.icon)}" alt=""><div>${def.name}<br><span class="muted">${base === "hp_potion" ? "45% здоровья" : "50% маны"}</span></div>`);
+      for (const q of [1, 5]) {
+        const btn = el("button", "btn small", `×${q} · <span class="gold">${(def.price ?? 0) * q} з</span>`);
+        btn.disabled = s.gold < (def.price ?? 0) * q;
+        btn.onclick = () => this.ctx.net.send("buy", { base, qty: q });
+        row.append(btn);
+      }
+      b.append(row);
+    }
+    const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
+    const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length})`);
+    sellAll.disabled = !junk.length;
+    sellAll.onclick = () => junk.slice().reverse().forEach(([, i]) => this.ctx.net.send("sell", { index: i }));
+    b.append(sellAll, el("p", "muted", `Золото: <b class="gold">${s.gold}</b>`));
+  }
+
+  // ---------- мини-карта ----------
+  private buildMiniBase() {
+    const m = this.ctx.map;
+    const c = document.createElement("canvas");
+    c.width = m.w;
+    c.height = m.h;
+    const g = c.getContext("2d")!;
+    const img = g.createImageData(m.w, m.h);
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      let col = TERRAIN_COLORS[m.vtx[y * (m.w + 1) + x]];
+      if (m.cell[y * m.w + x] & 2) col = "#1c1822";
+      else if (m.cell[y * m.w + x] & 1 && m.vtx[y * (m.w + 1) + x] !== T.Water && m.vtx[y * (m.w + 1) + x] !== T.Lava) col = "#22402a";
+      const i = (y * m.w + x) * 4;
+      img.data[i] = parseInt(col.slice(1, 3), 16);
+      img.data[i + 1] = parseInt(col.slice(3, 5), 16);
+      img.data[i + 2] = parseInt(col.slice(5, 7), 16);
+      img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    this.miniBase = c;
+  }
+  private drawMini(info: FrameInfo) {
+    const g = this.miniCanvas.getContext("2d")!;
+    g.imageSmoothingEnabled = false;
+    const m = this.ctx.map;
+    // карта мира 180×140 рисуется один к одному, маленькая карта арены растягивается на весь холст
+    const k = Math.min(this.miniCanvas.width / m.w, this.miniCanvas.height / m.h);
+    const ox = (this.miniCanvas.width - m.w * k) / 2, oy = (this.miniCanvas.height - m.h * k) / 2;
+    const X = (px: number) => ox + (px / TILE) * k, Y = (py: number) => oy + (py / TILE) * k;
+    g.fillStyle = "#0e0b10";
+    g.fillRect(0, 0, this.miniCanvas.width, this.miniCanvas.height);
+    if (this.miniBase) g.drawImage(this.miniBase, ox, oy, m.w * k, m.h * k);
+    const dot = Math.max(1.5, k * 0.9);
+    for (const b of m.bosses) {
+      g.fillStyle = "#ff7a2a";
+      g.fillRect(X(b.x) - 2, Y(b.y) - 2, 4, 4);
+    }
+    for (const [, v] of info.units) {
+      if (v.dead) continue;
+      const near = Math.hypot(v.x - info.pos.x, v.y - info.pos.y) < 900;
+      if (v.u.kind === UnitKind.Mob && !near) continue;
+      const enemy = v.u.kind === UnitKind.Player && this.ctx.net.kind === "arena" && v.u.team !== this.ctx.net.arena?.team;
+      g.fillStyle = v.u.kind === UnitKind.Player ? (enemy ? "#ff6a5a" : "#6ac8ff") : v.u.kind === UnitKind.Boss ? "#ff3a1a" : "#e84a4a";
+      const s = v.u.kind === UnitKind.Boss ? 3 : dot;
+      g.fillRect(Math.floor(X(v.x)), Math.floor(Y(v.y)), s, s);
+    }
+    g.fillStyle = "#ffffff";
+    g.fillRect(X(info.pos.x) - 1.5, Y(info.pos.y) - 1.5, 3, 3);
+    if (this.ctx.net.kind === "world") {
+      g.strokeStyle = "rgba(255,255,255,0.5)";
+      g.strokeRect(X(info.pos.x) - 20, Y(info.pos.y) - 12, 40, 24);
+    }
+    const zi = zoneAtPx(m, info.pos.x, info.pos.y);
+    const z = ZONES[zi];
+    const sub = this.ctx.net.kind === "arena" ? "PvP" : z.safe ? "безопасно" : `ур. ${z.levels[0]}–${z.levels[1]}`;
+    document.getElementById("mini-zone")!.innerHTML = `${esc(z.name)} <small>${sub}</small>`;
+  }
+
+  // ---------- каждый кадр ----------
+  frame(info: FrameInfo) {
+    const me = info.me;
+    if (me) {
+      const hp = document.getElementById("hp-fill"), mp = document.getElementById("mp-fill");
+      if (hp) { hp.style.width = `${(me.hp / Math.max(1, me.maxHp)) * 100}%`; document.getElementById("hp-text")!.textContent = `${Math.max(0, me.hp)} / ${me.maxHp}`; }
+      if (mp) { mp.style.width = `${(me.mp / Math.max(1, me.maxMp)) * 100}%`; document.getElementById("mp-text")!.textContent = `${me.mp} / ${me.maxMp}`; }
+      // смерть
+      if (me.anim === Anim.Dead) {
+        if (!this.deadSince) {
+          this.deadSince = performance.now();
+          this.death.hidden = false;
+          this.death.innerHTML = `<div class="panel"><h2>Вы пали в бою</h2><p class="muted">Вы потеряете 10% золота и очнётесь у фонтана в городе.</p><button class="btn primary" id="respawn">Возродиться</button></div>`;
+          document.getElementById("respawn")!.onclick = () => this.ctx.net.send("respawn", {});
+        }
+        const left = Math.ceil((RESPAWN_DELAY_MS - (performance.now() - this.deadSince)) / 1000);
+        const btn = document.getElementById("respawn") as HTMLButtonElement | null;
+        if (btn) { btn.disabled = left > 0; btn.textContent = left > 0 ? `Возродиться (${left})` : "Возродиться"; }
+      } else if (this.deadSince) {
+        this.deadSince = 0;
+        this.death.hidden = true;
+      }
+    }
+    // цель
+    const t = info.target;
+    if (t && t.anim !== Anim.Dead) {
+      this.targetBox.hidden = false;
+      const boss = t.kind === UnitKind.Boss;
+      this.targetBox.classList.toggle("boss", boss);
+      const def = Object.values(MOBS).find((m) => m.name === t.name);
+      const phase = boss ? `<div class="phase">Фаза ${t.phase + 1} · ур. ${t.level}${def?.uniques ? " · уникальная добыча" : ""}</div>` : "";
+      const sig = `${t.name}|${t.level}|${t.hp}|${t.maxHp}|${t.phase}`;
+      if (this.targetBox.dataset.sig !== sig) {
+        this.targetBox.dataset.sig = sig;
+        this.targetBox.innerHTML = `<div class="nm">${esc(t.name)} ${t.kind === UnitKind.Player ? "" : `<span class="muted">ур. ${t.level}</span>`}</div><div class="bar hp"><i style="width:${(t.hp / Math.max(1, t.maxHp)) * 100}%"></i><span>${t.hp} / ${t.maxHp}</span></div>${phase}`;
+      }
+    } else this.targetBox.hidden = true;
+
+    // перезарядки и мана
+    const self = this.ctx.net.self;
+    if (self) {
+      const now = performance.now();
+      for (const def of activeSkills(self.cls)) {
+        const end = this.ctx.net.cooldowns.get(def.id) ?? 0;
+        const cdEl = this.bar.querySelector<HTMLElement>(`[data-cd="${def.id}"]`);
+        const txt = this.bar.querySelector<HTMLElement>(`[data-cdt="${def.id}"]`);
+        if (!cdEl || !txt) continue;
+        const left = Math.max(0, end - now);
+        const total = def.cd!(Math.max(1, self.skills[def.id] || 1)) * 1000;
+        cdEl.style.transform = `scaleY(${Math.min(1, left / total)})`;
+        txt.textContent = left > 0 ? (left / 1000).toFixed(left < 1000 ? 1 : 0) : "";
+        const slot = cdEl.parentElement!;
+        slot.classList.toggle("nomana", !!me && me.mp < def.mana!(Math.max(1, self.skills[def.id] || 1)) && !!self.skills[def.id]);
+      }
+    }
+    this.arena.frame(info.units);
+    const now = performance.now();
+    if (now - this.lastMini > 200) {
+      this.lastMini = now;
+      this.drawMini(info);
+    }
+  }
+}
+
+export { MAX_LEVEL, SKILLS };

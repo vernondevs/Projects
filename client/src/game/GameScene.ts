@@ -1,0 +1,466 @@
+import Phaser from "phaser";
+import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from "../../../shared/constants";
+import { generateMap, moveWithCollision, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
+import { Anim, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
+import { activeSkills, SKILLS } from "../../../shared/skills";
+import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
+import { net, type UnitState } from "../net";
+import type { Hud } from "../ui/hud";
+import { Effects } from "./effects";
+import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
+import { FONT, UnitView } from "./UnitView";
+
+export class GameScene extends Phaser.Scene {
+  map!: WorldMap;
+  world!: WorldView;
+  hud!: Hud;
+  fx!: Effects;
+  units = new Map<string, UnitView>();
+  me: UnitView | null = null;
+  /** Предсказанная позиция своего героя. */
+  pos = { x: 0, y: 0 };
+  keys = new Set<string>();
+  lastInput = { mx: 0, my: 0, at: 0 };
+  targetId: string | null = null;
+  bagViews = new Map<string, Phaser.GameObjects.Image>();
+  pendingPickup: string | null = null;
+  /** NPC города (только в мире): торговка и распорядитель арены. */
+  npcs: { sprite: Phaser.GameObjects.Sprite; kind: "shop" | "arena" }[] = [];
+  pendingNpc: "shop" | "arena" | null = null;
+  private cleanup: (() => void)[] = [];
+  bubbles: { t: Phaser.GameObjects.Text; id: string; until: number }[] = [];
+  zone: Zone = Zone.Town;
+  clickMark!: Phaser.GameObjects.Image;
+  hoverId: string | null = null;
+  ambient: Record<string, Phaser.GameObjects.Particles.ParticleEmitter> = {};
+  dust!: Phaser.GameObjects.Particles.ParticleEmitter;
+  selfLight!: Phaser.GameObjects.Image;
+  dustAt = new Map<string, number>();
+
+  constructor() {
+    super("game");
+  }
+
+  create() {
+    // сцена перезапускается при переходе мир ⇄ арена: сбрасываем состояние прошлого запуска
+    this.units = new Map();
+    this.me = null;
+    this.targetId = null;
+    this.bagViews = new Map();
+    this.pendingPickup = null;
+    this.pendingNpc = null;
+    this.bubbles = [];
+    this.keys.clear();
+    this.ambient = {};
+    this.dustAt = new Map();
+    this.npcs = [];
+    this.hoverId = null;
+    this.zone = -1 as Zone;
+    this.lastInput = { mx: 0, my: 0, at: 0 };
+    this.events.once("shutdown", () => {
+      for (const fn of this.cleanup.splice(0)) fn();
+    });
+
+    this.hud = this.registry.get("hud") as Hud;
+    this.map = net.kind === "arena" ? generateArenaMap() : generateMap(net.seed);
+    this.world = buildWorld(this, this.map);
+    const cam = this.cameras.main;
+    cam.setBounds(0, 0, this.map.w * TILE, this.map.h * TILE);
+    const fitZoom = () => cam.setZoom(Math.max(2, Math.min(3, Math.round(Math.min(window.innerWidth / 640, window.innerHeight / 400)))));
+    fitZoom();
+    this.scale.on("resize", fitZoom);
+    this.cleanup.push(() => this.scale.off("resize", fitZoom));
+
+    this.fx = new Effects(this, (id) => this.units.get(id), net.id, (id, text) => this.say(id, text));
+    this.cleanup.push(net.on("fx", (list) => this.fx.play(list)), net.on("loot", (bags) => this.syncBags(bags)));
+
+    // NPC — декоративные, проверки дальности делает сервер
+    if (net.kind === "world") {
+      this.addNpc("shop", "merchant", this.map.merchant, "Торговка Марфа", "#ffd27a");
+      this.addNpc("arena", "arenamaster", ARENA_NPC, "Распорядитель арены", "#ff9a7a");
+    }
+
+    this.clickMark = this.add.image(0, 0, "fx_target").setDepth(DEPTH.ground + 7).setVisible(false).setScale(0.6);
+
+    net.watchUnits("players", (id, u) => this.addUnit(id, u), (id) => this.removeUnit(id));
+    net.watchUnits("mobs", (id, u) => this.addUnit(id, u), (id) => this.removeUnit(id));
+
+    this.hud.bind({
+      net,
+      map: this.map,
+      useSkill: (i) => this.useSkill(i),
+      usePotion: (k) => this.usePotion(k),
+      closeTarget: () => this.setTarget(null),
+      focusGame: () => this.game.canvas.focus(),
+    });
+
+    this.setupInput();
+    this.setupAmbient();
+  }
+
+  private addNpc(kind: "shop" | "arena", sprite: string, at: { x: number; y: number }, name: string, color: string) {
+    const tex = this.textures.exists(`u_${sprite}`) ? `u_${sprite}` : "u_merchant";
+    const s = this.add.sprite(at.x, at.y, tex, 0).setOrigin(0.5, 30 / 32).setDepth(at.y);
+    this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
+    const label = { fontFamily: FONT, fontSize: "8px", color, stroke: "#120a10", strokeThickness: 3, resolution: 4 };
+    this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.setFrame(Math.random() < 0.5 ? 0 : 24) });
+    this.npcs.push({ sprite: s, kind });
+  }
+
+  /** Атмосферные частицы по зонам, пыль из-под ног, свет героя в темноте. */
+  private setupAmbient() {
+    const area = () => new Phaser.Geom.Rectangle(0, 0, 700, 420);
+    const mk = (key: string, tex: string, cfg: Phaser.Types.GameObjects.Particles.ParticleEmitterConfig) => {
+      const e = this.add.particles(0, 0, tex, { emitZone: { type: "random", source: area() } as any, emitting: false, ...cfg });
+      e.setDepth(DEPTH.top - 15);
+      this.ambient[key] = e;
+    };
+    mk("leaves", "fx_leaf", { frequency: 260, lifespan: 6000, speedX: { min: -14, max: 14 }, speedY: { min: 10, max: 22 }, rotate: { start: 0, end: 360 }, alpha: { start: 0.9, end: 0 }, tint: [0x8ac850, 0xd09a34, 0x6aa040] });
+    mk("fireflies", "fx_spark", { frequency: 220, lifespan: 4000, speed: { min: 4, max: 14 }, scale: { start: 0.35, end: 0.1 }, alpha: { values: [0, 1, 0.3, 1, 0] } as any, tint: 0xc8ff6a, blendMode: Phaser.BlendModes.ADD });
+    mk("embers", "fx_ember", { frequency: 120, lifespan: 3500, speedY: { min: -30, max: -12 }, speedX: { min: -8, max: 8 }, alpha: { start: 1, end: 0 }, scale: { start: 1, end: 0.3 }, blendMode: Phaser.BlendModes.ADD });
+    mk("pollen", "fx_spark", { frequency: 500, lifespan: 5000, speedX: { min: 4, max: 14 }, speedY: { min: -4, max: 4 }, scale: 0.2, alpha: { start: 0.8, end: 0 }, tint: 0xfff6c0 });
+    this.dust = this.add.particles(0, 0, "fx_smoke", { emitting: false, lifespan: 420, speed: { min: 4, max: 12 }, angle: { min: 200, max: 340 }, scale: { start: 0.45, end: 0.1 }, alpha: { start: 0.45, end: 0 }, tint: 0xc8b898 });
+    this.dust.setDepth(DEPTH.ground + 4);
+    this.selfLight = this.add.image(0, 0, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc88a).setScale(5.5).setAlpha(0).setDepth(DEPTH.top - 10);
+  }
+
+  private updateAmbient(z: Zone) {
+    const cam = this.cameras.main;
+    const v = cam.worldView;
+    const want: Record<string, boolean> = { leaves: z === Zone.Forest, fireflies: z === Zone.Swamp, embers: z === Zone.Ashlands || z === Zone.Dungeon || z === Zone.Arena, pollen: z === Zone.Meadow || z === Zone.Town };
+    for (const [k, e] of Object.entries(this.ambient)) {
+      e.setPosition(v.x - 40, v.y - (k === "leaves" ? 60 : 0));
+      (e.emitZones[0] as any)?.source?.setSize?.(v.width + 80, v.height + 40);
+      if (want[k] && !e.emitting) e.start();
+      else if (!want[k] && e.emitting) e.stop();
+    }
+    this.selfLight.setPosition(this.pos.x, this.pos.y - 12).setAlpha(this.world.dark.alpha * 0.55);
+    // пыль из-под ног идущих
+    const now = this.time.now;
+    for (const [id, u] of this.units) {
+      if (u.dead || u.u.anim !== Anim.Walk || u.frame > 32 && u.u.sprite === "witch") continue;
+      if ((this.dustAt.get(id) ?? 0) > now) continue;
+      this.dustAt.set(id, now + 260);
+      if (z !== Zone.Dungeon) this.dust.emitParticleAt(u.x, u.y);
+    }
+  }
+
+  // ---------- юниты ----------
+  addUnit(id: string, u: UnitState) {
+    if (this.units.has(id)) return;
+    const v = new UnitView(this, id, u, id === net.id);
+    this.units.set(id, v);
+    if (id === net.id) {
+      this.me = v;
+      this.pos = { x: u.x, y: u.y };
+      this.cameras.main.startFollow(v.sprite, true, 0.15, 0.15, 0, 12);
+    }
+  }
+  removeUnit(id: string) {
+    this.units.get(id)?.destroy();
+    this.units.delete(id);
+    if (this.targetId === id) this.setTarget(null);
+  }
+
+  setTarget(id: string | null) {
+    if (this.targetId) {
+      const old = this.units.get(this.targetId);
+      if (old) old.selected = false;
+    }
+    this.targetId = id;
+    if (id) {
+      const v = this.units.get(id);
+      if (v) v.selected = true;
+    }
+    net.send("target", { id });
+  }
+
+  // ---------- ввод ----------
+  private setupInput() {
+    const isTyping = () => this.hud.isTyping();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isTyping()) return;
+      const k = e.key.toLowerCase();
+      const code = e.code;
+      if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) {
+        this.keys.add(code);
+        this.pendingPickup = null;
+        this.pendingNpc = null;
+        e.preventDefault();
+        return;
+      }
+      if (e.repeat) return;
+      if (code.startsWith("Digit") && "1234".includes(code.slice(5))) this.useSkill(Number(code.slice(5)) - 1);
+      else if (code === "KeyQ") this.usePotion("hp_potion");
+      else if (code === "KeyE") this.usePotion("mp_potion");
+      else if (code === "Tab") { e.preventDefault(); this.cycleTarget(); }
+      else if (code === "Space") { e.preventDefault(); this.pickupNearest(); }
+      else if (code === "KeyF") this.talkNearest();
+      else if (code === "KeyP") this.hud.toggle("arena");
+      else if (code === "Escape") { if (!this.hud.closeAll()) this.setTarget(null); }
+      else if (code === "KeyI" || code === "KeyC" || code === "KeyK") this.hud.toggle(code === "KeyI" ? "inv" : code === "KeyC" ? "char" : "skills");
+      else if (code === "Enter") { e.preventDefault(); this.hud.focusChat(); }
+      void k;
+    };
+    const onKeyUp = (e: KeyboardEvent) => this.keys.delete(e.code);
+    const onBlur = () => this.keys.clear();
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    this.cleanup.push(() => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    });
+
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      const id = this.pick(p.worldX, p.worldY);
+      if (id !== this.hoverId) {
+        if (this.hoverId) { const v = this.units.get(this.hoverId); if (v) v.hovered = false; }
+        this.hoverId = id;
+        if (id) { const v = this.units.get(id); if (v) v.hovered = true; }
+        this.game.canvas.style.cursor = id ? "crosshair" : "default";
+      }
+    });
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (!this.me || this.me.dead) return;
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      const wx = p.worldX, wy = p.worldY;
+      // мешок с добычей
+      for (const [bid, img] of this.bagViews) {
+        if (Math.hypot(img.x - wx, img.y - 10 - wy) < 16) {
+          this.pendingPickup = bid;
+          if (Math.hypot(img.x - this.pos.x, img.y - this.pos.y) > PICKUP_RANGE - 8) net.send("moveTo", { x: img.x, y: img.y });
+          return;
+        }
+      }
+      // NPC
+      for (const n of this.npcs) if (Math.hypot(n.sprite.x - wx, n.sprite.y - 14 - wy) < 18) return this.talk(n);
+      // правый клик по другому игроку — меню обмена
+      if (p.rightButtonDown() && net.kind === "world") {
+        for (const [uid, v] of this.units) {
+          if (uid === net.id || v.u.kind !== UnitKind.Player || v.hitTest(wx, wy) > 20) continue;
+          const ev = p.event as MouseEvent;
+          return this.hud.trade.showMenu(uid, v.u.name, ev.clientX, ev.clientY);
+        }
+      }
+      const id = this.pick(wx, wy);
+      if (id && p.rightButtonDown()) return this.setTarget(id);
+      if (id) return this.setTarget(id);
+      this.setTarget(null);
+      this.pendingPickup = null;
+      this.pendingNpc = null;
+      net.send("moveTo", { x: wx, y: wy });
+      this.clickMark.setPosition(wx, wy).setVisible(true).setAlpha(1).setScale(0.9);
+      this.tweens.add({ targets: this.clickMark, alpha: 0, scale: 0.4, duration: 500 });
+    });
+  }
+
+  /** Враг ли юнит: мобы всегда, игроки — только на арене из другой команды. */
+  isEnemy(v: UnitView): boolean {
+    if (v.u.kind !== UnitKind.Player) return true;
+    return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team;
+  }
+
+  /** Ближайший к курсору живой враг. */
+  pick(wx: number, wy: number): string | null {
+    let best: string | null = null, bd = Infinity;
+    for (const [id, v] of this.units) {
+      if (!this.isEnemy(v)) continue;
+      const d = v.hitTest(wx, wy);
+      if (d < bd) { bd = d; best = id; }
+    }
+    return best;
+  }
+
+  cycleTarget() {
+    const list = [...this.units.entries()]
+      .filter(([, v]) => this.isEnemy(v) && !v.dead && Math.hypot(v.x - this.pos.x, v.y - this.pos.y) < (net.kind === "arena" ? 1400 : 420))
+      .sort((a, b) => Math.hypot(a[1].x - this.pos.x, a[1].y - this.pos.y) - Math.hypot(b[1].x - this.pos.x, b[1].y - this.pos.y));
+    if (!list.length) return;
+    const i = list.findIndex(([id]) => id === this.targetId);
+    this.setTarget(list[(i + 1) % list.length][0]);
+  }
+
+  useSkill(i: number) {
+    const self = net.self;
+    if (!self || !this.me || this.me.dead) return;
+    const def = activeSkills(self.cls)[i];
+    if (!def) return;
+    if (!self.skills[def.id]) return this.hud.toast({ text: `«${def.name}» ещё не изучено (K — умения)`, kind: "error" });
+    const p = this.input.activePointer;
+    let x = p.worldX, y = p.worldY;
+    const t = this.targetId ? this.units.get(this.targetId) : undefined;
+    if (def.target === "enemy" && !t) return this.hud.toast({ text: "Нужна цель: кликните по врагу", kind: "error" });
+    if (t && def.target !== "self" && (def.target === "enemy" || !this.hud.aimAtCursor)) { x = t.x; y = t.y; }
+    if (def.id === "blink" || def.id === "roll") { x = p.worldX; y = p.worldY; }
+    net.send("skill", { id: def.id, x, y, target: this.targetId });
+  }
+
+  usePotion(base: string) {
+    const inv = net.self?.inventory;
+    if (!inv) return;
+    const idx = inv.findIndex((it) => it && it.base === base);
+    if (idx < 0) return this.hud.toast({ text: base === "hp_potion" ? "Нет зелий здоровья" : "Нет зелий маны", kind: "error" });
+    net.send("use", { index: idx });
+  }
+
+  pickupNearest() {
+    let best: string | null = null, bd = PICKUP_RANGE + 40;
+    for (const [id, img] of this.bagViews) {
+      const d = Math.hypot(img.x - this.pos.x, img.y - this.pos.y);
+      if (d < bd) { bd = d; best = id; }
+    }
+    if (best) {
+      this.pendingPickup = best;
+      const img = this.bagViews.get(best)!;
+      if (bd > PICKUP_RANGE - 8) net.send("moveTo", { x: img.x, y: img.y });
+    } else this.talkNearest();
+  }
+
+  talkNearest() {
+    const n = this.npcs.find((x) => Math.hypot(x.sprite.x - this.pos.x, x.sprite.y - this.pos.y) < MERCHANT_RANGE);
+    if (n) this.talk(n);
+  }
+
+  /** Подойти к NPC и открыть его окно. */
+  talk(n: { sprite: Phaser.GameObjects.Sprite; kind: "shop" | "arena" }) {
+    const d = Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y);
+    if (d < MERCHANT_RANGE - 10) {
+      this.pendingNpc = null;
+      this.openNpc(n.kind);
+    } else {
+      this.pendingNpc = n.kind;
+      net.send("moveTo", { x: n.sprite.x, y: n.sprite.y + 26 });
+    }
+  }
+  private openNpc(kind: "shop" | "arena") {
+    if (kind === "shop") this.hud.openShop();
+    else this.hud.arena.open();
+  }
+
+  syncBags(bags: LootBag[]) {
+    const ids = new Set(bags.map((b) => b.id));
+    for (const [id, img] of this.bagViews) if (!ids.has(id)) { img.destroy(); this.bagViews.delete(id); }
+    for (const b of bags) {
+      if (this.bagViews.has(b.id)) continue;
+      const img = this.add.image(b.x, b.y, b.boss ? "o_bag_boss" : "o_bag").setOrigin(0.5, 1).setDepth(b.y - 1);
+      img.y -= 30;
+      this.tweens.add({ targets: img, y: b.y, duration: 380, ease: "Bounce.easeOut" });
+      const best = Math.max(...b.items.map((it) => it.rarity));
+      if (best > 0 || b.boss) {
+        const glow = this.add.image(b.x, b.y - 8, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(best >= 2 || b.boss ? 0xc47bff : 0x5fa8ff).setScale(0.9).setDepth(b.y - 2);
+        this.tweens.add({ targets: glow, alpha: { from: 0.7, to: 0.25 }, duration: 700, yoyo: true, repeat: -1 });
+        img.once("destroy", () => glow.destroy());
+      }
+      this.bagViews.set(b.id, img);
+    }
+  }
+
+  say(id: string, text: string) {
+    const v = this.units.get(id);
+    if (!v) return;
+    const t = this.add.text(v.x, v.y - 70, text, { fontFamily: FONT, fontSize: "9px", color: "#ffe0b0", stroke: "#200a0a", strokeThickness: 3, resolution: 4, align: "center", wordWrap: { width: 160 } }).setOrigin(0.5, 1).setDepth(DEPTH.top);
+    this.bubbles.push({ t, id, until: this.time.now + 3500 });
+    this.hud.chatLine({ from: v.u.name, text, sys: false });
+  }
+
+  // ---------- кадр ----------
+  override update(_time: number, deltaMs: number) {
+    const dt = Math.min(0.05, deltaMs / 1000);
+    this.world.water.tilePositionX += dt * 6;
+    this.world.water.tilePositionY += dt * 3;
+
+    // движение своего героя: предсказание + мягкая сверка с сервером
+    const me = this.me;
+    let mx = 0, my = 0;
+    if (me && !me.dead && !this.hud.isTyping()) {
+      if (this.keys.has("KeyA") || this.keys.has("ArrowLeft")) mx -= 1;
+      if (this.keys.has("KeyD") || this.keys.has("ArrowRight")) mx += 1;
+      if (this.keys.has("KeyW") || this.keys.has("ArrowUp")) my -= 1;
+      if (this.keys.has("KeyS") || this.keys.has("ArrowDown")) my += 1;
+    }
+    const now = this.time.now;
+    if (mx !== this.lastInput.mx || my !== this.lastInput.my || ((mx || my) && now - this.lastInput.at > 250)) {
+      net.send("input", { mx, my });
+      this.lastInput = { mx, my, at: now };
+    }
+    if (me) {
+      const u = me.u;
+      const blocked = u.buffs & (BUFF_STUN | BUFF_ROOT) || u.anim === Anim.Dead;
+      if ((mx || my) && !blocked) {
+        const len = Math.hypot(mx, my);
+        const sp = PLAYER_SPEED * (u.buffs & BUFF_SLOW ? 0.55 : 1) * dt;
+        const n = moveWithCollision(this.map, this.pos.x, this.pos.y, (mx / len) * sp, (my / len) * sp, PLAYER_RADIUS);
+        this.pos.x = n.x;
+        this.pos.y = n.y;
+        const err = Math.hypot(u.x - this.pos.x, u.y - this.pos.y);
+        const k = err > 64 ? 1 : err > 24 ? 0.15 : 0.03;
+        this.pos.x += (u.x - this.pos.x) * k;
+        this.pos.y += (u.y - this.pos.y) * k;
+      } else {
+        const err = Math.hypot(u.x - this.pos.x, u.y - this.pos.y);
+        const k = err > 96 ? 1 : Math.min(1, dt * 14);
+        this.pos.x += (u.x - this.pos.x) * k;
+        this.pos.y += (u.y - this.pos.y) * k;
+      }
+      me.update(dt, this.pos.x, this.pos.y);
+    }
+    for (const [id, v] of this.units) if (id !== net.id) v.update(dt);
+    if (this.targetId && !this.units.get(this.targetId)) this.targetId = null;
+
+    // отложенные действия по прибытии
+    if (this.pendingPickup) {
+      const img = this.bagViews.get(this.pendingPickup);
+      if (!img) this.pendingPickup = null;
+      else if (Math.hypot(img.x - this.pos.x, img.y - this.pos.y) < PICKUP_RANGE - 4) {
+        net.send("pickup", { bag: this.pendingPickup });
+        this.pendingPickup = null;
+      }
+    }
+    if (this.pendingNpc) {
+      const n = this.npcs.find((x) => x.kind === this.pendingNpc);
+      if (n && Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y) < MERCHANT_RANGE - 10) {
+        this.pendingNpc = null;
+        this.openNpc(n.kind);
+      }
+    }
+
+    // реплики
+    this.bubbles = this.bubbles.filter((b) => {
+      const v = this.units.get(b.id);
+      if (!v || now > b.until) { b.t.destroy(); return false; }
+      b.t.setPosition(v.x, v.y - (v.frame > 32 ? 76 : 44));
+      return true;
+    });
+
+    // зона: название, затемнение
+    const z = zoneAtPx(this.map, this.pos.x, this.pos.y);
+    if (z !== this.zone) {
+      this.zone = z;
+      if (z === Zone.Arena) this.hud.showZone(`Арена · ${MODE_NAMES[net.arena?.mode ?? "1v1"]}`, "Победит тот, кто устоит");
+      else this.hud.showZone(ZONES[z].name, ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`);
+    }
+    const cam = this.cameras.main;
+    const target = zoneTint(z).dark;
+    const dark = this.world.dark;
+    dark.setSize(cam.width / cam.zoom + 4, cam.height / cam.zoom + 4).setPosition(-2, -2);
+    dark.setAlpha(dark.alpha + (target - dark.alpha) * Math.min(1, dt * 2));
+    dark.setDisplayOrigin(0, 0);
+    dark.setScrollFactor(0);
+    dark.x = (cam.width - cam.width / cam.zoom) / 2 - 2;
+    dark.y = (cam.height - cam.height / cam.zoom) / 2 - 2;
+
+    this.updateAmbient(z);
+    this.hud.frame({
+      me: me?.u ?? null,
+      target: this.targetId ? (this.units.get(this.targetId)?.u ?? null) : null,
+      pos: this.pos,
+      units: this.units,
+    });
+  }
+}
+
+export { SKILLS };
