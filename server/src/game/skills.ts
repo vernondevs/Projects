@@ -4,6 +4,7 @@ import { lineClear, walkable } from "../../../shared/map";
 import { Anim } from "../../../shared/protocol";
 import { SKILLS } from "../../../shared/skills";
 import type { Pet } from "./Pet";
+import { applyPoison, facing, isBehind } from "./rogue";
 import type { Player } from "./Player";
 import { World, type Actor } from "./World";
 
@@ -44,7 +45,8 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
   const v = def.v(rank);
   const u = p.unit;
   const target = targetId ? w.actor(targetId) : undefined;
-  const liveTarget = target && !w.isDead(target) && w.hostile(p, target) ? target : undefined;
+  const liveTarget = target && !w.isDead(target) && w.hostile(p, target) && !w.stealthed(target) ? target : undefined;
+  const wasStealthed = p.stealthUntil > w.time;
   const isBoss = (a: Actor) => !w.isPlayer(a) && !!a.def.boss;
   const threat = (a: Actor, v: number) => { if (!w.isPlayer(a)) a.addThreat(p.id, v); };
   const range = def.range ?? 0;
@@ -59,6 +61,7 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
 
   const ok = () => {
     w.breakMount(p);
+    if (id !== "stealth") p.stealthUntil = 0;
     u.mp -= mana;
     const cd = def.cd!(rank) * 1000;
     p.cds.set(id, w.time + cd);
@@ -259,6 +262,62 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
             m.slowPct = v.slow;
           }
         });
+      return null;
+    }
+
+    // ---------- разбойник ----------
+    case "backstab": {
+      if (!liveTarget) return "Нужна цель";
+      if (w.dist(u, liveTarget) > range + w.radiusOf(liveTarget)) return "Цель слишком далеко";
+      if (!lineClear(w.map, u.x, u.y, liveTarget.x, liveTarget.y)) return "Нет прямой видимости";
+      const crit2 = wasStealthed || isBehind(p, liveTarget);
+      ok();
+      u.dir = World.dirTo(liveTarget.x - u.x, liveTarget.y - u.y);
+      w.emit({ t: "aoe", k: "slash", x: liveTarget.x, y: liveTarget.y, r: crit2 ? 44 : 30 });
+      w.hit(p, liveTarget, { mult: (v.dmg / 100) * (crit2 ? v.behind : 1), skill: true, threat: 1 });
+      return null;
+    }
+    case "venom": {
+      if (!liveTarget) return "Нужна цель";
+      if (w.dist(u, liveTarget) > range + w.radiusOf(liveTarget)) return "Цель слишком далеко";
+      ok();
+      u.dir = World.dirTo(liveTarget.x - u.x, liveTarget.y - u.y);
+      applyPoison(w, p, liveTarget, rank);
+      threat(liveTarget, 40);
+      return null;
+    }
+    case "shadowstep": {
+      if (!liveTarget) return "Нужна цель";
+      if (w.dist(u, liveTarget) > range + w.radiusOf(liveTarget)) return "Цель слишком далеко";
+      const [fx, fy] = facing(liveTarget);
+      const off = w.radiusOf(liveTarget) + PLAYER_RADIUS + 2;
+      const base = Math.atan2(-fy, -fx);
+      let dest: { x: number; y: number } | null = null;
+      for (const da of [0, 0.6, -0.6, 1.2, -1.2, 1.8, -1.8, Math.PI]) {
+        const x = liveTarget.x + Math.cos(base + da) * off, y = liveTarget.y + Math.sin(base + da) * off;
+        if (walkable(w.map, x, y, PLAYER_RADIUS) && lineClear(w.map, x, y, liveTarget.x, liveTarget.y)) { dest = { x, y }; break; }
+      }
+      if (!dest) return "Нет места за спиной цели";
+      ok();
+      w.emit({ t: "blink", id: p.id, x0: u.x, y0: u.y, x1: dest.x, y1: dest.y, k: "shadow" });
+      u.x = dest.x;
+      u.y = dest.y;
+      p.moveTo = null;
+      p.targetId = liveTarget.id;
+      u.target = liveTarget.id;
+      u.dir = World.dirTo(liveTarget.x - u.x, liveTarget.y - u.y);
+      p.critNextUntil = w.time + 8000;
+      p.attackAt = Math.min(p.attackAt, w.time + 250);
+      return null;
+    }
+    case "stealth": {
+      if (w.inTown(u.x, u.y)) return "В городе скрытность недоступна";
+      ok();
+      p.stealthUntil = w.time + v.dur * 1000;
+      p.targetId = null;
+      u.target = "";
+      p.moveTo = null;
+      w.emit({ t: "aoe", k: "shadow", x: u.x, y: u.y, r: 46 });
       return null;
     }
 

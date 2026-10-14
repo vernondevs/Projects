@@ -24,8 +24,8 @@ export interface BotSpec {
 }
 
 const BOT_NAMES = ["Гром", "Вихрь", "Клык", "Тень", "Искра", "Буран", "Шип", "Ворон"];
-const BOT_CLASSES: ClassId[] = ["warrior", "mage", "ranger", "healer"];
-const MAIN_STAT: Record<ClassId, "str" | "int" | "agi"> = { warrior: "str", mage: "int", ranger: "agi", healer: "int" };
+const BOT_CLASSES: ClassId[] = ["warrior", "mage", "ranger", "healer", "rogue"];
+const MAIN_STAT: Record<ClassId, "str" | "int" | "agi"> = { warrior: "str", mage: "int", ranger: "agi", healer: "int", rogue: "agi" };
 
 /** Сохранение бота: уровень и предметы как у образца, очки характеристик и умений распределены. */
 export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerSave {
@@ -102,6 +102,7 @@ export function botThink(w: World, bot: Player, enemies: Player[]) {
   if (bot.dead || bot.frozenUntil > w.time) return;
   let target: Player | undefined, best = Infinity;
   for (const e of enemies) {
+    if (w.stealthed(e)) continue; // скрытного врага выбрать нельзя
     const d = Math.hypot(e.x - bot.x, e.y - bot.y);
     if (d < best) { best = d; target = e; }
   }
@@ -120,7 +121,7 @@ export function botThink(w: World, bot: Player, enemies: Player[]) {
   // умения
   for (const s of activeSkills(bot.cls)) {
     const rank = bot.save.skills[s.id] || 0;
-    if (!rank || (bot.cds.get(s.id) || 0) > w.time || bot.unit.mp < s.mana!(rank)) continue;
+    if (!rank || s.id === "stealth" || (bot.cds.get(s.id) || 0) > w.time || bot.unit.mp < s.mana!(rank)) continue;
     const reach = s.target === "self" ? Math.max(bot.attackRange(), 90) : (s.range ?? bot.attackRange()) + 20;
     if (best > reach) continue;
     if (!castSkill(w, bot, s.id, target.x, target.y, target.id)) break; // одно умение за раз

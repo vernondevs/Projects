@@ -118,8 +118,17 @@ export class Effects {
         const col = f.k === "taunt" ? 0xffa040 : f.k === "quake" ? 0xc09060 : (KIND_COLOR[f.k] ?? 0xffffff);
         const ring = s.add.image(f.x, f.y, "fx_ring").setTint(col).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 20).setScale(0.2, 0.14);
         s.tweens.add({ targets: ring, scaleX: f.r / 30, scaleY: (f.r / 30) * 0.7, alpha: { from: 1, to: 0 }, duration: 450, ease: "Cubic.easeOut", onComplete: () => ring.destroy() });
-        const tex = f.k === "frost" ? "fx_shard" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
+        const tex = f.k === "shadow" ? "fx_smoke" : f.k === "frost" ? "fx_shard" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
         this.burst(f.x, f.y - 6, tex, col, Math.min(40, 10 + f.r / 5), f.r * 1.4, 520);
+        if (f.k === "slash") {
+          const g = s.add.graphics().setDepth(DEPTH.top - 40);
+          g.lineStyle(3, 0xffffff, 0.95);
+          g.beginPath(); g.moveTo(f.x - f.r * 0.8, f.y - f.r * 0.9); g.lineTo(f.x + f.r * 0.8, f.y + f.r * 0.5); g.strokePath();
+          g.lineStyle(2, 0xc0a0ff, 0.8);
+          g.beginPath(); g.moveTo(f.x - f.r * 0.5, f.y - f.r * 1.0); g.lineTo(f.x + f.r * 0.9, f.y + f.r * 0.2); g.strokePath();
+          s.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+          this.burst(f.x, f.y - 8, "fx_spark", 0xe0d0ff, 8, 40, 300);
+        }
         if (f.k === "heal") {
           const r3 = s.add.image(f.x, f.y, "fx_ring").setTint(0xffe890).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 21).setScale(0.1, 0.07);
           s.tweens.add({ targets: r3, scaleX: f.r / 26, scaleY: (f.r / 26) * 0.7, alpha: { from: 1, to: 0 }, duration: 650, ease: "Cubic.easeOut", onComplete: () => r3.destroy() });
@@ -210,6 +219,12 @@ export class Effects {
           for (let i = 0; i <= 8; i++) { const t = i / 8; this.burst(f.x0 + (f.x1 - f.x0) * t, f.y0 + (f.y1 - f.y0) * t - 10, "fx_smoke", 0xd0b890, 2, 20, 500); }
           this.burst(f.x1, f.y1 - 8, "fx_spark", 0xffd070, 14, 70, 350);
           s.cameras.main.shake(120, 0.004);
+          break;
+        }
+        if (f.k === "shadow") {
+          this.burst(f.x0, f.y0 - 10, "fx_smoke", 0x6a40a0, 12, 40, 600);
+          this.burst(f.x1, f.y1 - 10, "fx_smoke", 0x6a40a0, 12, 40, 600);
+          this.burst(f.x1, f.y1 - 12, "fx_spark", 0xc08aff, 8, 50, 400);
           break;
         }
         this.burst(f.x0, f.y0 - 12, "fx_spark", 0xc08aff, 16, 60, 450);

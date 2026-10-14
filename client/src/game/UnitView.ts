@@ -1,6 +1,6 @@
 /** Отображение одного юнита: спрайт с анимациями, тень, имя, полоска здоровья, эффекты состояния. */
 import Phaser from "phaser";
-import { BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
+import { BUFF_STEALTH, BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
 import { RARITY_COLORS } from "../../../shared/items";
 import { net, type UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
@@ -111,6 +111,7 @@ export class UnitView {
   }
 
   /** Вызывается каждый кадр; px/py — позиция для отрисовки (у своего игрока — предсказанная). */
+  private wasStealth = false;
   update(dt: number, px?: number, py?: number) {
     const u = this.u;
     if (px !== undefined && py !== undefined) {
@@ -190,6 +191,21 @@ export class UnitView {
       if (color !== this.lastColor) { this.lastColor = color; this.label.setColor(color); }
     }
     if (u.title !== this.lastTitle) { this.lastTitle = u.title; this.titleText.setText(u.title ? `«${u.title.replace(/ \(.*\)$/, "")}»` : ""); }
+    // скрытность: себе и союзникам по команде — полупрозрачно, остальным — невидим
+    const stealthy = !!(u.buffs & BUFF_STEALTH) && !this.dead && u.kind === UnitKind.Player;
+    if (stealthy) {
+      const seen = this.isSelf || (net.kind === "arena" && u.team !== 0 && u.team === net.arena?.team);
+      const a = seen ? 0.4 : 0;
+      this.sprite.setAlpha(a);
+      this.shadow.setAlpha(a);
+      this.label.setVisible(seen);
+      this.mountSpr?.setVisible(seen && !!u.mount);
+      this.ring.setVisible(false);
+      this.wasStealth = true;
+    } else if (this.wasStealth) {
+      this.wasStealth = false;
+      if (!this.dead) { this.sprite.setAlpha(1); this.shadow.setAlpha(1); this.label.setVisible(true); }
+    }
     const showName = !this.dead && this.label.visible;
     this.titleText.setVisible(showName && !!u.title).setPosition(Math.round(this.x), Math.round(top - 13));
     this.frameGfx.clear();

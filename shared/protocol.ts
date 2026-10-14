@@ -40,6 +40,7 @@ export const BUFF_HASTE = 16;
 export const BUFF_ENRAGE = 32;
 export const BUFF_POISON = 64;
 export const BUFF_BURN = 128;
+export const BUFF_STEALTH = 256;
 
 // ---------- клиент -> сервер ----------
 export interface ClientMessages {

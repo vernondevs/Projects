@@ -9,7 +9,7 @@
 - server/src/index.ts — HTTP + WebSocket. db.ts — аккаунты, сохранения, trade_log, admin_log, market_demand.
 - server/src/rooms/ — WorldRoom (мир), ArenaRoom (инстанс арены), schema, common.
 - server/src/game/ — World, Player, Mob, skills, bosses, rewards, inventory, rumors, smith, market,
-  legendary (эффекты), admin, bank, Pet (питомцы).
+  legendary (эффекты), admin, bank, Pet (питомцы), rogue (яд, удар в спину).
 - server/src/arena/ — store, queue, party, registry, rewards, bots. server/src/trade/TradeManager.ts — обмен.
 - client/src/net.ts — подключение; game/ — сцены и отрисовка (UnitView, effects);
   ui/ — hud (меню, сумка, настройки), arena, trade, bestiary, rumor, cook, smith, bank, admin.

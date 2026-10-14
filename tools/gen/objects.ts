@@ -412,6 +412,13 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
     case "resurrect": g(16, 18, 11); c.shadedEllipse(16, 21, 7, 7, P.bone); c.rect(13, 20, 2, 2, hex("#141018")); c.rect(18, 20, 2, 2, hex("#141018")); for (const s of [-1, 1]) c.line(16 + s * 9, 14, 16 + s * 12, 4, W, 2); c.line(16, 3, 16, 12, fg[3], 2); c.line(12, 7, 20, 7, fg[3], 2); break;
     case "holyshield": g(16, 16, 12); c.poly([[16, 4], [27, 8], [25, 21], [16, 29], [7, 21], [5, 8]], fg[2]); c.poly([[16, 7], [24, 10], [22, 20], [16, 26], [10, 20], [8, 10]], bg[2]); c.rect(15, 10, 2, 13, W); c.rect(11, 14, 10, 2, W); break;
     case "insight": c.ellipse(16, 16, 12, 7, P.bone[3]); c.shadedEllipse(16, 16, 6, 6, fg); c.ellipse(16, 16, 2.5, 2.5, hex("#141018")); for (let i = 0; i < 5; i++) { const a = -1.2 + i * 0.6; c.line(16 + Math.cos(a - Math.PI / 2) * 9, 12 + Math.sin(a - Math.PI / 2) * 9, 16 + Math.cos(a - Math.PI / 2) * 13, 12 + Math.sin(a - Math.PI / 2) * 13, W, 1); } break;
+    case "backstab": c.poly([[16, 3], [20, 18], [16, 24], [12, 18]], fg[3]); c.line(16, 5, 16, 20, W, 1); c.rect(10, 22, 12, 2, P.gold[2]); c.rect(15, 24, 2, 5, P.leather[2]); c.ellipse(24, 8, 2, 2, P.cloth.red[3]); c.ellipse(26, 12, 1.2, 1.2, P.cloth.red[2]); break;
+    case "venom": c.line(8, 26, 20, 6, fg[2], 3); c.line(9, 25, 19, 7, W, 1); for (const [x, y, r] of [[22, 20, 3], [10, 12, 2], [25, 11, 2]] as number[][]) c.shadedEllipse(x, y, r, r, P.magic.green); c.poly([[22, 26], [25, 22], [19, 22]], P.magic.green[3]); break;
+    case "deadly": c.ellipse(16, 16, 10, 10, fg[2]); c.ellipse(16, 16, 8, 8, bg[1]); c.poly([[16, 5], [18, 14], [27, 16], [18, 18], [16, 27], [14, 18], [5, 16], [14, 14]], W); break;
+    case "shadowstep": c.poly([[8, 8], [14, 8], [14, 24], [8, 24]], withA(fg[1], 140)); c.poly([[12, 8], [18, 8], [18, 24], [12, 24]], withA(fg[2], 190)); c.poly([[18, 6], [28, 16], [18, 26]], W); break;
+    case "evasion": for (let i = 0; i < 3; i++) c.line(6, 10 + i * 6, 20 - i * 2, 10 + i * 6, withA(fg[2], 170), 2); c.shadedEllipse(22, 16, 4, 6, fg); c.set(22, 12, W); break;
+    case "poisoner": c.shadedEllipse(16, 20, 8, 8, P.magic.green); c.rect(13, 8, 6, 5, P.bone[2]); c.rect(12, 7, 8, 2, P.bone[3]); c.set(14, 18, W); c.ellipse(24, 8, 2, 2, fg[3]); c.ellipse(8, 10, 1.5, 1.5, fg[3]); break;
+    case "stealth": c.ellipse(16, 12, 7, 8, fg[1]); c.poly([[9, 14], [23, 14], [26, 28], [6, 28]], fg[2]); c.rect(12, 11, 3, 2, W); c.rect(17, 11, 3, 2, W); for (const [x, y] of [[5, 6], [27, 8], [27, 22]]) c.ellipse(x, y, 1.5, 1.5, withA(W, 140)); break;
     case "hunter": for (let i = 0; i < 3; i++) c.line(9 + i * 6, 6, 5 + i * 6, 26, fg[2 + (i % 2)], 2); c.shadedEllipse(22, 22, 5, 5, P.cloth.red); break;
   }
   return c;
@@ -428,6 +435,8 @@ export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_aimed: ["aimed", G, P.magic.fire], sk_volley: ["volley", G, P.gold], sk_precision: ["precision", Br, P.magic.fire], sk_roll: ["roll", G, P.magic.green],
   sk_heal: ["heal", G, P.gold], sk_circle: ["circle", B, P.gold], sk_grace: ["grace", B, P.gold], sk_renew: ["renew", G, P.magic.green],
   sk_smite: ["smite", P.cloth.black, P.gold], sk_resurrect: ["resurrect", B, P.gold], sk_holyshield: ["holyshield", B, P.gold], sk_insight: ["insight", Pu, P.gold],
+  sk_backstab: ["backstab", P.cloth.black, P.steel], sk_venom: ["venom", G, P.magic.green], sk_deadly: ["deadly", P.cloth.black, P.magic.fire],
+  sk_shadowstep: ["shadowstep", Pu, P.magic.purple], sk_evasion: ["evasion", P.cloth.black, P.steel], sk_poisoner: ["poisoner", G, P.magic.green], sk_stealth: ["stealth", P.cloth.black, P.magic.purple],
   sk_quickhands: ["quickhands", Br, P.gold], sk_rain: ["rain", G, P.steel], sk_hunter: ["hunter", P.cloth.black, P.magic.green],
 };
 export function buildItemIcon(k: string) {

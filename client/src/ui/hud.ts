@@ -25,7 +25,7 @@ import { DODGE_CAP, STAT_K } from "../../../shared/formulas";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
-const CLASS_COLOR: Record<string, string> = { warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a", healer: "#ffe9a0" };
+const CLASS_COLOR: Record<string, string> = { warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a", healer: "#ffe9a0", rogue: "#b8a0e0" };
 const TERRAIN_COLORS = ["#2a5a9e", "#e05412", "#d0b07e", "#3c432c", "#463e40", "#86593a", "#4f873c", "#2f5336", "#746e7a", "#3a3444"];
 
 export interface HudCtx {
@@ -518,7 +518,7 @@ export class Hud {
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
-      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? (s.cls === "mage" ? "staff" : s.cls === "healer" ? "scepter" : s.cls === "ranger" ? "bow" : "sword") : slot;
+      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? (s.cls === "mage" ? "staff" : s.cls === "healer" ? "scepter" : s.cls === "ranger" ? "bow" : s.cls === "rogue" ? "dagger" : "sword") : slot;
       const c = this.cell(it, s, "", SLOT_NAMES[slot]);
       if (it) {
         c.onclick = () => this.ctx.net.send("unequip", { slot });

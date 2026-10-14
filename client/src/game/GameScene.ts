@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from "../../../shared/constants";
 import { generateMap, moveWithCollision, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
-import { Anim, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
+import { Anim, BUFF_STEALTH, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
 import { activeSkills, SKILLS } from "../../../shared/skills";
 import { RUMOR_NPCS } from "../../../shared/rumors";
 import { COOK } from "../../../shared/food";
@@ -283,7 +283,7 @@ export class GameScene extends Phaser.Scene {
   isEnemy(v: UnitView): boolean {
     if (v.u.kind === UnitKind.Pet) return false;
     if (v.u.kind !== UnitKind.Player) return true;
-    return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team;
+    return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team && !(v.u.buffs & BUFF_STEALTH);
   }
 
   /** Ближайший к курсору живой враг. */

@@ -79,6 +79,10 @@ export class Player {
   castUntil = 0;
   potionAt = 0;
   poisonUntil = 0;
+  /** Разбойник: скрытность до, гарантированный крит до, яды на целях. */
+  stealthUntil = 0;
+  critNextUntil = 0;
+  poisons = new Map<string, { stacks: number; until: number; dmg: number }>();
   burnUntil = 0;
   regenAcc = 0;
   manaAcc = 0;
@@ -160,7 +164,7 @@ export class Player {
     return CLASSES[this.save.cls].attackRange;
   }
   ranged(): boolean {
-    return this.save.cls !== "warrior";
+    return this.save.cls !== "warrior" && this.save.cls !== "rogue";
   }
 
   recalc() {

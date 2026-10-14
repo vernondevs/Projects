@@ -8,12 +8,13 @@ import { SKILLS } from "../../../shared/skills";
 import { MOBS } from "../../../shared/mobs";
 import { MOUNTS, MOUNT_CAST_MS, MOUNT_COMBAT_LOCK_MS } from "../../../shared/mounts";
 import {
-  Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Dir,
+  Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STEALTH, BUFF_STUN, BUFF_WARCRY, Dir,
   type ChatLine, type Fx, type FxKind,
 } from "../../../shared/protocol";
 import type { WorldState } from "../rooms/schema";
 import { createBoss } from "./bosses";
 import * as legendary from "./legendary";
+import { rogueProc } from "./rogue";
 import { grantKillRewards } from "./rewards";
 import { Mob } from "./Mob";
 import { grantPets, mobAttackPet, tickPetCast, updatePet, dismissPet, type Pet } from "./Pet";
@@ -35,6 +36,8 @@ export interface HitOpts {
   noProc?: boolean;
   /** Не отражать урон (щитовой блок). */
   noReflect?: boolean;
+  /** Не прерывать скрытность атакующего (яд). */
+  noBreak?: boolean;
 }
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -237,6 +240,7 @@ export class World {
   /** Нанесение урона с бронёй, критом, вампиризмом и наградой за убийство. */
   hit(src: Actor, dst: Actor, o: HitOpts = {}): number {
     if (this.isDead(dst) || this.isDead(src)) return 0;
+    if (this.isPlayer(src) && !o.noBreak) src.stealthUntil = 0;
     // уклонение (Ловкость): обычные удары мобов и игроков, кроме фиксированного урона (зоны боссов, отражение, DoT)
     if (this.isPlayer(dst) && o.flat === undefined && src !== dst && Math.random() < dst.derived.dodge) {
       dst.combatAt = this.time;
@@ -252,7 +256,9 @@ export class World {
       if (src.warcryUntil > this.time) amount *= 1 + src.warcryDmg / 100;
       if (src.weakUntil > this.time) amount *= 0.8;
       if (!this.isPlayer(dst) && dst.def.boss) amount *= d.bossMult;
-      if (o.canCrit !== false && Math.random() < d.crit) {
+      const forced = o.flat === undefined && src.critNextUntil > this.time;
+      if (forced) src.critNextUntil = 0;
+      if (o.canCrit !== false && (forced || Math.random() < d.crit)) {
         crit = true;
         amount *= d.critMult;
       }
@@ -312,6 +318,10 @@ export class World {
   idOf(a: Actor) {
     return a.id;
   }
+  /** Игрок в скрытности: его нельзя выбрать целью. */
+  stealthed(a: Actor): boolean {
+    return this.isPlayer(a) && a.stealthUntil > this.time;
+  }
   isDead(a: Actor) {
     return this.isPlayer(a) ? a.dead : a.dead;
   }
@@ -331,6 +341,7 @@ export class World {
     const u = dst.unit;
     u.hp = Math.max(0, u.hp - v);
     if (this.isPlayer(dst)) {
+      if (v > 0) dst.stealthUntil = 0;
       dst.combatAt = this.time;
       if (v > 0) this.breakMount(dst);
       if (src && this.isPlayer(src)) src.combatAt = this.time;
@@ -432,6 +443,7 @@ export class World {
   playerSpeed(p: Player): number {
     let s = PLAYER_SPEED * (MOUNTS[p.unit.mount]?.speed ?? 1);
     if (p.slowUntil > this.time) s *= 1 - p.slowPct / 100;
+    if (p.stealthUntil > this.time) s *= 0.7;
     return s;
   }
 
@@ -466,6 +478,7 @@ export class World {
     if (p.hasteUntil > t) b |= BUFF_HASTE;
     if (p.poisonUntil > t) b |= BUFF_POISON;
     if (p.burnUntil > t) b |= BUFF_BURN;
+    if (p.stealthUntil > t) b |= BUFF_STEALTH;
     u.buffs = b;
 
     p.checkFood();
@@ -491,7 +504,7 @@ export class World {
     const frozen = p.frozenUntil > t;
     const canMove = !frozen && p.stunUntil <= t && p.rootUntil <= t && p.castUntil <= t;
     const target = p.targetId ? this.actor(p.targetId) : undefined;
-    if (p.targetId && (!target || this.isDead(target) || !this.hostile(p, target))) {
+    if (p.targetId && (!target || this.isDead(target) || !this.hostile(p, target) || this.stealthed(target))) {
       p.targetId = null;
       u.target = "";
     }
@@ -533,8 +546,12 @@ export class World {
     u.dir = World.dirTo(target.x - u.x, target.y - u.y);
     u.aseq = (u.aseq + 1) % 65535;
     const cls = p.cls;
-    if (cls === "warrior") {
-      this.later(140, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: "phys" }); });
+    if (cls === "warrior" || cls === "rogue") {
+      this.later(140, () => {
+        if (this.isDead(target) || !this.hostile(p, target)) return;
+        this.hit(p, target, { kind: "phys" });
+        if (cls === "rogue") rogueProc(this, p, target);
+      });
     } else {
       const kind = cls === "mage" ? "arcane" : cls === "healer" ? "holy" : "arrow";
       const speed = cls === "mage" ? 420 : cls === "healer" ? 400 : 620;
@@ -577,15 +594,17 @@ export class World {
       if (tp && !tp.dead) return tp;
     }
     let best: Player | null = null, bt = -1;
+    // скрытный игрок невидим для мобов, если не вплотную
+    const unseen = (p: Player) => p.stealthUntil > this.time && this.dist(p, m) > m.def.radius + PLAYER_RADIUS + 30;
     for (const [pid, th] of m.threat) {
       const p = this.players.get(pid);
-      if (!p || p.dead || this.dist(p, m.home) > m.def.aggro * 3 + 300) continue;
+      if (!p || p.dead || unseen(p) || this.dist(p, m.home) > m.def.aggro * 3 + 300) continue;
       if (th > bt) { bt = th; best = p; }
     }
     if (best) return best;
     let bd = m.def.aggro;
     for (const p of this.players.values()) {
-      if (p.dead || this.inTown(p.x, p.y)) continue;
+      if (p.dead || unseen(p) || this.inTown(p.x, p.y)) continue;
       const d = this.dist(p, m);
       if (d < bd) { bd = d; best = p; }
     }

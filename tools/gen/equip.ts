@@ -44,6 +44,15 @@ function draw(kind: string, v: V, r: number): PC {
       if (r === 2) for (const [x, y] of [[18, 2], [28, 11], [16, 12]]) c.set(x, y, GEM[2][4]);
       break;
     }
+    case "dagger": {
+      for (const [dx, a] of [[0, 1], [7, 0]] as [number, number][]) {
+        c.line(8 + dx, 25, 17 + dx, 8, P.steel[1 + a], 3); c.line(9 + dx, 23, 16 + dx, 9, P.steel[3], 1); c.set(18 + dx, 7, P.steel[4]);
+        c.line(6 + dx, 22, 11 + dx, 24, trim[2], 2); c.line(6 + dx, 27, 8 + dx, 24, P.leather[2], 2);
+      }
+      if (r) { gemDot(11, 24, 1.4); }
+      if (r === 2) { c.line(10, 22, 16, 10, GEM[2][4], 1); c.line(17, 22, 23, 10, GEM[2][4], 1); }
+      break;
+    }
     case "bow": {
       const col = r ? trim[2] : P.wood[2];
       for (let t = -1; t <= 1.001; t += 0.05) { const x = 12 + (1 - t * t) * 9, y = 16 + t * 12; c.ellipse(x, y, 1.1, 1.1, col); }

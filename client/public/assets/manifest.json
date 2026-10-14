@@ -27,6 +27,9 @@
   "healer": {
    "frame": 32
   },
+  "rogue": {
+   "frame": 32
+  },
   "merchant": {
    "frame": 32
   },
@@ -209,6 +212,9 @@
   "scepter_0",
   "scepter_1",
   "scepter_2",
+  "dagger_0",
+  "dagger_1",
+  "dagger_2",
   "bow_0",
   "bow_1",
   "bow_2",
@@ -323,6 +329,13 @@
   "sk_resurrect",
   "sk_holyshield",
   "sk_insight",
+  "sk_backstab",
+  "sk_venom",
+  "sk_deadly",
+  "sk_shadowstep",
+  "sk_evasion",
+  "sk_poisoner",
+  "sk_stealth",
   "sk_quickhands",
   "sk_rain",
   "sk_hunter",

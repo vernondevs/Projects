@@ -53,7 +53,7 @@ export function registerCombat(on: On, world: () => World) {
   on<{ id: unknown }>("target", (p, m) => {
     const id = typeof m.id === "string" ? m.id : null;
     const a = w().actor(id);
-    p.targetId = a && !w().isDead(a) && w().hostile(p, a) ? a.id : null;
+    p.targetId = a && !w().isDead(a) && w().hostile(p, a) && !w().stealthed(a) ? a.id : null;
     p.unit.target = p.targetId ?? "";
     if (p.targetId) p.moveTo = null;
   });

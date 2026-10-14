@@ -231,6 +231,53 @@ export const SKILLS: Record<string, SkillDef> = {
     desc: (r) => `Восстановление маны +${12 * Math.max(1, r)}%, запас маны +${3 * Math.max(1, r)}%.`,
     tree: [4, 1],
   },
+  // ---------------- Разбойник ----------------
+  backstab: {
+    id: "backstab", cls: "rogue", name: "Удар в спину", kind: "active", slot: 0, maxRank: 5, reqLevel: 1, icon: "sk_backstab",
+    target: "enemy", range: 62, cd: () => 5, mana: () => 10,
+    v: (r) => ({ dmg: 260 + 40 * (r - 1), behind: 2 }),
+    desc: (r) => `Мощный удар кинжалами: ${pct(260 + 40 * (r - 1))} урона, ×2 если вы за спиной цели или из скрытности.`,
+    tree: [0, 1],
+  },
+  venom: {
+    id: "venom", cls: "rogue", name: "Ядовитый клинок", kind: "active", slot: 1, maxRank: 5, reqLevel: 3, req: { id: "backstab", rank: 1 }, icon: "sk_venom",
+    target: "enemy", range: 62, cd: () => 3, mana: () => 8,
+    v: (r) => ({ tick: 30 + 6 * (r - 1), dur: 8, maxStacks: 3 }),
+    desc: (r) => `Яд на 8 с: ${pct(30 + 6 * (r - 1))} урона оружия в секунду. Накладывается до 3 раз.`,
+    tree: [1, 0],
+  },
+  deadly: {
+    id: "deadly", cls: "rogue", name: "Смертельная точность", kind: "passive", maxRank: 5, reqLevel: 5, icon: "sk_deadly",
+    v: (r) => ({ critDmg: 12 * r }),
+    desc: (r) => `Урон критических ударов +${12 * Math.max(1, r)}%.`,
+    tree: [1, 2],
+  },
+  shadowstep: {
+    id: "shadowstep", cls: "rogue", name: "Теневой шаг", kind: "active", slot: 2, maxRank: 5, reqLevel: 8, req: { id: "venom", rank: 1 }, icon: "sk_shadowstep",
+    target: "enemy", range: 256, cd: (r) => 12 - 0.8 * (r - 1), mana: () => 14,
+    v: () => ({ crit: 1 }),
+    desc: () => "Мгновенно переносит за спину цели (до 8 клеток). Следующий удар — гарантированный крит.",
+    tree: [2, 0],
+  },
+  evasion: {
+    id: "evasion", cls: "rogue", name: "Увёртливость", kind: "passive", maxRank: 3, reqLevel: 10, req: { id: "backstab", rank: 3 }, icon: "sk_evasion",
+    v: (r) => ({ dodge: 2 * r }),
+    desc: (r) => `Шанс уклонения +${2 * Math.max(1, r)}%.`,
+    tree: [2, 2],
+  },
+  poisoner: {
+    id: "poisoner", cls: "rogue", name: "Отравитель", kind: "passive", maxRank: 3, reqLevel: 12, req: { id: "venom", rank: 1 }, icon: "sk_poisoner",
+    v: (r) => ({ chance: 12 * r }),
+    desc: (r) => `Обычные удары с шансом ${12 * Math.max(1, r)}% накладывают яд «Ядовитого клинка» (минимум 1 ранг).`,
+    tree: [3, 2],
+  },
+  stealth: {
+    id: "stealth", cls: "rogue", name: "Скрытность", kind: "active", slot: 3, maxRank: 5, reqLevel: 15, req: { id: "shadowstep", rank: 1 }, icon: "sk_stealth",
+    target: "self", range: 0, cd: () => 20, mana: () => 12,
+    v: (r) => ({ dur: 6 + r, slow: 30 }),
+    desc: (r) => `Невидимость до ${6 + r} с (мобы не замечают, игроки не видят и не выбирают целью). Движение −30%. Прерывается атакой, умением или уроном.`,
+    tree: [3, 0],
+  },
 };
 
 export function classSkills(cls: ClassId): SkillDef[] {
