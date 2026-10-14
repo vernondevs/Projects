@@ -3,6 +3,7 @@
  *   npm run db                 — список героев
  *   npm run db -- Имя          — подробности о герое
  *   npm run db -- Имя --json   — сырой JSON прогресса
+ *   npm run db -- admin Имя on|off — выдать или снять права администратора
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -18,8 +19,23 @@ if (!fs.existsSync(file)) {
   console.log(`Базы пока нет (${file}). Она появится после первого входа в игру.`);
   process.exit(0);
 }
-const db = new DatabaseSync(file, { readOnly: true });
 const args = process.argv.slice(2);
+if (args[0] === "admin") {
+  const [, who, mode] = args;
+  if (!who || (mode !== "on" && mode !== "off")) {
+    console.log("Использование: npm run db -- admin <имя> on|off");
+    process.exit(1);
+  }
+  const w = new DatabaseSync(file);
+  w.exec("PRAGMA busy_timeout = 5000");
+  const cols = (w.prepare("PRAGMA table_info(players)").all() as { name: string }[]).map((c) => c.name);
+  if (!cols.includes("admin")) w.exec("ALTER TABLE players ADD COLUMN admin INTEGER NOT NULL DEFAULT 0");
+  const n = Number(w.prepare("UPDATE players SET admin = ? WHERE name_key = ?").run(mode === "on" ? 1 : 0, who.trim().toLowerCase()).changes);
+  console.log(n ? `Администратор ${who}: ${mode === "on" ? "выдан" : "снят"}. Действует после следующего входа.` : `Герой «${who}» не найден.`);
+  w.close();
+  process.exit(n ? 0 : 1);
+}
+const db = new DatabaseSync(file, { readOnly: true });
 const json = args.includes("--json");
 const name = args.find((a) => !a.startsWith("--"));
 const date = (ms: number) => new Date(ms).toLocaleString("ru-RU");

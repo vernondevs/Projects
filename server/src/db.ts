@@ -63,12 +63,48 @@ export class GameDB {
         a_gold  INTEGER NOT NULL,
         b_gold  INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS admin_log (
+        id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        at      INTEGER NOT NULL,
+        admin   TEXT NOT NULL,
+        action  TEXT NOT NULL,
+        target  TEXT NOT NULL,
+        details TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS market_demand (
         key        TEXT PRIMARY KEY,
         sold       REAL NOT NULL,
         updated_at INTEGER NOT NULL
       );
     `);
+    const cols = (this.db.prepare("PRAGMA table_info(players)").all() as { name: string }[]).map((c) => c.name);
+    if (!cols.includes("admin")) this.db.exec("ALTER TABLE players ADD COLUMN admin INTEGER NOT NULL DEFAULT 0");
+    if (!cols.includes("banned_until")) this.db.exec("ALTER TABLE players ADD COLUMN banned_until INTEGER NOT NULL DEFAULT 0");
+    if (!cols.includes("ban_reason")) this.db.exec("ALTER TABLE players ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''");
+  }
+
+  isAdmin(name: string): boolean {
+    const r = this.db.prepare("SELECT admin FROM players WHERE name_key = ?").get(GameDB.key(name)) as { admin: number } | undefined;
+    return !!r?.admin;
+  }
+  /** Активный бан или null. */
+  banOf(name: string, now = Date.now()): { until: number; reason: string } | null {
+    const r = this.db.prepare("SELECT banned_until, ban_reason FROM players WHERE name_key = ?").get(GameDB.key(name)) as { banned_until: number; ban_reason: string } | undefined;
+    return r && r.banned_until > now ? { until: r.banned_until, reason: r.ban_reason } : null;
+  }
+  setBan(name: string, until: number, reason: string): boolean {
+    return Number(this.db.prepare("UPDATE players SET banned_until = ?, ban_reason = ? WHERE name_key = ?").run(until, reason, GameDB.key(name)).changes) > 0;
+  }
+  adminLog(admin: string, action: string, target: string, details: unknown = {}) {
+    this.db.prepare("INSERT INTO admin_log (at, admin, action, target, details) VALUES (?, ?, ?, ?, ?)").run(Date.now(), admin, action, target, JSON.stringify(details));
+  }
+  adminLogRows(name = "", limit = 100) {
+    const k = `%${name.trim()}%`;
+    return this.db.prepare("SELECT at, admin, action, target, details FROM admin_log WHERE admin LIKE ? OR target LIKE ? ORDER BY id DESC LIMIT ?").all(k, k, limit) as { at: number; admin: string; action: string; target: string; details: string }[];
+  }
+  tradeLogRows(name = "", limit = 100) {
+    const k = `%${name.trim()}%`;
+    return this.db.prepare("SELECT at, a, b, a_items, b_items, a_gold, b_gold FROM trade_log WHERE a LIKE ? OR b LIKE ? ORDER BY id DESC LIMIT ?").all(k, k, limit) as { at: number; a: string; b: string; a_items: string; b_items: string; a_gold: number; b_gold: number }[];
   }
 
   marketGet(key: string): { sold: number; updated_at: number } | null {

@@ -11,6 +11,7 @@ import type { Net, UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { ArenaUI } from "./arena";
 import { TradeUI } from "./trade";
+import { AdminUI } from "./admin";
 import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
 import { CookUI, foodTip } from "./cook";
@@ -79,6 +80,8 @@ export class Hud {
   readonly arena: ArenaUI;
   readonly trade: TradeUI;
   readonly bestiary: BestiaryUI;
+  readonly admin: AdminUI;
+  private adminBtn: HTMLElement | null = null;
   readonly rumor: RumorUI;
   readonly cook: CookUI;
   readonly smith: SmithUI;
@@ -103,6 +106,7 @@ export class Hud {
     this.makeWindows();
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
     this.bestiary = new BestiaryUI(root, icon);
+    this.admin = new AdminUI(root);
     this.rumor = new RumorUI(root);
     this.cook = new CookUI(root);
     this.smith = new SmithUI(root);
@@ -144,6 +148,7 @@ export class Hud {
         if (this.ctx.net.self && !this.wins.shop.hidden) this.renderSelf(this.ctx.net.self);
       });
       this.rumor.bind(n);
+      this.admin.bind(n);
       this.cook.bind(n);
       this.smith.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
@@ -265,6 +270,7 @@ export class Hud {
   toggle(id: string) {
     if (id === "arena") return this.arena.toggle();
     if (id === "bestiary") return this.bestiary.toggle(this.ctx.net.self);
+    if (id === "admin") return this.ctx.net.self?.isAdmin ? this.admin.toggle() : undefined;
     if (this.ctx.net.kind === "arena" && id === "shop") return;
     const w = this.wins[id];
     w.hidden = !w.hidden;
@@ -272,7 +278,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -366,6 +372,9 @@ export class Hud {
   // ---------- личное состояние ----------
   renderSelf(s: SelfState) {
     this.bestiary.update(s);
+    this.adminBtn ??= this.menuBar.appendChild(Object.assign(el("button", "btn mbtn", `<span class="mi">🛠</span><kbd>F10</kbd>`), { title: "Админ-панель (F10)", onclick: () => this.toggle("admin") }));
+    this.adminBtn.hidden = !s.isAdmin;
+    if (!s.isAdmin) this.admin.close();
     if (!s) return;
     this.foodId = s.food?.id ?? "";
     this.foodUntil = s.food ? Date.now() + s.food.left : 0;

@@ -88,6 +88,8 @@ export interface SelfState {
   /** Еда: id блюда и сколько мс осталось. */
   food?: { id: string; left: number } | null;
   /** Маунты: владение и выбранный. */
+  /** Только для показа кнопки; сервер доверяет лишь БД. */
+  isAdmin?: boolean;
   mounts?: string[];
   mount?: string;
   /** Входящие запросы на обмен отключены. */

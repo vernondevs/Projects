@@ -79,6 +79,8 @@ export class Player {
   frozenUntil = 0;
   goingToArena = false;
   goingHome = false;
+  /** Флаг администратора из БД (загружается при входе; сервер перепроверяет по БД на каждое действие). */
+  admin = false;
   lastSave = 0;
   /** Призыв маунта: момент готовности и точка начала (движение отменяет). */
   mountCast: { until: number; x: number; y: number } | null = null;
@@ -188,6 +190,7 @@ export class Player {
   selfState(): SelfState {
     this.grantMounts();
     return {
+      isAdmin: this.admin,
       mounts: this.save.mounts,
       mount: this.save.mount ?? "",
       id: this.id,

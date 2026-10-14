@@ -29,6 +29,9 @@ type Events = {
   "trade:state": TradeView | null;
   "trade:done": Record<string, never>;
   "market:prices": Record<string, number>;
+  "admin:players": { name: string; cls: string; level: number; x: number; y: number; admin: boolean }[];
+  "admin:logs": { kind: "trades" | "admin"; rows: any[] };
+  "admin:banner": { text: string };
 };
 
 export interface ArenaWelcome {
@@ -145,7 +148,7 @@ export class Net {
       this.party = m;
       this.emit("party", m);
     });
-    for (const t of ["rumor", "arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done", "market:prices"] as const)
+    for (const t of ["rumor", "arena:found", "arena:cancelled", "arena:result", "arena:top", "arena:history", "party:invite", "trade:request", "trade:state", "trade:done", "market:prices", "admin:players", "admin:logs", "admin:banner"] as const)
       room.onMessage(t, (m: any) => this.emit(t, m));
     room.onMessage("arena:go", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
     room.onMessage("arena:return", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));

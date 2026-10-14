@@ -15,6 +15,7 @@ import { deliverArenaRewards } from "../arena/rewards";
 import { GameDB, type PlayerSave } from "../db";
 import { sendPrices, setMarketDb } from "../game/market";
 import { buyMaterial, upgradeItem } from "../game/smith";
+import { registerAdmin } from "../game/admin";
 import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
@@ -40,6 +41,9 @@ export class WorldRoom extends Room<WorldState> {
   queue!: ArenaQueue;
   trade!: TradeManager;
   static db: GameDB;
+  db() {
+    return WorldRoom.db;
+  }
 
   override onCreate() {
     setMarketDb(WorldRoom.db);
@@ -56,6 +60,7 @@ export class WorldRoom extends Room<WorldState> {
     registerCombat(on, () => this.world);
     this.registerMessages(on);
     this.registerArena(on);
+    registerAdmin(this, on);
     if (process.env.TEST_MODE === "1") this.registerDebug(on);
     this.clock.setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
     this.clock.setInterval(() => this.queue.tick(), 1000);
@@ -73,7 +78,11 @@ export class WorldRoom extends Room<WorldState> {
     const db = WorldRoom.db;
     const res = db.login(name, password);
     if (res && !res.ok) throw new ServerError(403, "Неверный пароль");
-    if (res && res.ok) return { name: res.name, save: res.save, created: false };
+    if (res && res.ok) {
+      const ban = db.banOf(res.name);
+      if (ban) throw new ServerError(403, `Аккаунт заблокирован ${ban.until > 4e12 ? "навсегда" : "до " + new Date(ban.until).toLocaleString("ru-RU")}${ban.reason ? ": " + ban.reason : ""}`);
+      return { name: res.name, save: res.save, created: false };
+    }
     const cls: ClassId = CLASS_IDS.includes(options.cls as ClassId) ? (options.cls as ClassId) : "warrior";
     const save = newSave(cls, this.world.map.playerSpawn);
     db.create(name, password, save);
@@ -82,6 +91,7 @@ export class WorldRoom extends Room<WorldState> {
 
   override onJoin(client: Client, _options: JoinOptions, auth: AuthResult) {
     const p = new Player(client.sessionId, auth.name, auth.save, (type, msg) => client.send(type, msg));
+    p.admin = WorldRoom.db.isAdmin(p.name);
     this.world.addPlayer(p, auth.fromArena ? `${p.name} возвращается с арены.` : undefined);
     client.send("welcome", { id: client.sessionId, seed: this.world.map.seed, created: auth.created });
     if (auth.created) client.send("toast", { text: "Добро пожаловать в Пепельный Предел!", kind: "level" });
