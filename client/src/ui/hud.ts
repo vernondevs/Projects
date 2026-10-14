@@ -1,7 +1,7 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
-import { BASE_ITEMS, iconFor, canEquip, isBound, ITEM_STAT_NAMES, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
+import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
 import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
 import { MOBS } from "../../../shared/mobs";
 import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
@@ -13,6 +13,8 @@ import { TradeUI } from "./trade";
 import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
 import { CookUI, foodTip } from "./cook";
+import { plusBadge, SmithUI } from "./smith";
+import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -70,6 +72,7 @@ export class Hud {
   readonly bestiary: BestiaryUI;
   readonly rumor: RumorUI;
   readonly cook: CookUI;
+  readonly smith: SmithUI;
   private foodUntil = 0;
   private foodId = "";
 
@@ -98,6 +101,7 @@ export class Hud {
     this.bestiary = new BestiaryUI(root, icon);
     this.rumor = new RumorUI(root);
     this.cook = new CookUI(root);
+    this.smith = new SmithUI(root);
     window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
@@ -135,6 +139,7 @@ export class Hud {
       n.on("arena:info", () => this.applyFrame());
       this.rumor.bind(n);
       this.cook.bind(n);
+      this.smith.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
     }
     this.arena.bind(n);
@@ -224,7 +229,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.rumor.close() || this.cook.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -258,14 +263,16 @@ export class Hud {
   }
   itemTip(it: Item, s: SelfState, equipped = false): string {
     const b = BASE_ITEMS[it.base];
-    const lines: string[] = [`<div class="t r${it.rarity}">${esc(it.name)}</div>`];
+    const lines: string[] = [`<div class="t r${it.rarity}">${esc(itemName(it))}</div>`];
     if (b.slot === "consumable") {
       const dish = foodOf(it.base);
       if (dish) return foodTip(dish) + `<div class="d">Клик — съесть · ${it.qty ?? 1} шт.</div>`;
+      if (MATERIALS[it.base]) return lines.join("") + `<div class="d">Материал для улучшения у кузнеца Грома · ${it.qty ?? 1} шт.</div><div class="d">Цена: <span class="gold">${itemValue(it)} з</span></div>`;
       lines.push(`<div class="d">Расходуемое · ${it.qty ?? 1} шт.</div>`, `<div>${it.base === "hp_potion" ? "Восстанавливает 45% здоровья" : "Восстанавливает 50% маны"}</div>`, `<div class="d">Клавиша ${it.base === "hp_potion" ? "Q" : "E"} или клик</div>`);
     } else {
       lines.push(`<div class="d">${RARITY_NAMES[it.rarity]} · ${SLOT_NAMES[b.slot]} · ур. предмета ${it.ilvl}</div>`);
-      const st = it.stats;
+      const st = effStats(it);
+      if (it.plus) lines.push(`<div class="st">Улучшение +${it.plus}</div>`);
       if (st.dmgMin) lines.push(`<div>Урон: ${st.dmgMin}–${st.dmgMax}</div>`);
       if (st.armor) lines.push(`<div>Броня: ${st.armor}</div>`);
       for (const [k, v] of Object.entries(st)) if (!["dmgMin", "dmgMax", "armor"].includes(k)) lines.push(`<div class="st">+${v}${k === "crit" ? "%" : ""} ${ITEM_STAT_NAMES[k as ItemStatKey]}</div>`);
@@ -276,7 +283,7 @@ export class Hud {
       if (!equipped) {
         const cur = s.equip[b.slot];
         if (cur && cur.uid !== it.uid) {
-          const diff = (k: ItemStatKey) => (it.stats[k] || 0) - (cur.stats[k] || 0);
+          const diff = (k: ItemStatKey) => (st[k] || 0) - (effStats(cur)[k] || 0);
           const parts = (["dmgMax", "armor", "str", "agi", "int", "vit", "hp", "crit"] as ItemStatKey[]).map((k) => [k, diff(k)] as const).filter(([, v]) => v !== 0);
           if (parts.length) lines.push(`<div class="d">Сравнение с надетым: ${parts.map(([k, v]) => `<span style="color:${v > 0 ? "var(--ok)" : "var(--bad)"}">${v > 0 ? "+" : ""}${v} ${k === "dmgMax" ? "урон" : ITEM_STAT_NAMES[k].toLowerCase()}</span>`).join(", ")}</div>`);
         }
@@ -306,6 +313,7 @@ export class Hud {
     this.foodId = s.food?.id ?? "";
     this.foodUntil = s.food ? Date.now() + s.food.left : 0;
     this.cook.update(s);
+    this.smith.update(s);
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
     this.lastSelfLevel = s.level;
     const net = this.ctx.net;
@@ -396,7 +404,7 @@ export class Hud {
     if (it) {
       c.classList.add(`r${it.rarity}`);
       if (BASE_ITEMS[it.base].slot !== "consumable" && canEquip(it, s.cls, s.level)) c.classList.add("cant");
-      c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(it.name)}">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
+      c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(itemName(it))}">${plusBadge(it)}${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
     } else if (label) c.innerHTML = `<span class="lbl">${label}</span>`;
     return c;
   }

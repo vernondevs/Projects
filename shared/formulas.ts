@@ -1,5 +1,5 @@
 import { CLASSES, type ClassId, type Stats, type StatKey } from "./classes";
-import type { Item, ItemStats, Slot } from "./items";
+import { effStats, type Item, type ItemStats, type Slot } from "./items";
 import { MAX_LEVEL } from "./constants";
 import type { MobDef } from "./mobs";
 
@@ -40,7 +40,7 @@ export function gearStats(equip: PlayerCore["equip"]): ItemStats {
   const out: ItemStats = {};
   for (const it of Object.values(equip)) {
     if (!it) continue;
-    for (const [k, v] of Object.entries(it.stats)) out[k as keyof ItemStats] = (out[k as keyof ItemStats] || 0) + (v as number);
+    for (const [k, v] of Object.entries(effStats(it))) out[k as keyof ItemStats] = (out[k as keyof ItemStats] || 0) + (v as number);
   }
   return out;
 }

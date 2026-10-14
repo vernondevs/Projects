@@ -2,6 +2,7 @@
 import { COOK, FOOD, foodOf, type Dish } from "../../../shared/food";
 import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
 import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
+import { MATERIALS } from "../../../shared/upgrade";
 import type { Player } from "./Player";
 import type { World } from "./World";
 
@@ -72,6 +73,7 @@ export function useItem(w: World, p: Player, index: unknown) {
   if (!it) return;
   const base = BASE_ITEMS[it.base];
   if (base.slot !== "consumable") return equip(w, p, index);
+  if (MATERIALS[it.base]) return;
   const dish = foodOf(it.base);
   if (dish) return eat(p, index, dish);
   const now = w.time;

@@ -1,5 +1,6 @@
 /** Окно обмена между игроками: запрос, два столбца по 8 слотов, золото, «Готов» → «Обменять». */
-import { BASE_ITEMS, iconFor, type Item } from "../../../shared/items";
+import { BASE_ITEMS, iconFor, itemName, type Item } from "../../../shared/items";
+import { plusBadge } from "./smith";
 import type { SelfState } from "../../../shared/protocol";
 import { TRADE_SLOTS, type TradeSideView, type TradeView } from "../../../shared/trade";
 import type { Net } from "../net";
@@ -131,7 +132,7 @@ export class TradeUI {
       const it = side.items[i];
       const c = document.createElement("button");
       c.className = `cell ${it ? "r" + it.rarity : ""} ${this.lit(k + i) ? "changed" : ""}`;
-      if (it) c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(it.name)}">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
+      if (it) c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(itemName(it))}">${plusBadge(it)}${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
       if (it) this.host.tipFor(c, () => this.host.itemTip(it, this.net.self!) + (mine ? `<div class="d">Клик — убрать из обмена</div>` : ""));
       if (mine) {
         if (it) c.onclick = () => { this.host.hideTip(); this.net.send("trade:remove", { slot: i }); };

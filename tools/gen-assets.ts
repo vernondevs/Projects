@@ -36,7 +36,7 @@ for (const [id, pc] of Object.entries(buildEquipIcons())) {
   pc.save(path.join(OUT, `icons/${id}.png`));
   manifest.icons.push(id);
 }
-for (const id of ITEM_ICONS.filter((i) => i.startsWith("potion") || i.startsWith("food_") || i === "gold")) {
+for (const id of ITEM_ICONS.filter((i) => i.startsWith("potion") || i.startsWith("food_") || i.startsWith("mat_") || i === "gold")) {
   buildItemIcon(id).save(path.join(OUT, `icons/${id}.png`));
   manifest.icons.push(id);
 }

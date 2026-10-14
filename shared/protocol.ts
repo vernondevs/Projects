@@ -55,6 +55,8 @@ export interface ClientMessages {
   swap: { a: number; b: number };
   buy: { base: string; qty?: number };
   "cook:buy": { id: string; qty?: number };
+  "smith:upgrade": { index?: number; slot?: Slot };
+  "smith:buy": { id: string; qty?: number };
   pickup: { bag: string; index?: number };
   chat: { text: string };
   respawn: Record<string, never>;

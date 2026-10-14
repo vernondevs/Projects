@@ -360,6 +360,13 @@ function itemIcon(kind: string): PC {
       c.shadedEllipse(16, 20, 8, 8, liquid); c.rect(13, 6, 6, 8, withA(hex("#c8d8e8"), 220));
       c.rect(12, 4, 8, 3, P.wood[2]); c.ellipse(13, 17, 2, 2.5, withA(hex("#ffffff"), 160)); break;
     }
+    case "mat_ash_ore":
+      c.poly([[6, 22], [10, 10], [18, 7], [26, 14], [25, 25], [12, 26]], (x) => P.stone[x < 14 ? 3 : x > 20 ? 1 : 2]);
+      for (const [x, y] of [[13, 14], [20, 17], [16, 21]]) c.ellipse(x, y, 2, 2, P.magic.fire[2]);
+      break;
+    case "mat_star_dust":
+      for (const [x, y, r] of [[16, 16, 6], [8, 9, 3], [24, 10, 3], [22, 24, 3], [9, 23, 2]]) { c.ellipse(x, y, r, r, P.magic.blue[2]); c.ellipse(x, y, r / 2, r / 2, hex("#ffffff")); }
+      break;
     case "gold":
       for (const [x, y] of [[12, 22], [20, 22], [16, 16]]) { c.shadedEllipse(x, y, 6, 4, P.gold); c.rect(x - 2, y - 1, 4, 1, P.gold[1]); }
       break;
@@ -397,7 +404,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
   return c;
 }
 
-export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`)];
+export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust"];
 const R = P.cloth.red, B = P.cloth.blue, Pu = P.cloth.purple, G = P.cloth.green, Br = P.cloth.brown;
 export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_cleave: ["cleave", R, P.steel], sk_charge: ["charge", Br, P.gold], sk_toughness: ["toughness", Br, P.steel], sk_warcry: ["warcry", R, P.gold],

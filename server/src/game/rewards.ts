@@ -4,6 +4,7 @@ import { LOOT_BAG_TTL_MS, MAX_LEVEL } from "../../../shared/constants";
 import { xpForKill, xpToNext } from "../../../shared/formulas";
 import { BASE_ITEMS, EQUIP_BASES, makeItem, makeUnique, rollRarity, Rarity, UNIQUES, type Item } from "../../../shared/items";
 import { ELITE } from "../../../shared/elites";
+import { MATERIALS } from "../../../shared/upgrade";
 import type { LootBag } from "../../../shared/protocol";
 import type { Mob } from "./Mob";
 import type { Player } from "./Player";
@@ -88,6 +89,13 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
       if (Math.random() < chance) items.push(makeItem(pickBase(p), m.level, rollRarity(Math.random)));
       if (Math.random() < (p.forceDrop ? 0 : 0.08)) items.push(makeItem(pickBase(p), m.level, rollRarity(Math.random)));
       if (Math.random() < 0.1) items.push({ ...makeItem(Math.random() < 0.6 ? "hp_potion" : "mp_potion", 1, 0), qty: 1 });
+    }
+    // материалы кузнеца
+    const mat = (id: string, qty: number) => items.push({ ...makeItem(id, 1, 0), qty });
+    if (boss) { mat("ash_ore", 4 + Math.floor(Math.random() * 4)); mat("star_dust", 2 + Math.floor(Math.random() * 3)); }
+    else {
+      if (Math.random() * 100 < MATERIALS.ash_ore.dropPct) mat("ash_ore", 1 + Math.floor(Math.random() * 2));
+      if (m.level >= 12 && Math.random() * 100 < MATERIALS.star_dust.dropPct * (m.elite ? 3 : 1)) mat("star_dust", 1);
     }
     if (m.elite) {
       const r = Math.max(rollRarity(Math.random, ELITE.lootBonus), Rarity.Rare) as Rarity;

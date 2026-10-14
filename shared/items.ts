@@ -1,5 +1,6 @@
 import type { ClassId, StatKey } from "./classes";
 import { FOOD } from "./food";
+import { MATERIALS, PLUS_BONUS } from "./upgrade";
 
 export type Slot = "weapon" | "helmet" | "armor" | "boots" | "ring" | "amulet";
 export const SLOTS: Slot[] = ["weapon", "helmet", "armor", "boots", "ring", "amulet"];
@@ -46,6 +47,8 @@ export interface Item {
   unique?: string;
   /** Привязан к персонажу: нельзя передать другому игроку. */
   bound?: boolean;
+  /** Уровень улучшения 0..10. */
+  plus?: number;
 }
 
 export interface BaseItem {
@@ -74,6 +77,7 @@ export const BASE_ITEMS: Record<string, BaseItem> = {
   amulet: { id: "amulet", name: "Амулет", slot: "amulet", icon: "amulet", roll: (l) => ({ hp: r1(6 + l * 3) }) },
   hp_potion: { id: "hp_potion", name: "Зелье здоровья", slot: "consumable", icon: "potion_red", price: 15, stack: 20 },
   mp_potion: { id: "mp_potion", name: "Зелье маны", slot: "consumable", icon: "potion_blue", price: 15, stack: 20 },
+  ...Object.fromEntries(Object.values(MATERIALS).map((m) => [m.id, { id: m.id, name: m.name, slot: "consumable", icon: m.icon, price: m.price, stack: 99 } as BaseItem])),
   ...Object.fromEntries(Object.values(FOOD).map((d) => [`food_${d.id}`, { id: `food_${d.id}`, name: d.name, slot: "consumable", icon: d.icon, price: d.price, stack: 20 } as BaseItem])),
 };
 export const EQUIP_BASES = Object.values(BASE_ITEMS).filter((b) => b.slot !== "consumable").map((b) => b.id);
@@ -147,7 +151,7 @@ export function iconVariant(it: Pick<Item, "base" | "stats" | "uid">): ClassId {
 
 /** Имя иконки: base.icon + вариант класса (для шлема/доспеха/сапог) + редкость. */
 export function iconId(icon: string, variant: ClassId, rarity: Rarity): string {
-  if (icon.startsWith("potion") || icon.startsWith("food_") || icon === "gold") return icon;
+  if (icon.startsWith("potion") || icon.startsWith("food_") || icon.startsWith("mat_") || icon === "gold") return icon;
   return ICON_VARIANT_SLOTS.includes(icon) ? `${icon}_${variant}_${rarity}` : `${icon}_${rarity}`;
 }
 
@@ -222,4 +226,20 @@ export function rollRarity(rand: () => number, bonus = 0): Rarity {
   if (r < 0.03 + bonus * 0.5) return Rarity.Epic;
   if (r < 0.23 + bonus) return Rarity.Rare;
   return Rarity.Common;
+}
+
+/** Название с уровнем улучшения: «Лук Феникса +7». */
+export const itemName = (it: Pick<Item, "name" | "plus">): string => (it.plus ? `${it.name} +${it.plus}` : it.name);
+
+/** Характеристики с учётом улучшения: +6% базы за уровень для урона, брони и главной характеристики. */
+export function effStats(it: Pick<Item, "stats" | "plus">): ItemStats {
+  const plus = it.plus || 0;
+  if (!plus) return it.stats;
+  const out: ItemStats = { ...it.stats };
+  let main: ItemStatKey | null = null;
+  for (const k of ["str", "agi", "int", "vit"] as ItemStatKey[]) if (out[k] && (!main || out[k]! > out[main]!)) main = k;
+  for (const k of Object.keys(out) as ItemStatKey[]) {
+    if (k === "dmgMin" || k === "dmgMax" || k === "armor" || k === main) out[k] = out[k]! + Math.ceil(out[k]! * PLUS_BONUS * plus);
+  }
+  return out;
 }

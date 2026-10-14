@@ -11,6 +11,7 @@ import { ArenaQueue, type PendingMatch } from "../arena/queue";
 import { inArena, services } from "../arena/registry";
 import { deliverArenaRewards } from "../arena/rewards";
 import { GameDB, type PlayerSave } from "../db";
+import { buyMaterial, upgradeItem } from "../game/smith";
 import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
@@ -280,6 +281,8 @@ export class WorldRoom extends Room<WorldState> {
     on("trade:cancel", (p) => this.trade.cancel(p.name.toLowerCase(), `Обмен отменён: ${p.name} закрывает окно`));
     on<{ base: unknown; qty: unknown }>("buy", (p, m) => buy(w(), p, m.base, m.qty));
     on<{ id: unknown; qty: unknown }>("cook:buy", (p, m) => buyFood(w(), p, m.id, m.qty));
+    on<{ id: unknown; qty: unknown }>("smith:buy", (p, m) => buyMaterial(w(), p, m.id, m.qty));
+    on<{ index: unknown; slot: unknown }>("smith:upgrade", (p, m) => upgradeItem(w(), p, m.index, m.slot, (i) => this.trade.locked(p, i)));
     on<{ bag: unknown }>("pickup", (p, m) => pickup(w(), p, m.bag));
   }
 
