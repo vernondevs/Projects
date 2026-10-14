@@ -180,7 +180,7 @@ export class ArenaRoom extends Room<ArenaState> {
     p.targetId = null;
     p.moveTo = null;
     p.input = { mx: 0, my: 0 };
-    p.stunUntil = p.rootUntil = p.slowUntil = p.warcryUntil = p.hasteUntil = p.poisonUntil = p.burnUntil = 0;
+    p.stunUntil = p.rootUntil = p.slowUntil = p.warcryUntil = p.hasteUntil = p.blockUntil = p.weakUntil = p.lastStandUntil = p.lastStandReady = p.poisonUntil = p.burnUntil = 0;
     p.attackAt = 0;
     p.cds.clear();
     for (const s of activeSkills(p.cls)) p.send("cd", { id: s.id, ms: 0 });

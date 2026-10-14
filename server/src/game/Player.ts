@@ -7,7 +7,7 @@ import { MOUNTS } from "../../../shared/mounts";
 import { petXpToNext } from "../../../shared/pets";
 import { makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { Anim, UnitKind, type LootBag, type SelfState } from "../../../shared/protocol";
-import { starterSkill } from "../../../shared/skills";
+import { hasUnknownSkills, starterSkill } from "../../../shared/skills";
 import type { PlayerSave } from "../db";
 import { Unit } from "../rooms/schema";
 
@@ -58,6 +58,15 @@ export class Player {
   warcryDmg = 0;
   warcryArmor = 0;
   hasteUntil = 0;
+  /** Щитовой блок: до какого момента, доля поглощения и отражение. */
+  blockUntil = 0;
+  blockPct = 0;
+  blockReflect = 0;
+  /** Ослабление (−20% к наносимому урону). */
+  weakUntil = 0;
+  /** Последний рубеж: действует до / откат до. */
+  lastStandUntil = 0;
+  lastStandReady = 0;
   hastePct = 0;
   /** Последний момент боя: вне боя регенерация быстрее. */
   combatAt = -1e9;
@@ -95,6 +104,10 @@ export class Player {
     public save: PlayerSave,
     readonly send: Sender,
   ) {
+    if (save.cls === "warrior" && hasUnknownSkills(save.cls, save.skills)) {
+      save.skills = { [starterSkill(save.cls)]: 1 };
+      send("toast", { text: "Умения воина изменены — очки возвращены", kind: "info" });
+    }
     const u = this.unit;
     u.kind = UnitKind.Player;
     u.name = name;

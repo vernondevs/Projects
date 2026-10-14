@@ -26,6 +26,9 @@ export class Mob {
   /** Кто сколько урона нанёс: для опыта, лута и угрозы. */
   damageBy = new Map<string, number>();
   threat = new Map<string, number>();
+  /** Провокация: до какого момента и кто держит моба на себе. */
+  tauntUntil = 0;
+  tauntBy = "";
   deadAt = 0;
   respawnAt = 0;
   lastHitAt = 0;
@@ -98,6 +101,7 @@ export class Mob {
     this.targetId = null;
     this.damageBy.clear();
     this.threat.clear();
+    this.tauntUntil = 0;
     this.stunUntil = this.rootUntil = this.slowUntil = 0;
     this.boss?.reset();
   }

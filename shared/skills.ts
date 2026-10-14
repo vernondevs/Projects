@@ -27,52 +27,58 @@ export interface SkillDef {
 const pct = (n: number) => `${Math.round(n)}%`;
 
 export const SKILLS: Record<string, SkillDef> = {
-  // ---------------- Воин ----------------
-  cleave: {
-    id: "cleave", cls: "warrior", name: "Рассекающий удар", kind: "active", slot: 0, maxRank: 5, reqLevel: 1, icon: "sk_cleave",
-    target: "point", range: 85, cd: () => 4, mana: () => 8,
-    v: (r) => ({ dmg: 140 + 20 * (r - 1), radius: 85, arc: 110 }),
-    desc: (r) => `Широкий удар перед собой: ${pct(140 + 20 * (r - 1))} урона оружия всем врагам в дуге.`,
+  // ---------------- Воин (танк) ----------------
+  taunt: {
+    id: "taunt", cls: "warrior", name: "Провокация", kind: "active", slot: 0, maxRank: 5, reqLevel: 1, icon: "sk_taunt",
+    target: "enemy", range: 260, cd: () => 8, mana: () => 8,
+    v: (r) => ({ dur: 4, extra: 60 + 40 * r, radius: r >= 3 ? 90 : 0, weak: 20, weakDur: 3 }),
+    desc: (r) => `Крик заставляет цель${r >= 3 ? " и врагов рядом" : ""} атаковать вас 4 с и даёт много угрозы. Против игрока: его урон −20% на 3 с.`,
     tree: [0, 1],
   },
-  charge: {
-    id: "charge", cls: "warrior", name: "Рывок", kind: "active", slot: 1, maxRank: 5, reqLevel: 3, req: { id: "cleave", rank: 1 }, icon: "sk_charge",
-    target: "enemy", range: 300, cd: (r) => 10 - 0.5 * (r - 1), mana: () => 12,
-    v: (r) => ({ dmg: 120 + 15 * (r - 1), stun: 0.8 + 0.2 * (r - 1) }),
-    desc: (r) => `Бросок к врагу: ${pct(120 + 15 * (r - 1))} урона и оглушение на ${(0.8 + 0.2 * (r - 1)).toFixed(1)} с.`,
+  shieldblock: {
+    id: "shieldblock", cls: "warrior", name: "Щитовой блок", kind: "active", slot: 1, maxRank: 5, reqLevel: 3, req: { id: "taunt", rank: 1 }, icon: "sk_shieldblock",
+    target: "self", range: 0, cd: () => 16, mana: () => 12,
+    v: (r) => ({ block: 60, dur: 4, reflect: r >= 3 ? 8 * (r - 2) : 0 }),
+    desc: (r) => `На 4 с блокирует 60% получаемого урона${r >= 3 ? `, возвращает врагу ${8 * (r - 2)}% поглощённого урона` : ""}.`,
     tree: [1, 0],
   },
   toughness: {
-    id: "toughness", cls: "warrior", name: "Закалка", kind: "passive", maxRank: 5, reqLevel: 5, icon: "sk_toughness",
-    v: (r) => ({ hp: 6 * r }),
-    desc: (r) => `Максимальное здоровье +${6 * Math.max(1, r)}%.`,
+    id: "toughness", cls: "warrior", name: "Стойкость", kind: "passive", maxRank: 5, reqLevel: 5, icon: "sk_toughness",
+    v: (r) => ({ armor: 6 * r, taken: 2 * r }),
+    desc: (r) => `Броня +${6 * Math.max(1, r)}%, получаемый урон −${2 * Math.max(1, r)}%.`,
     tree: [1, 2],
   },
-  warcry: {
-    id: "warcry", cls: "warrior", name: "Боевой клич", kind: "active", slot: 2, maxRank: 5, reqLevel: 8, req: { id: "charge", rank: 1 }, icon: "sk_warcry",
-    target: "self", range: 0, cd: () => 22, mana: () => 15,
-    v: (r) => ({ dmg: 15 + 5 * r, armor: 10 * r, dur: 8, radius: 220 }),
-    desc: (r) => `На 8 с вы и союзники рядом наносите +${15 + 5 * r}% урона и получаете +${10 * r} брони.`,
+  charge: {
+    id: "charge", cls: "warrior", name: "Рывок", kind: "active", slot: 2, maxRank: 5, reqLevel: 8, req: { id: "shieldblock", rank: 1 }, icon: "sk_charge",
+    target: "enemy", range: 260, cd: (r) => 12 - 0.5 * (r - 1), mana: () => 12,
+    v: (r) => ({ dmg: 80 + 10 * (r - 1), stun: 1.2, threat: 120 + 30 * r }),
+    desc: (r) => `Бросок к врагу (до 8 клеток): ${pct(80 + 10 * (r - 1))} урона, оглушение 1.2 с и угроза.`,
     tree: [2, 0],
   },
   bloodlust: {
-    id: "bloodlust", cls: "warrior", name: "Кровожадность", kind: "passive", maxRank: 3, reqLevel: 10, req: { id: "cleave", rank: 3 }, icon: "sk_bloodlust",
+    id: "bloodlust", cls: "warrior", name: "Кровожадность", kind: "passive", maxRank: 3, reqLevel: 10, req: { id: "taunt", rank: 3 }, icon: "sk_bloodlust",
     v: (r) => ({ lifesteal: 3 * r }),
     desc: (r) => `${3 * Math.max(1, r)}% нанесённого урона возвращается здоровьем.`,
     tree: [2, 2],
   },
-  whirlwind: {
-    id: "whirlwind", cls: "warrior", name: "Вихрь", kind: "active", slot: 3, maxRank: 5, reqLevel: 15, req: { id: "warcry", rank: 1 }, icon: "sk_whirlwind",
-    target: "self", range: 0, cd: () => 14, mana: () => 25,
-    v: (r) => ({ dmg: 70 + 12 * (r - 1), pulses: 4, radius: 110 }),
-    desc: (r) => `Вращение с оружием: 4 удара по ${pct(70 + 12 * (r - 1))} урона всем вокруг.`,
+  quake: {
+    id: "quake", cls: "warrior", name: "Сотрясение земли", kind: "active", slot: 3, maxRank: 5, reqLevel: 15, req: { id: "charge", rank: 1 }, icon: "sk_quake",
+    target: "self", range: 0, cd: () => 14, mana: () => 20,
+    v: (r) => ({ dmg: 100 + 15 * (r - 1), radius: 130, slow: 40, dur: 3, threat: 150 + 30 * r }),
+    desc: (r) => `Удар по земле: ${pct(100 + 15 * (r - 1))} урона всем вокруг, замедление 40% на 3 с, много угрозы.`,
     tree: [3, 1],
   },
-  berserk: {
-    id: "berserk", cls: "warrior", name: "Берсерк", kind: "passive", maxRank: 3, reqLevel: 20, req: { id: "whirlwind", rank: 1 }, icon: "sk_berserk",
-    v: (r) => ({ crit: 5 * r, critDmg: 10 * r }),
-    desc: (r) => `Шанс крита +${5 * Math.max(1, r)}%, урон крита +${10 * Math.max(1, r)}%.`,
-    tree: [4, 1],
+  unbending: {
+    id: "unbending", cls: "warrior", name: "Несгибаемый", kind: "passive", maxRank: 3, reqLevel: 18, req: { id: "quake", rank: 1 }, icon: "sk_unbending",
+    v: (r) => ({ cc: 15 * r }),
+    desc: (r) => `Длительность оглушений и замедлений на вас −${15 * Math.max(1, r)}%.`,
+    tree: [4, 0],
+  },
+  laststand: {
+    id: "laststand", cls: "warrior", name: "Последний рубеж", kind: "passive", maxRank: 3, reqLevel: 20, req: { id: "quake", rank: 1 }, icon: "sk_laststand",
+    v: (r) => ({ reduce: 15 + 5 * r, dur: 8, icd: 30 }),
+    desc: (r) => `Ниже 30% здоровья получаемый урон −${15 + 5 * Math.max(1, r)}% на 8 с (раз в 30 с).`,
+    tree: [4, 2],
   },
 
   // ---------------- Маг ----------------
@@ -177,6 +183,10 @@ export function classSkills(cls: ClassId): SkillDef[] {
 }
 export function activeSkills(cls: ClassId): SkillDef[] {
   return classSkills(cls).filter((s) => s.kind === "active").sort((a, b) => (a.slot ?? 0) - (b.slot ?? 0));
+}
+/** В сохранении есть умения, которых нет у класса (старое дерево воина). */
+export function hasUnknownSkills(cls: ClassId, skills: Record<string, number>): boolean {
+  return Object.keys(skills).some((k) => !SKILLS[k] || SKILLS[k].cls !== cls);
 }
 export function starterSkill(cls: ClassId): string {
   return activeSkills(cls)[0].id;

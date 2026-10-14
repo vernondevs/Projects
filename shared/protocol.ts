@@ -120,7 +120,7 @@ export type Fx =
   | { t: "cone"; k: string; x: number; y: number; a: number; r: number; w: number }
   | { t: "tele"; shape: "circle" | "cone" | "ring"; k: string; x: number; y: number; r: number; r2?: number; a?: number; w?: number; ms: number }
   | { t: "hazard"; id: string; k: string; x: number; y: number; r: number; ms: number }
-  | { t: "blink"; id: string; x0: number; y0: number; x1: number; y1: number }
+  | { t: "blink"; id: string; x0: number; y0: number; x1: number; y1: number; k?: string }
   | { t: "chain"; pts: number[]; k?: string }
   | { t: "lvl"; id: string; level: number }
   | { t: "buff"; id: string; k: string; ms: number }

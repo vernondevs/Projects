@@ -379,6 +379,11 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
   const g = (x: number, y: number, r: number) => c.ellipse(x, y, r, r, withA(fg[3], 90));
   const W = fg[4] ?? fg[3];
   switch (kind) {
+    case "taunt": for (const r of [5, 9, 13]) for (let a = -0.9; a < 0.9; a += 0.08) c.set(10 + Math.cos(a) * r, 16 + Math.sin(a) * r, fg[3]); c.shadedEllipse(9, 16, 4, 5, P.skin); c.rect(7, 18, 5, 2, P.cloth.red[2]); break;
+    case "shieldblock": c.poly([[16, 4], [27, 8], [25, 21], [16, 29], [7, 21], [5, 8]], fg[2]); c.poly([[16, 7], [24, 10], [22, 20], [16, 26], [10, 20], [8, 10]], bg[2]); c.rect(15, 9, 2, 15, W); c.rect(10, 14, 12, 2, W); break;
+    case "quake": c.line(4, 24, 28, 24, fg[2], 2); c.line(16, 24, 12, 16, W, 2); c.line(12, 16, 15, 9, W, 2); c.line(16, 24, 21, 17, fg[3], 2); c.line(21, 17, 19, 11, fg[3], 1); for (const [x, y] of [[8, 20], [24, 20], [6, 14], [26, 14]]) c.ellipse(x, y, 1.5, 1.5, fg[3]); break;
+    case "unbending": c.rect(11, 6, 10, 20, fg[2]); c.rect(8, 22, 16, 4, fg[1]); c.rect(13, 8, 2, 14, W); c.poly([[11, 6], [16, 2], [21, 6]], fg[3]); break;
+    case "laststand": c.poly([[16, 4], [27, 8], [25, 21], [16, 29], [7, 21], [5, 8]], fg[1]); c.poly([[16, 8], [23, 11], [21, 20], [16, 25], [11, 20], [9, 11]], bg[1]); c.poly([[17, 9], [13, 17], [16, 17], [15, 24], [20, 15], [17, 15]], W); break;
     case "cleave": for (let a = -2.4; a < -0.6; a += 0.04) c.ellipse(16 + Math.cos(a) * 11, 22 + Math.sin(a) * 11, 1.6, 1.6, a > -1.2 ? W : fg[2]); c.line(10, 24, 22, 10, P.steel[3], 2); break;
     case "charge": for (let i = 0; i < 3; i++) c.line(6 + i * 3, 12 + i * 4, 18 + i * 3, 12 + i * 4, fg[2 + (i % 2)], 2); c.poly([[18, 6], [28, 16], [18, 26]], W); break;
     case "toughness": c.poly([[16, 5], [26, 9], [24, 22], [16, 28], [8, 22], [6, 9]], fg[2]); c.poly([[16, 8], [23, 11], [21, 21], [16, 25]], fg[1]); c.ellipse(16, 16, 3, 3, W); break;
@@ -407,6 +412,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
 export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust"];
 const R = P.cloth.red, B = P.cloth.blue, Pu = P.cloth.purple, G = P.cloth.green, Br = P.cloth.brown;
 export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
+  sk_taunt: ["taunt", R, P.gold], sk_shieldblock: ["shieldblock", B, P.steel], sk_quake: ["quake", Br, P.gold], sk_unbending: ["unbending", P.cloth.black, P.steel], sk_laststand: ["laststand", R, P.gold],
   sk_cleave: ["cleave", R, P.steel], sk_charge: ["charge", Br, P.gold], sk_toughness: ["toughness", Br, P.steel], sk_warcry: ["warcry", R, P.gold],
   sk_bloodlust: ["bloodlust", P.cloth.black, P.cloth.red], sk_whirlwind: ["whirlwind", R, P.steel], sk_berserk: ["berserk", P.cloth.black, P.magic.fire],
   sk_fireball: ["fireball", Pu, P.magic.fire], sk_frostnova: ["frostnova", B, P.magic.blue], sk_wisdom: ["wisdom", Pu, P.gold], sk_blink: ["blink", Pu, P.magic.purple],

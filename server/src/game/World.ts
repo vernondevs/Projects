@@ -4,6 +4,7 @@ import { armorReduction } from "../../../shared/formulas";
 import { PVP_DAMAGE_MULT } from "../../../shared/arena";
 import { generateMap, lineClear, moveWithCollision, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
 import { ELITE } from "../../../shared/elites";
+import { SKILLS } from "../../../shared/skills";
 import { MOBS } from "../../../shared/mobs";
 import { MOUNTS, MOUNT_CAST_MS, MOUNT_COMBAT_LOCK_MS } from "../../../shared/mounts";
 import {
@@ -32,6 +33,8 @@ export interface HitOpts {
   threat?: number;
   /** Не запускать эффекты легендарок (доп. удары самих эффектов). */
   noProc?: boolean;
+  /** Не отражать урон (щитовой блок). */
+  noReflect?: boolean;
 }
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -240,6 +243,7 @@ export class World {
       amount = rnd(d.dmgMin, d.dmgMax + 1) * (o.mult ?? 1);
       if (o.skill) amount *= d.skillMult;
       if (src.warcryUntil > this.time) amount *= 1 + src.warcryDmg / 100;
+      if (src.weakUntil > this.time) amount *= 0.8;
       if (!this.isPlayer(dst) && dst.def.boss) amount *= d.bossMult;
       if (o.canCrit !== false && Math.random() < d.crit) {
         crit = true;
@@ -254,7 +258,22 @@ export class World {
     let armor = this.isPlayer(dst) ? dst.derived.armor + (dst.warcryUntil > this.time ? dst.warcryArmor : 0) : dst.stats.armor;
     if (o.kind && o.kind !== "phys") armor *= 0.5;
     amount *= 1 - armorReduction(armor, level);
-    if (this.isPlayer(dst)) amount *= dst.derived.dmgTaken;
+    let reflect = 0;
+    if (this.isPlayer(dst)) {
+      amount *= dst.derived.dmgTaken;
+      const ls = dst.save.skills.laststand || 0;
+      if (ls && dst.unit.hp < dst.unit.maxHp * 0.3 && this.time >= dst.lastStandReady) {
+        const v = SKILLS.laststand.v(ls);
+        dst.lastStandUntil = this.time + v.dur * 1000;
+        dst.lastStandReady = this.time + v.icd * 1000;
+        this.emit({ t: "buff", id: dst.id, k: "block", ms: v.dur * 1000 });
+      }
+      if (dst.lastStandUntil > this.time) amount *= 1 - (SKILLS.laststand.v(ls || 1).reduce) / 100;
+      if (dst.blockUntil > this.time) {
+        reflect = (amount * dst.blockPct * dst.blockReflect) / 10000;
+        amount *= 1 - dst.blockPct / 100;
+      }
+    }
     if (this.isPlayer(src) && this.isPlayer(dst)) amount *= PVP_DAMAGE_MULT;
     amount = legendary.absorb(this, dst, amount);
     const v = Math.max(1, Math.round(amount));
@@ -262,7 +281,8 @@ export class World {
     this.onDamage?.(src, dst, v);
     this.emit({ t: "dmg", id: this.idOf(dst), v, crit, k: o.kind ?? "phys" });
     if (this.isPlayer(src) && src.derived.lifesteal > 0) this.heal(src, Math.round(v * src.derived.lifesteal), false);
-    if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1));
+    if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1) * (this.isPlayer(src) && src.cls === "warrior" ? 2 : 1));
+    if (reflect >= 1 && !o.noReflect && !this.isDead(src)) this.hit(dst, src, { flat: Math.round(reflect), canCrit: false, noReflect: true, noProc: true, threat: 1 });
     legendary.onHit(this, src, dst, v, crit, o);
     legendary.onDamaged(this, src, dst, v, o);
     return v;
@@ -527,6 +547,10 @@ export class World {
 
   /** Самая «угрожающая» живая цель рядом, иначе ближайший игрок в радиусе агрессии. */
   private pickTarget(m: Mob): Player | null {
+    if (m.tauntUntil > this.time) {
+      const tp = this.players.get(m.tauntBy);
+      if (tp && !tp.dead) return tp;
+    }
     let best: Player | null = null, bt = -1;
     for (const [pid, th] of m.threat) {
       const p = this.players.get(pid);

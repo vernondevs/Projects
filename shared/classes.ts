@@ -33,7 +33,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
   warrior: {
     id: "warrior",
     name: "Воин",
-    desc: "Ближний бой, много здоровья. Врывается в толпу и рубит всех вокруг.",
+    desc: "Танк: держит врагов на себе, блокирует урон и контролирует толпу.",
     base: { str: 10, agi: 5, int: 3, vit: 9 },
     perLevel: { str: 1, vit: 1 },
     mainStat: "str",

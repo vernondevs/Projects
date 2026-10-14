@@ -114,11 +114,28 @@ export class Effects {
         break;
       }
       case "aoe": {
-        const col = KIND_COLOR[f.k] ?? 0xffffff;
+        const col = f.k === "taunt" ? 0xffa040 : f.k === "quake" ? 0xc09060 : (KIND_COLOR[f.k] ?? 0xffffff);
         const ring = s.add.image(f.x, f.y, "fx_ring").setTint(col).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 20).setScale(0.2, 0.14);
         s.tweens.add({ targets: ring, scaleX: f.r / 30, scaleY: (f.r / 30) * 0.7, alpha: { from: 1, to: 0 }, duration: 450, ease: "Cubic.easeOut", onComplete: () => ring.destroy() });
         const tex = f.k === "frost" ? "fx_shard" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
         this.burst(f.x, f.y - 6, tex, col, Math.min(40, 10 + f.r / 5), f.r * 1.4, 520);
+        if (f.k === "taunt") {
+          const r2 = s.add.image(f.x, f.y, "fx_ring").setTint(0xffe0a0).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 21).setScale(0.1, 0.07);
+          s.tweens.add({ targets: r2, scaleX: f.r / 18, scaleY: (f.r / 18) * 0.7, alpha: { from: 1, to: 0 }, duration: 650, delay: 120, ease: "Cubic.easeOut", onComplete: () => r2.destroy() });
+        }
+        if (f.k === "quake") {
+          s.cameras.main.shake(220, 0.006);
+          const g = s.add.graphics().setDepth(DEPTH.ground + 22);
+          g.lineStyle(2, 0x2a1a10, 0.9);
+          for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2 + Math.random() * 0.3;
+            let x = f.x, y = f.y; g.beginPath(); g.moveTo(x, y);
+            for (let j = 1; j <= 4; j++) { const d = (f.r * j) / 4; x = f.x + Math.cos(a + (Math.random() - 0.5) * 0.3) * d; y = f.y + Math.sin(a + (Math.random() - 0.5) * 0.3) * d * 0.7; g.lineTo(x, y); }
+            g.strokePath();
+          }
+          this.burst(f.x, f.y - 4, "fx_smoke", 0x806040, 14, f.r * 0.8, 800, -10, 1.4);
+          s.tweens.add({ targets: g, alpha: 0, delay: 900, duration: 600, onComplete: () => g.destroy() });
+        }
         if (f.k === "fire" && f.r >= 90) {
           s.cameras.main.shake(180, 0.004);
           this.burst(f.x, f.y - 6, "fx_smoke", 0x605050, 12, 40, 900, -20, 1.5);
@@ -183,6 +200,12 @@ export class Effects {
         break;
       }
       case "blink": {
+        if (f.k === "charge") {
+          for (let i = 0; i <= 8; i++) { const t = i / 8; this.burst(f.x0 + (f.x1 - f.x0) * t, f.y0 + (f.y1 - f.y0) * t - 10, "fx_smoke", 0xd0b890, 2, 20, 500); }
+          this.burst(f.x1, f.y1 - 8, "fx_spark", 0xffd070, 14, 70, 350);
+          s.cameras.main.shake(120, 0.004);
+          break;
+        }
         this.burst(f.x0, f.y0 - 12, "fx_spark", 0xc08aff, 16, 60, 450);
         this.burst(f.x1, f.y1 - 12, "fx_spark", 0xc08aff, 16, 60, 450);
         break;
@@ -200,7 +223,14 @@ export class Effects {
         const u = this.unit(f.id);
         if (!u) return;
         const color = f.k === "warcry" ? 0xff6a3a : f.k === "haste" ? 0x6aff8a : f.k === "enrage" ? 0xff2a1a : 0xffffff;
-        this.burst(u.x, u.y - 12, "fx_spark", color, 20, 80, 600, -40);
+        if (f.k === "block") {
+          const bub = s.add.ellipse(u.x, u.y - 10, 44, 52, 0x6ac0ff, 0.22).setStrokeStyle(2, 0xbfe6ff, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
+          const follow = s.time.addEvent({ delay: 30, loop: true, callback: () => { const q = this.unit(f.id); if (q) bub.setPosition(q.x, q.y - 10); } });
+          s.tweens.add({ targets: bub, alpha: { from: 0.9, to: 0.5 }, yoyo: true, repeat: -1, duration: 300 });
+          s.time.delayedCall(f.ms, () => { follow.remove(); s.tweens.killTweensOf(bub); s.tweens.add({ targets: bub, alpha: 0, duration: 200, onComplete: () => bub.destroy() }); });
+          break;
+        }
+        this.burst(u.x, u.y - 12, "fx_spark", f.k === "taunted" ? 0xff8030 : f.k === "weak" ? 0x8a6a9a : color, 20, 80, 600, -40);
         if (f.k === "enrage") s.cameras.main.shake(300, 0.006);
         break;
       }

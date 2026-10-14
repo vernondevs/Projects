@@ -47,6 +47,10 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
   const isBoss = (a: Actor) => !w.isPlayer(a) && !!a.def.boss;
   const threat = (a: Actor, v: number) => { if (!w.isPlayer(a)) a.addThreat(p.id, v); };
   const range = def.range ?? 0;
+  /** Контроль с учётом «Несгибаемого» у игроков. */
+  const ccMs = (a: Actor, ms: number) => (w.isPlayer(a) ? ms * (1 - a.derived.ccReduce) : ms);
+  const stun = (a: Actor, ms: number) => { a.stunUntil = w.time + ccMs(a, ms); };
+  const slow = (a: Actor, pct: number, ms: number) => { a.slowUntil = w.time + ccMs(a, ms); a.slowPct = pct; };
 
   // точка прицела по умолчанию — перед героем
   if (!Number.isFinite(ax) || !Number.isFinite(ay)) { ax = u.x; ay = u.y + 1; }
@@ -68,10 +72,33 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
 
   switch (id) {
     // ---------- воин ----------
-    case "cleave": {
+    case "taunt": {
+      if (!liveTarget) return "Нужна цель";
+      if (w.dist(u, liveTarget) > range + w.radiusOf(liveTarget)) return "Цель слишком далеко";
       ok();
-      w.emit({ t: "cone", k: "phys", x: u.x, y: u.y, a: aim, r: v.radius, w: (v.arc * Math.PI) / 180 });
-      for (const m of w.enemiesInCircle(p, u.x, u.y, v.radius)) if (angDiff(Math.atan2(m.y - u.y, m.x - u.x), aim) <= (v.arc * Math.PI) / 360 + 0.15) w.hit(p, m, { mult: v.dmg / 100, skill: true, threat: 1.5 });
+      w.emit({ t: "aoe", k: "taunt", x: u.x, y: u.y, r: v.radius || 70 });
+      const hitTargets = new Set<Actor>([liveTarget]);
+      if (v.radius > 0) for (const m of w.enemiesInCircle(p, liveTarget.x, liveTarget.y, v.radius)) hitTargets.add(m);
+      for (const t of hitTargets) {
+        if (w.isPlayer(t)) {
+          t.weakUntil = w.time + v.weakDur * 1000;
+          w.emit({ t: "buff", id: t.id, k: "weak", ms: v.weakDur * 1000 });
+          continue;
+        }
+        let top = 0;
+        for (const th of t.threat.values()) top = Math.max(top, th);
+        t.threat.set(p.id, Math.max(t.threat.get(p.id) || 0, top) + v.extra);
+        if (!isBoss(t)) { t.tauntUntil = w.time + v.dur * 1000; t.tauntBy = p.id; t.targetId = p.id; if (t.state === "idle") t.state = "chase"; }
+        w.emit({ t: "buff", id: t.id, k: "taunted", ms: v.dur * 1000 });
+      }
+      return null;
+    }
+    case "shieldblock": {
+      ok();
+      p.blockUntil = w.time + v.dur * 1000;
+      p.blockPct = v.block;
+      p.blockReflect = v.reflect;
+      w.emit({ t: "buff", id: p.id, k: "block", ms: v.dur * 1000 });
       return null;
     }
     case "charge": {
@@ -82,40 +109,27 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
       const stop = w.radiusOf(liveTarget) + PLAYER_RADIUS + 4;
       const dest = reachable(w, u.x, u.y, liveTarget.x, liveTarget.y, Math.max(0, d - stop));
       ok();
-      w.emit({ t: "blink", id: p.id, x0: u.x, y0: u.y, x1: dest.x, y1: dest.y });
+      w.emit({ t: "blink", id: p.id, x0: u.x, y0: u.y, x1: dest.x, y1: dest.y, k: "charge" });
       u.x = dest.x;
       u.y = dest.y;
       p.moveTo = null;
       p.targetId = liveTarget.id;
       u.dir = World.dirTo(liveTarget.x - u.x, liveTarget.y - u.y);
-      w.hit(p, liveTarget, { mult: v.dmg / 100, skill: true, threat: 2 });
-      if (!isBoss(liveTarget)) liveTarget.stunUntil = w.time + v.stun * 1000;
-      else liveTarget.slowUntil = w.time + v.stun * 1000;
-      liveTarget.slowPct = 40;
+      w.hit(p, liveTarget, { mult: v.dmg / 100, skill: true, threat: 1 });
+      threat(liveTarget, v.threat);
+      if (!isBoss(liveTarget)) stun(liveTarget, v.stun * 1000);
+      else slow(liveTarget, 40, v.stun * 1000);
       return null;
     }
-    case "warcry": {
+    case "quake": {
       ok();
-      for (const q of w.playersInCircle(u.x, u.y, v.radius)) {
-        if (w.hostile(p, q)) continue;
-        q.warcryUntil = w.time + v.dur * 1000;
-        q.warcryDmg = v.dmg;
-        q.warcryArmor = v.armor;
-        w.emit({ t: "buff", id: q.id, k: "warcry", ms: v.dur * 1000 });
+      u.aseq = (u.aseq + 1) % 65535;
+      w.emit({ t: "aoe", k: "quake", x: u.x, y: u.y, r: v.radius });
+      for (const m of w.enemiesInCircle(p, u.x, u.y, v.radius)) {
+        w.hit(p, m, { mult: v.dmg / 100, skill: true, threat: 1 });
+        threat(m, v.threat);
+        slow(m, v.slow, v.dur * 1000);
       }
-      for (const m of w.mobsInCircle(u.x, u.y, v.radius)) threat(m, 200);
-      w.emit({ t: "aoe", k: "fire", x: u.x, y: u.y, r: v.radius * 0.6 });
-      return null;
-    }
-    case "whirlwind": {
-      ok();
-      for (let i = 0; i < v.pulses; i++)
-        w.later(i * 380, () => {
-          if (p.dead) return;
-          u.aseq = (u.aseq + 1) % 65535;
-          w.emit({ t: "aoe", k: "phys", x: u.x, y: u.y, r: v.radius });
-          for (const m of w.enemiesInCircle(p, u.x, u.y, v.radius)) w.hit(p, m, { mult: v.dmg / 100, skill: true, threat: 1.2 });
-        });
       return null;
     }
 

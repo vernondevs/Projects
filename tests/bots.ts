@@ -123,18 +123,19 @@ async function main() {
       await sleep(250);
       const mp0 = a.me().mp;
       let cd = 0;
-      a.room.onMessage("cd", (c: any) => { if (c.id === "cleave") cd = c.ms; });
-      a.send("skill", { id: "cleave", x: sp.x, y: sp.y, target: null });
+      const gob = mobNear(a, sp.x, sp.y, 300);
+      a.room.onMessage("cd", (c: any) => { if (c.id === "taunt") cd = c.ms; });
+      a.send("skill", { id: "taunt", x: sp.x, y: sp.y, target: gob });
       await a.until(() => cd > 0, 2000, "перезарядка");
       await a.until(() => a.me().mp <= mp0 - 8, 1000, "мана потрачена");
       const mp1 = a.me().mp;
-      a.send("skill", { id: "cleave", x: sp.x, y: sp.y, target: null });
+      a.send("skill", { id: "taunt", x: sp.x, y: sp.y, target: gob });
       await sleep(300);
       assert(a.me().mp >= mp1, "повтор во время перезарядки снова списал ману");
     });
     await check("неизученное умение отклоняется", async () => {
       a.toasts.length = 0;
-      a.send("skill", { id: "whirlwind", x: 0, y: 0 });
+      a.send("skill", { id: "quake", x: 0, y: 0 });
       await a.until(() => a.toasts.includes("Умение не изучено"), 2000, "отказ");
     });
     await check("маг: огненный шар летит снарядом", async () => {
@@ -186,9 +187,9 @@ async function main() {
       await c.until(() => c.toasts.some((t) => t.includes("15 уровень")), 2000, "отказ по уровню");
       c.send("learn", { id: "volley" });
       await c.until(() => c.self!.skills.volley === 1, 2000, "залп изучен");
-      c.send("learn", { id: "cleave" });
+      c.send("learn", { id: "taunt" });
       await sleep(200);
-      assert(!c.self!.skills.cleave, "изучено умение чужого класса");
+      assert(!c.self!.skills.taunt, "изучено умение чужого класса");
     });
     await check("пассивка влияет на характеристики", async () => {
       c.send("dbg", { op: "level", v: 5 });
