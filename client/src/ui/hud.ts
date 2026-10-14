@@ -61,7 +61,6 @@ export class Hud {
   private lastSelfLevel = 0;
   private netBound = false;
   private tradeBound = false;
-  private tradeToggle!: HTMLButtonElement;
   readonly arena: ArenaUI;
   readonly trade: TradeUI;
 
@@ -92,10 +91,6 @@ export class Hud {
       if (this.trade.isOpen) this.wins.inv.hidden = false;
       if (this.ctx?.net.self) this.renderSelf(this.ctx.net.self);
     };
-    const tb = el("button", "btn small", "Обмен");
-    tb.onclick = () => this.ctx.net.send("trade:setting", { allow: !!this.ctx.net.self?.noTrade });
-    menu.append(tb);
-    this.tradeToggle = tb;
     const mb = el("button", "btn small", `Карта <span class="muted">M</span>`);
     mb.title = "Свернуть или развернуть мини-карту";
     mb.onclick = () => this.toggleMinimap();
@@ -376,8 +371,6 @@ export class Hud {
     }
     const grid = b.querySelector(".grid")!;
     const locked = this.trade.lockedIndices();
-    this.tradeToggle.innerHTML = `Обмен <span class="muted">${s.noTrade ? "выкл" : "вкл"}</span>`;
-    this.tradeToggle.title = s.noTrade ? "Входящие запросы на обмен отключены — нажмите, чтобы включить" : "Входящие запросы на обмен разрешены — нажмите, чтобы отключить";
     s.inventory.forEach((it, i) => {
       const c = this.cell(it, s, locked.has(i) ? "locked" : "");
       c.draggable = !!it;

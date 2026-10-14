@@ -152,16 +152,6 @@ async function main() {
       await a.until(() => !a.trade && !b.trade, 3000, "отмена по расстоянию");
     });
 
-    await check("отключение входящих запросов", async () => {
-      b.send("trade:setting", { allow: false });
-      await sleep(150);
-      a.send("dbg", { op: "tp", x: b.me().x + 10, y: b.me().y });
-      await sleep(150);
-      a.toasts.length = 0;
-      a.send("trade:request", { id: b.id });
-      await a.until(() => a.toasts.some((t) => t.includes("не принимает")), 2000, "отказ по настройке");
-      b.send("trade:setting", { allow: true });
-    });
     console.log(`\nВсе проверки обмена пройдены: ${passedCount()}`);
   } finally {
     await stopServer();

@@ -67,7 +67,6 @@ export class TradeManager {
     if (!q || q === p) return toast(p, "Игрок не найден");
     if (this.trades.has(key(p))) return toast(p, "Вы уже торгуете");
     if (this.trades.has(key(q))) return toast(p, `${q.name} уже торгует`);
-    if (q.save.noTrade) return toast(p, `${q.name} не принимает запросы на обмен`);
     const err = this.why(p, q);
     if (err) return toast(p, err);
     const cur = this.requests.get(key(q));

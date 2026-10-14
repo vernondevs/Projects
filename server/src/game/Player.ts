@@ -173,7 +173,6 @@ export class Player {
       derived: this.derived,
       kills: this.save.kills,
       bossKills: this.save.bossKills,
-      noTrade: !!this.save.noTrade,
     };
   }
 

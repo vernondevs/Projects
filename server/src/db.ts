@@ -26,7 +26,6 @@ export interface PlayerSave {
   title?: string;
   frame?: string;
   /** Настройка: не принимать запросы на обмен. */
-  noTrade?: boolean;
 }
 
 export class GameDB {

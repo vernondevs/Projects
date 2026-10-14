@@ -78,7 +78,6 @@ export interface SelfState {
   kills: number;
   bossKills: Record<string, number>;
   /** Входящие запросы на обмен отключены. */
-  noTrade?: boolean;
 }
 
 export interface LootBag {

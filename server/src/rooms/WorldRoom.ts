@@ -272,10 +272,6 @@ export class WorldRoom extends Room<WorldState> {
     on("trade:ready", (p) => this.trade.ready(p));
     on("trade:confirm", (p) => this.trade.confirm(p));
     on("trade:cancel", (p) => this.trade.cancel(p.name.toLowerCase(), `Обмен отменён: ${p.name} закрывает окно`));
-    on<{ allow: unknown }>("trade:setting", (p, m) => {
-      p.save.noTrade = m.allow === false;
-      p.selfDirty = true;
-    });
     on<{ base: unknown; qty: unknown }>("buy", (p, m) => buy(w(), p, m.base, m.qty));
     on<{ bag: unknown }>("pickup", (p, m) => pickup(w(), p, m.bag));
   }
