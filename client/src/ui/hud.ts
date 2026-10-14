@@ -16,6 +16,7 @@ import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
 import { CookUI, foodTip } from "./cook";
 import { plusBadge, SmithUI } from "./smith";
+import { BankUI, parseBankDrag } from "./bank";
 import { MOUNTS, MOUNT_IDS } from "../../../shared/mounts";
 import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
@@ -85,6 +86,7 @@ export class Hud {
   readonly rumor: RumorUI;
   readonly cook: CookUI;
   readonly smith: SmithUI;
+  readonly bank: BankUI;
   private foodUntil = 0;
   private foodId = "";
 
@@ -110,6 +112,7 @@ export class Hud {
     this.rumor = new RumorUI(root);
     this.cook = new CookUI(root);
     this.smith = new SmithUI(root);
+    this.bank = new BankUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true), showInv: () => { if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); } } });
     window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
@@ -151,6 +154,7 @@ export class Hud {
       this.admin.bind(n);
       this.cook.bind(n);
       this.smith.bind(n);
+      this.bank.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
     }
     this.arena.bind(n);
@@ -278,7 +282,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.cook.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -380,6 +384,7 @@ export class Hud {
     this.foodUntil = s.food ? Date.now() + s.food.left : 0;
     this.cook.update(s);
     this.smith.update(s);
+    this.bank.update();
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
     this.lastSelfLevel = s.level;
     const net = this.ctx.net;
@@ -491,7 +496,7 @@ export class Hud {
   private renderInv(s: SelfState) {
     const b = this.body("inv");
     const shop = !this.wins.shop.hidden;
-    b.innerHTML = `<div class="equip"></div><p class="muted">${shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+    b.innerHTML = `<div class="equip"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
@@ -514,13 +519,17 @@ export class Hud {
       c.ondrop = (e) => {
         e.preventDefault();
         c.classList.remove("drag");
-        const from = Number(e.dataTransfer!.getData("text/plain"));
+        const data = e.dataTransfer!.getData("text/plain");
+        const fromBank = parseBankDrag(data);
+        if (fromBank) return this.ctx.net.send("bank:take", { ...fromBank, index: i });
+        const from = data === "" ? NaN : Number(data);
         if (Number.isInteger(from) && from !== i) this.ctx.net.send("swap", { a: from, b: i });
       };
       if (it) {
         c.onclick = () => {
           this.tip.hidden = true;
           if (this.trade.isOpen) { if (!locked.has(i)) this.trade.offer(i); }
+          else if (this.bank.isOpen) this.bank.deposit(i);
           else if (!this.wins.shop.hidden) this.ctx.net.send("sell", { index: i });
           else if (BASE_ITEMS[it.base].slot === "consumable") this.ctx.net.send("use", { index: i });
           else this.ctx.net.send("equip", { index: i });

@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { ClassId, Stats } from "../../shared/classes";
 import type { Item, Slot } from "../../shared/items";
+import type { BankSave } from "../../shared/bank";
 
 export interface PlayerSave {
   cls: ClassId;
@@ -32,6 +33,8 @@ export interface PlayerSave {
   /** Маунты: купленные/полученные и выбранный. */
   mounts?: string[];
   mount?: string;
+  /** Банк: вкладки и золото. Хранится в той же строке, что и сумка, — перенос сохраняется одной записью. */
+  bank?: BankSave;
 }
 
 export class GameDB {

@@ -22,6 +22,7 @@ import { gainXp } from "../game/rewards";
 import { forgetRumors, rumorFor } from "../game/rumors";
 import { World } from "../game/World";
 import { TradeManager } from "../trade/TradeManager";
+import { BankService } from "../game/bank";
 import type { ArenaOptions, Participant } from "./ArenaRoom";
 import { makeOn, registerCombat, type On } from "./common";
 import { WorldState } from "./schema";
@@ -40,6 +41,7 @@ export class WorldRoom extends Room<WorldState> {
   parties!: Parties;
   queue!: ArenaQueue;
   trade!: TradeManager;
+  bank!: BankService;
   static db: GameDB;
   db() {
     return WorldRoom.db;
@@ -56,6 +58,7 @@ export class WorldRoom extends Room<WorldState> {
     this.queue = new ArenaQueue(services.arena, find, (m) => void this.startMatch(m), (keys) => keys.forEach((k) => this.sendArenaInfo(k)));
     this.trade = new TradeManager(() => this.world, () => WorldRoom.db, (p) => p.goingToArena || inArena.has(p.name.toLowerCase()), () => this.world.map.playerSpawn);
     this.clock.setInterval(() => this.trade.tick(), 1000);
+    this.bank = new BankService(() => this.world, () => WorldRoom.db, () => this.world.map.playerSpawn, (p) => p.goingToArena || inArena.has(p.name.toLowerCase()), (p, i) => this.trade.locked(p, i));
     const on = makeOn(this, () => this.world);
     registerCombat(on, () => this.world);
     this.registerMessages(on);
@@ -319,6 +322,13 @@ export class WorldRoom extends Room<WorldState> {
     on<{ id: unknown; qty: unknown }>("smith:buy", (p, m) => buyMaterial(w(), p, m.id, m.qty));
     on<{ index: unknown; slot: unknown }>("smith:upgrade", (p, m) => upgradeItem(w(), p, m.index, m.slot, (i) => this.trade.locked(p, i)));
     on<{ bag: unknown }>("pickup", (p, m) => pickup(w(), p, m.bag));
+    // банк
+    on("bank:open", (p) => this.bank.open(p));
+    on<{ index: unknown; tab: unknown; slot: unknown }>("bank:put", (p, m) => this.bank.put(p, m.index, m.tab, m.slot));
+    on<{ tab: unknown; slot: unknown; index: unknown }>("bank:take", (p, m) => this.bank.take(p, m.tab, m.slot, m.index));
+    on<{ tab: unknown; slot: unknown; toTab: unknown; toSlot: unknown }>("bank:move", (p, m) => this.bank.move(p, m.tab, m.slot, m.toTab, m.toSlot));
+    on<{ v: unknown }>("bank:gold", (p, m) => this.bank.gold(p, m.v));
+    on("bank:buy", (p) => this.bank.buy(p));
   }
 
   /** Отладочные команды только для автотестов (TEST_MODE=1). */
