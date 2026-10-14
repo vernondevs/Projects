@@ -1,6 +1,6 @@
 /** Инвентарь, экипировка, зелья, торговец, подбор добычи. Каждая операция проверяется на сервере. */
 import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
-import { BASE_ITEMS, canEquip, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
+import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import type { Player } from "./Player";
 import type { World } from "./World";
 
@@ -145,7 +145,7 @@ export function pickup(w: World, p: Player, bagId: unknown) {
   if (w.dist(p, bag) > PICKUP_RANGE + 8) return err(p, "Подойдите ближе");
   const left = [];
   for (const it of bag.items) {
-    if (addItem(p, it)) p.send("toast", { text: `Получено: ${it.name}${it.qty && it.qty > 1 ? ` ×${it.qty}` : ""}`, kind: "loot" });
+    if (addItem(p, it)) p.send("toast", { text: `Получено: ${it.name}${it.qty && it.qty > 1 ? ` ×${it.qty}` : ""}`, kind: "loot", icon: iconFor(it), classes: BASE_ITEMS[it.base].classes });
     else left.push(it);
   }
   if (left.length) {

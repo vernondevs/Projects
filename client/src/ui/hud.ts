@@ -149,15 +149,22 @@ export class Hud {
   // ---------- сообщения ----------
   toast(t: ToastMsg) {
     const d = el("div", `toast ${t.kind ?? "info"}`);
-    d.textContent = t.text;
+    d.innerHTML = this.lootHtml(t);
     this.toasts.append(d);
     while (this.toasts.children.length > 4) this.toasts.firstElementChild!.remove();
     setTimeout(() => d.remove(), 3300);
-    if (t.kind === "loot") this.chatLine({ from: "", text: t.text, sys: true, loot: true } as ChatLine & { loot: boolean });
+    if (t.kind === "loot") this.chatLine({ from: "", text: t.text, sys: true, loot: true, html: t.icon ? this.lootHtml(t) : undefined } as ChatLine & { loot: boolean; html?: string });
   }
-  chatLine(l: ChatLine & { loot?: boolean }) {
+  /** Текст тоста с иконкой предмета и цветными точками классов. */
+  private lootHtml(t: ToastMsg): string {
+    if (!t.icon) return esc(t.text);
+    const dots = (t.classes ?? []).map((c) => `<i style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:3px;background:${CLASS_COLOR[c] ?? "#aaa"}" title="${esc(c)}"></i>`).join("");
+    return `<img src="${icon(t.icon)}" width="16" height="16" style="vertical-align:middle;margin-right:4px;image-rendering:pixelated">${esc(t.text)}${dots}`;
+  }
+  chatLine(l: ChatLine & { loot?: boolean; html?: string }) {
     const d = el("div", l.sys ? (l.loot ? "loot" : "sys") : "");
-    if (l.sys) d.textContent = l.text;
+    if (l.html) d.innerHTML = l.html;
+    else if (l.sys) d.textContent = l.text;
     else d.innerHTML = `<b style="color:${CLASS_COLOR[l.cls ?? ""] ?? "#ffb070"}">${esc(l.from)}:</b> ${esc(l.text)}`;
     const atBottom = this.chatLog.scrollTop + this.chatLog.clientHeight >= this.chatLog.scrollHeight - 4;
     this.chatLog.append(d);

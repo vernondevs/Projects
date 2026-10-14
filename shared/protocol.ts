@@ -113,6 +113,9 @@ export interface ChatLine {
 export interface ToastMsg {
   text: string;
   kind?: "info" | "error" | "loot" | "level";
+  /** Ключ иконки предмета (iconFor) и классы, для которых он предназначен. */
+  icon?: string;
+  classes?: string[];
 }
 
 export interface CooldownMsg {
