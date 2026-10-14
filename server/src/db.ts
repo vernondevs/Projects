@@ -61,7 +61,20 @@ export class GameDB {
         a_gold  INTEGER NOT NULL,
         b_gold  INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS market_demand (
+        key        TEXT PRIMARY KEY,
+        sold       REAL NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
     `);
+  }
+
+  marketGet(key: string): { sold: number; updated_at: number } | null {
+    return (this.db.prepare("SELECT sold, updated_at FROM market_demand WHERE key = ?").get(key) as { sold: number; updated_at: number } | undefined) || null;
+  }
+
+  marketSet(key: string, sold: number, at: number) {
+    this.db.prepare("INSERT INTO market_demand (key, sold, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET sold = excluded.sold, updated_at = excluded.updated_at").run(key, sold, at);
   }
 
   static key(name: string) {

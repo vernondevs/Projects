@@ -4,6 +4,7 @@ import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
 import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { MATERIALS } from "../../../shared/upgrade";
 import type { Player } from "./Player";
+import { recordSale, sellPrice, sendPrices } from "./market";
 import type { World } from "./World";
 
 const err = (p: Player, text: string) => p.send("toast", { text, kind: "error" });
@@ -135,11 +136,13 @@ export function sell(w: World, p: Player, index: unknown) {
   if (!it) return;
   if (!nearMerchant(w, p)) return err(p, "Торговец далеко");
   const qty = it.qty ?? 1;
-  const gold = itemValue(it) * qty;
+  const gold = sellPrice(it) * qty;
+  recordSale(it, qty);
   p.save.inventory[index] = null;
   p.save.gold += gold;
   p.selfDirty = true;
   p.send("toast", { text: `Продано: ${it.name}${qty > 1 ? ` ×${qty}` : ""} (+${gold} з)`, kind: "loot" });
+  sendPrices(p);
 }
 
 export function buy(w: World, p: Player, baseId: unknown, qtyRaw: unknown) {

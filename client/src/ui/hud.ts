@@ -1,7 +1,7 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
-import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
+import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
 import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
 import { MOBS } from "../../../shared/mobs";
 import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
@@ -137,6 +137,10 @@ export class Hud {
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
       n.on("arena:info", () => this.applyFrame());
+      n.on("market:prices", (m: Record<string, number>) => {
+        this.prices = m;
+        if (this.ctx.net.self && !this.wins.shop.hidden) this.renderSelf(this.ctx.net.self);
+      });
       this.rumor.bind(n);
       this.cook.bind(n);
       this.smith.bind(n);
@@ -234,7 +238,19 @@ export class Hud {
     this.tip.hidden = true;
     return any;
   }
+  private prices: Record<string, number> = {};
+  /** Актуальная цена продажи: [цена, нормальная, ▼ если спрос низкий]. */
+  private sellInfo(it: Item): { price: number; low: boolean } {
+    const normal = Math.round(baseSellValue(it));
+    const price = this.prices[it.uid] ?? normal;
+    return { price, low: price < normal };
+  }
+  private priceHtml(it: Item): string {
+    const { price, low } = this.sellInfo(it);
+    return `<span class="gold">${price} з</span>${low ? ` <span class="warn">▼ спрос низкий</span>` : ""}`;
+  }
   openShop() {
+    this.ctx.net.send("market:get", {});
     this.wins.shop.hidden = false;
     this.wins.inv.hidden = false;
     if (this.ctx.net.self) this.renderSelf(this.ctx.net.self);
@@ -267,7 +283,7 @@ export class Hud {
     if (b.slot === "consumable") {
       const dish = foodOf(it.base);
       if (dish) return foodTip(dish) + `<div class="d">Клик — съесть · ${it.qty ?? 1} шт.</div>`;
-      if (MATERIALS[it.base]) return lines.join("") + `<div class="d">Материал для улучшения у кузнеца Грома · ${it.qty ?? 1} шт.</div><div class="d">Цена: <span class="gold">${itemValue(it)} з</span></div>`;
+      if (MATERIALS[it.base]) return lines.join("") + `<div class="d">Материал для улучшения у кузнеца Грома · ${it.qty ?? 1} шт.</div><div class="d">Цена: ${this.priceHtml(it)}</div>`;
       lines.push(`<div class="d">Расходуемое · ${it.qty ?? 1} шт.</div>`, `<div>${it.base === "hp_potion" ? "Восстанавливает 45% здоровья" : "Восстанавливает 50% маны"}</div>`, `<div class="d">Клавиша ${it.base === "hp_potion" ? "Q" : "E"} или клик</div>`);
     } else {
       lines.push(`<div class="d">${RARITY_NAMES[it.rarity]} · ${SLOT_NAMES[b.slot]} · ур. предмета ${it.ilvl}</div>`);
@@ -289,7 +305,7 @@ export class Hud {
         }
       }
     }
-    lines.push(`<div class="d">${!this.wins.shop.hidden && !equipped ? "Клик — продать за " : "Цена у торговца: "}<span class="gold">${itemValue(it)} з</span></div>`);
+    lines.push(`<div class="d">${!this.wins.shop.hidden && !equipped ? "Клик — продать за " : "Цена у торговца: "}${this.priceHtml(it)}</div>`);
     if (equipped) lines.push(`<div class="d">Клик — снять</div>`);
     else if (b.slot !== "consumable" && this.wins.shop.hidden) lines.push(`<div class="d">Клик — надеть · перетаскивание — переложить</div>`);
     return lines.join("");
@@ -508,7 +524,8 @@ export class Hud {
       b.append(row);
     }
     const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
-    const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length})`);
+    const junkSum = junk.reduce((a, [it]) => a + this.sellInfo(it!).price * (it!.qty ?? 1), 0);
+    const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · ~<span class="gold">${junkSum} з</span>`);
     sellAll.disabled = !junk.length;
     sellAll.onclick = () => junk.slice().reverse().forEach(([, i]) => this.ctx.net.send("sell", { index: i }));
     b.append(sellAll, el("p", "muted", `Золото: <b class="gold">${s.gold}</b>`));

@@ -243,3 +243,8 @@ export function effStats(it: Pick<Item, "stats" | "plus">): ItemStats {
   }
   return out;
 }
+
+/** Нормальная цена продажи с учётом улучшения (+12% за уровень), без поправки на спрос. */
+export function baseSellValue(it: Item): number {
+  return itemValue(it) * (1 + 0.12 * (it.plus || 0));
+}

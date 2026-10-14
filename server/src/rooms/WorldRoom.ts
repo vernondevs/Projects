@@ -11,6 +11,7 @@ import { ArenaQueue, type PendingMatch } from "../arena/queue";
 import { inArena, services } from "../arena/registry";
 import { deliverArenaRewards } from "../arena/rewards";
 import { GameDB, type PlayerSave } from "../db";
+import { sendPrices, setMarketDb } from "../game/market";
 import { buyMaterial, upgradeItem } from "../game/smith";
 import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
@@ -39,6 +40,7 @@ export class WorldRoom extends Room<WorldState> {
   static db: GameDB;
 
   override onCreate() {
+    setMarketDb(WorldRoom.db);
     this.setState(new WorldState());
     this.setPatchRate(PATCH_MS);
     this.world = new World(this.state, (type, msg) => this.broadcast(type, msg));
@@ -268,7 +270,8 @@ export class WorldRoom extends Room<WorldState> {
     on<{ index: unknown }>("equip", (p, m) => !lock(p, m.index) && equip(w(), p, m.index));
     on<{ slot: unknown }>("unequip", (p, m) => unequip(p, m.slot));
     on<{ index: unknown }>("use", (p, m) => !lock(p, m.index) && useItem(w(), p, m.index));
-    on<{ index: unknown }>("sell", (p, m) => !lock(p, m.index) && sell(w(), p, m.index));
+    on<unknown>("market:get", (p) => sendPrices(p));
+    on<{ index: unknown }>("sell",(p, m) => !lock(p, m.index) && sell(w(), p, m.index));
     on<{ a: unknown; b: unknown }>("swap", (p, m) => !lock(p, m.a, m.b) && swap(p, m.a, m.b));
     // обмен
     on<{ id: unknown }>("trade:request", (p, m) => this.trade.request(p, m.id));
