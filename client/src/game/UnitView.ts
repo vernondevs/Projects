@@ -95,7 +95,7 @@ export class UnitView {
   }
 
   flash() {
-    this.flashUntil = this.scene.time.now + 90;
+    this.flashUntil = this.scene.time.now + 60;
   }
 
   private showDead(instant: boolean) {
@@ -229,7 +229,7 @@ export class UnitView {
 
     // цвет: вспышка от удара и эффекты
     const b = u.buffs;
-    if (this.scene.time.now < this.flashUntil) { if (this.frame > 32) this.sprite.setTint(0xffb0a0); else this.sprite.setTintFill(0xffffff); }
+    if (this.scene.time.now < this.flashUntil) { this.sprite.setTintFill(0xffffff); }
     else if (b & BUFF_STUN) this.sprite.setTint(0xfff0a0);
     else if (b & BUFF_SLOW || b & BUFF_ROOT) this.sprite.setTint(0x9ac8ff);
     else if (b & BUFF_POISON) this.sprite.setTint(0xb0ff90);
