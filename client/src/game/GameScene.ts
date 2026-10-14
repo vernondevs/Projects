@@ -383,7 +383,7 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: img, y: b.y, duration: 380, ease: "Bounce.easeOut" });
       const best = Math.max(...b.items.map((it) => it.rarity));
       if (best > 0 || b.boss) {
-        const glow = this.add.image(b.x, b.y - 8, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(best >= 2 || b.boss ? 0xc47bff : 0x5fa8ff).setScale(0.9).setDepth(b.y - 2);
+        const glow = this.add.image(b.x, b.y - 8, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(best >= 3 ? 0xff9a2e : best >= 2 || b.boss ? 0xc47bff : 0x5fa8ff).setScale(0.9).setDepth(b.y - 2);
         this.tweens.add({ targets: glow, alpha: { from: 0.7, to: 0.25 }, duration: 700, yoyo: true, repeat: -1 });
         img.once("destroy", () => glow.destroy());
       }

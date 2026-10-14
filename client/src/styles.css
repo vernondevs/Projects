@@ -16,6 +16,7 @@
   --common: #e8e2d0;
   --rare: #5fa8ff;
   --epic: #c47bff;
+  --legend: #ff9a2e;
   --font: "Rubik", "Trebuchet MS", system-ui, sans-serif;
   --font-head: "Pixelify Sans", "Rubik", system-ui, sans-serif;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
@@ -147,6 +148,8 @@ button { font: inherit; color: inherit; }
 .cell .lbl { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; overflow: hidden; letter-spacing: -0.5px; color: #5a4c58; text-align: center; }
 .cell.r1 { border-color: var(--rare); box-shadow: inset 0 0 8px rgba(95, 168, 255, 0.35); }
 .cell.r2 { border-color: var(--epic); box-shadow: inset 0 0 10px rgba(196, 123, 255, 0.45); }
+.cell.r3 { border-color: var(--legend); animation: legend-pulse 1.8s ease-in-out infinite; }
+@keyframes legend-pulse { 0%, 100% { box-shadow: inset 0 0 8px rgba(255, 154, 46, 0.4), 0 0 3px rgba(255, 154, 46, 0.4); } 50% { box-shadow: inset 0 0 14px rgba(255, 154, 46, 0.8), 0 0 10px rgba(255, 154, 46, 0.8); } }
 .cell.cant img { filter: grayscale(0.7) brightness(0.6); }
 .cell.drag { outline: 2px dashed var(--gold); }
 .gold { color: var(--gold); }
@@ -168,7 +171,8 @@ button { font: inherit; color: inherit; }
 .tip { position: fixed; z-index: 10; max-width: 280px; padding: 8px 10px; pointer-events: none; font-size: 14px; line-height: 1.4; }
 .tip[hidden] { display: none; }
 .tip .t { font-size: 15px; }
-.tip .r0 { color: var(--common); } .tip .r1 { color: var(--rare); } .tip .r2 { color: var(--epic); }
+.tip .r0 { color: var(--common); } .tip .r1 { color: var(--rare); } .tip .r2 { color: var(--epic); } .tip .r3 { color: var(--legend); }
+.tip .legend { color: var(--legend); }
 .tip .st { color: var(--ok); }
 .tip .lore { color: #c8b088; font-style: italic; }
 .tip .warn { color: var(--bad); }

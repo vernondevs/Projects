@@ -1,6 +1,7 @@
 /** Иконки экипировки 32×32: тип × класс (шлем/доспех/сапоги) × редкость, плюс уникальные. */
 import { PC, hex, mix, withA, type RGBA, type Ramp } from "./canvas";
 import { P } from "./palette";
+import { LEGENDARIES } from "../../shared/legendary";
 import { BASE_ITEMS, ICON_VARIANT_SLOTS, ICON_VARIANTS, UNIQUES, iconId, type Rarity } from "../../shared/items";
 
 const GEM: Ramp[] = [P.magic.green, P.magic.blue, P.magic.purple];
@@ -157,6 +158,24 @@ export function buildUniqueIcon(id: string): PC {
   return c;
 }
 
+/** Легендарная иконка: эпическая база, оранжевая окраска, золотая кайма и яркий ореол. */
+export function buildLegendaryIcon(id: string): PC {
+  const u = LEGENDARIES[id];
+  const tint = hex(u.tint), orange = hex("#ff9a2e");
+  const c = draw(BASE_ITEMS[u.base].icon, u.variant as V, 2);
+  c.map((p) => (p[3] < 255 || p[0] + p[1] + p[2] < 110 ? p : mix(p, tint, 0.35)));
+  const g = new PC(32, 32);
+  for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+    if (c.alpha(x, y)) continue;
+    let near = 0;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (c.alpha(x + dx, y + dy) > 200) near = Math.max(near, 4 - Math.max(Math.abs(dx), Math.abs(dy)));
+    if (near) g.set(x, y, withA(orange, near === 3 ? 150 : near === 2 ? 90 : 45));
+  }
+  g.blit(c, 0, 0);
+  for (const [x, y] of [[3, 4], [28, 3], [27, 27], [4, 26], [16, 2]]) { g.set(x, y, hex("#ffffff")); g.set(x + 1, y, withA(orange, 220)); g.set(x, y + 1, withA(orange, 220)); g.set(x - 1, y, withA(orange, 140)); }
+  return g;
+}
+
 /** Все id иконок экипировки: имя -> холст. */
 export function buildEquipIcons(): Record<string, PC> {
   const out: Record<string, PC> = {};
@@ -166,5 +185,6 @@ export function buildEquipIcons(): Record<string, PC> {
     for (const v of variants) for (const r of [0, 1, 2] as Rarity[]) out[iconId(b.icon, v, r)] = draw(b.icon, v as V, r);
   }
   for (const id of Object.keys(UNIQUES)) out["uq_" + id] = buildUniqueIcon(id);
+  for (const id of Object.keys(LEGENDARIES)) out["lg_" + id] = buildLegendaryIcon(id);
   return out;
 }

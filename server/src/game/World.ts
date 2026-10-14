@@ -12,6 +12,7 @@ import {
 } from "../../../shared/protocol";
 import type { WorldState } from "../rooms/schema";
 import { createBoss } from "./bosses";
+import * as legendary from "./legendary";
 import { grantKillRewards } from "./rewards";
 import { Mob } from "./Mob";
 import type { Player } from "./Player";
@@ -28,6 +29,8 @@ export interface HitOpts {
   canCrit?: boolean;
   skill?: boolean;
   threat?: number;
+  /** Не запускать эффекты легендарок (доп. удары самих эффектов). */
+  noProc?: boolean;
 }
 
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -247,12 +250,15 @@ export class World {
     amount *= 1 - armorReduction(armor, level);
     if (this.isPlayer(dst)) amount *= dst.derived.dmgTaken;
     if (this.isPlayer(src) && this.isPlayer(dst)) amount *= PVP_DAMAGE_MULT;
+    amount = legendary.absorb(this, dst, amount);
     const v = Math.max(1, Math.round(amount));
     this.applyDamage(dst, v, src);
     this.onDamage?.(src, dst, v);
     this.emit({ t: "dmg", id: this.idOf(dst), v, crit, k: o.kind ?? "phys" });
     if (this.isPlayer(src) && src.derived.lifesteal > 0) this.heal(src, Math.round(v * src.derived.lifesteal), false);
     if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1));
+    legendary.onHit(this, src, dst, v, crit, o);
+    legendary.onDamaged(this, src, dst, v, o);
     return v;
   }
 
@@ -303,6 +309,7 @@ export class World {
     m.respawnAt = this.time + respawn;
     m.boss?.onDeath();
     if (m.boss) this.bossKills.set(m.def.id, { by: killer && this.isPlayer(killer) ? killer.name : "неизвестный герой", at: this.time });
+    if (killer && this.isPlayer(killer)) legendary.onKill(this, killer, m);
     grantKillRewards(this, m, killer && this.isPlayer(killer) ? killer : undefined);
     if (m.summoned) this.later(2500, () => this.removeMob(m));
   }

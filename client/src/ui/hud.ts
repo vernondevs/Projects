@@ -1,6 +1,7 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
+import { LEGENDARIES } from "../../../shared/legendary";
 import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
 import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
 import { MOBS } from "../../../shared/mobs";
@@ -334,6 +335,7 @@ export class Hud {
       if (b.classes) lines.push(`<div class="${b.classes.includes(s.cls) ? "d" : "warn"}">Класс: ${b.classes.map((c) => CLASSES[c].name).join(", ")}</div>`);
       lines.push(`<div class="${it.req > s.level ? "warn" : "d"}">Требуется уровень ${it.req}</div>`);
       if (isBound(it)) lines.push(`<div class="warn">Привязан к персонажу</div>`);
+      if (it.legendary && LEGENDARIES[it.legendary]) lines.push(`<div class="legend">★ ${esc(LEGENDARIES[it.legendary].desc)}</div>`, `<div class="lore">${esc(LEGENDARIES[it.legendary].lore)}</div>`);
       if (it.unique) lines.push(`<div class="lore">${esc(UNIQUES[it.unique].lore)}</div>`);
       if (!equipped) {
         const cur = s.equip[b.slot];

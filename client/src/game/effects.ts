@@ -96,6 +96,23 @@ export class Effects {
         });
         break;
       }
+      case "chain": {
+        const g = s.add.graphics().setDepth(DEPTH.top - 38).setBlendMode(Phaser.BlendModes.ADD);
+        const col = f.k ? (KIND_COLOR[f.k as keyof typeof KIND_COLOR] ?? 0xffe070) : 0xffe070;
+        for (let pass = 0; pass < 2; pass++) {
+          g.lineStyle(pass ? 1 : 4, pass ? 0xffffff : col, pass ? 1 : 0.5);
+          for (let i = 0; i + 3 < f.pts.length; i += 2) {
+            const x0 = f.pts[i], y0 = f.pts[i + 1], x1 = f.pts[i + 2], y1 = f.pts[i + 3];
+            g.beginPath(); g.moveTo(x0, y0);
+            const n = 5;
+            for (let j = 1; j < n; j++) { const t = j / n; g.lineTo(x0 + (x1 - x0) * t + (Math.random() - 0.5) * 14, y0 + (y1 - y0) * t + (Math.random() - 0.5) * 14); }
+            g.lineTo(x1, y1); g.strokePath();
+          }
+        }
+        for (let i = 0; i < f.pts.length; i += 2) this.burst(f.pts[i], f.pts[i + 1], "fx_spark", col, 6, 50, 300);
+        s.tweens.add({ targets: g, alpha: 0, duration: 320, onComplete: () => g.destroy() });
+        break;
+      }
       case "aoe": {
         const col = KIND_COLOR[f.k] ?? 0xffffff;
         const ring = s.add.image(f.x, f.y, "fx_ring").setTint(col).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 20).setScale(0.2, 0.14);

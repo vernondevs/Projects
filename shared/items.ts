@@ -17,9 +17,10 @@ export enum Rarity {
   Common = 0,
   Rare = 1,
   Epic = 2,
+  Legendary = 3,
 }
-export const RARITY_NAMES = ["Обычное", "Редкое", "Эпическое"];
-export const RARITY_COLORS = ["#e8e2d0", "#5fa8ff", "#c47bff"];
+export const RARITY_NAMES = ["Обычное", "Редкое", "Эпическое", "Легендарное"];
+export const RARITY_COLORS = ["#e8e2d0", "#5fa8ff", "#c47bff", "#ff9a2e"];
 
 export type ItemStatKey = StatKey | "hp" | "crit" | "armor" | "dmgMin" | "dmgMax";
 export type ItemStats = Partial<Record<ItemStatKey, number>>;
@@ -45,6 +46,8 @@ export interface Item {
   stats: ItemStats;
   qty?: number;
   unique?: string;
+  /** id легендарного предмета (data/legendaries.json). */
+  legendary?: string;
   /** Привязан к персонажу: нельзя передать другому игроку. */
   bound?: boolean;
   /** Уровень улучшения 0..10. */
@@ -103,7 +106,7 @@ export function newUid(): string {
   return Date.now().toString(36) + "-" + uidCounter.toString(36) + "-" + Math.floor(Math.random() * 1e6).toString(36);
 }
 
-export const RARITY_MULT = [1, 1.2, 1.45];
+export const RARITY_MULT = [1, 1.2, 1.45, 1.7];
 
 export function makeItem(baseId: string, ilvl: number, rarity: Rarity, rand: () => number = Math.random): Item {
   const base = BASE_ITEMS[baseId];
@@ -113,7 +116,7 @@ export function makeItem(baseId: string, ilvl: number, rarity: Rarity, rand: () 
   const stats: ItemStats = {};
   const main = base.roll ? base.roll(ilvl) : {};
   for (const [k, v] of Object.entries(main)) stats[k as ItemStatKey] = Math.max(1, Math.round((v as number) * (k.startsWith("dmg") || k === "armor" ? mult : 1)));
-  let affixes = rarity === Rarity.Common ? 0 : rarity === Rarity.Rare ? 1 : 3;
+  let affixes = rarity === Rarity.Common ? 0 : rarity === Rarity.Rare ? 1 : rarity === Rarity.Epic ? 3 : 4;
   if (base.slot === "ring" || base.slot === "amulet") affixes += 1;
   const pool = [...AFFIX_KEYS];
   const picked: ItemStatKey[] = [];
@@ -156,8 +159,9 @@ export function iconId(icon: string, variant: ClassId, rarity: Rarity): string {
 }
 
 /** Единственная точка выбора иконки предмета для всего UI. */
-export function iconFor(it: Pick<Item, "base" | "stats" | "uid" | "rarity" | "unique">): string {
+export function iconFor(it: Pick<Item, "base" | "stats" | "uid" | "rarity" | "unique"> & { legendary?: string }): string {
   if (it.unique) return "uq_" + it.unique;
+  if (it.legendary) return "lg_" + it.legendary;
   return iconId(BASE_ITEMS[it.base].icon, iconVariant(it), it.rarity);
 }
 
@@ -203,7 +207,7 @@ export function makeUnique(id: string): Item {
 
 /** Уникальные предметы боссов и награды арены привязаны к персонажу. */
 export function isBound(it: Item): boolean {
-  return !!it.bound || !!it.unique;
+  return !!it.bound || !!it.unique || !!it.legendary;
 }
 
 export function itemValue(it: Item): number {

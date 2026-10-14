@@ -111,6 +111,7 @@ export type Fx =
   | { t: "tele"; shape: "circle" | "cone" | "ring"; k: string; x: number; y: number; r: number; r2?: number; a?: number; w?: number; ms: number }
   | { t: "hazard"; id: string; k: string; x: number; y: number; r: number; ms: number }
   | { t: "blink"; id: string; x0: number; y0: number; x1: number; y1: number }
+  | { t: "chain"; pts: number[]; k?: string }
   | { t: "lvl"; id: string; level: number }
   | { t: "buff"; id: string; k: string; ms: number }
   | { t: "say"; id: string; text: string }

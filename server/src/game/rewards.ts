@@ -3,6 +3,7 @@ import { CLASSES } from "../../../shared/classes";
 import { LOOT_BAG_TTL_MS, MAX_LEVEL } from "../../../shared/constants";
 import { xpForKill, xpToNext } from "../../../shared/formulas";
 import { BASE_ITEMS, EQUIP_BASES, makeItem, makeUnique, rollRarity, Rarity, UNIQUES, type Item } from "../../../shared/items";
+import { LEGENDARIES, makeLegendary } from "../../../shared/legendary";
 import { ELITE } from "../../../shared/elites";
 import { MATERIALS } from "../../../shared/upgrade";
 import type { LootBag } from "../../../shared/protocol";
@@ -100,6 +101,15 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
     if (m.elite) {
       const r = Math.max(rollRarity(Math.random, ELITE.lootBonus), Rarity.Rare) as Rarity;
       items.push(makeItem(pickBase(p), m.level, r));
+    }
+    if (Math.random() < (boss ? 0.04 : m.elite ? 0.005 : 0)) {
+      const ids = Object.keys(LEGENDARIES).filter((id) => { const b = BASE_ITEMS[LEGENDARIES[id].base]; return !b.classes || b.classes.includes(p.cls); });
+      const id = ids[Math.floor(Math.random() * ids.length)];
+      if (id) {
+        const it = makeLegendary(id);
+        items.push(it);
+        w.system(`⚡ ${p.name} получил легендарный предмет [${it.name}]!`);
+      }
     }
     dropBag(w, p, m.x, m.y, items, boss);
     if (boss) p.send("toast", { text: `${m.def.name} повержен! Заберите добычу.`, kind: "loot" });
