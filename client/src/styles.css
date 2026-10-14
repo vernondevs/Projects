@@ -80,11 +80,13 @@ button { font: inherit; color: inherit; }
 .hud-zone small { display: block; text-align: center; font-size: 15px; color: var(--fg); }
 .hud-zone.show { opacity: 1; }
 
-.hud-mini { position: absolute; right: 12px; top: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
-.hud-mini canvas { width: 216px; height: 168px; image-rendering: pixelated; display: block; border-radius: 3px; }
+.hud-mini { position: absolute; right: 12px; top: 12px; width: 228px; box-sizing: border-box; padding: 6px; display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.hud-mini canvas { width: 100%; height: auto; aspect-ratio: 180 / 140; image-rendering: pixelated; display: block; border-radius: 3px; }
+.hud-mini.collapsed canvas { display: none; }
 .hud-mini .zn { font-size: 13px; text-align: center; color: var(--fg); }
 .hud-mini .zn small { color: var(--dim); }
-.hud-mini .menu { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.hud-mini .menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.hud-mini .menu .btn { padding: 3px 2px; font-size: 11px; white-space: nowrap; min-width: 0; text-align: center; }
 
 .hud-bar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; align-items: flex-end; }
 .slot { position: relative; width: 52px; height: 52px; border: 1px solid var(--line-hi); border-radius: 5px; background: #0e0b10; cursor: pointer; padding: 0; }
@@ -172,7 +174,8 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 800px) {
   .hud-player { width: 210px; }
-  .hud-mini canvas { width: 144px; height: 112px; }
+  .hud-mini { width: 168px; }
+  .hud-mini .menu .btn { font-size: 10px; }
   .hud-target { top: 150px; width: calc(100vw - 24px); }
   .slot { width: 44px; height: 44px; }
   .slot img { width: 40px; height: 40px; }

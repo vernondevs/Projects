@@ -96,6 +96,13 @@ export class Hud {
     tb.onclick = () => this.ctx.net.send("trade:setting", { allow: !!this.ctx.net.self?.noTrade });
     menu.append(tb);
     this.tradeToggle = tb;
+    const mb = el("button", "btn small", `Карта <span class="muted">M</span>`);
+    mb.title = "Свернуть или развернуть мини-карту";
+    mb.onclick = () => this.toggleMinimap();
+    menu.append(mb);
+    let hidden = false;
+    try { hidden = localStorage.getItem("minimapHidden") === "1"; } catch {}
+    this.mini.classList.toggle("collapsed", hidden);
     this.chatInput.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter") {
@@ -184,6 +191,12 @@ export class Hud {
     mk("skills", "win-skills", "Дерево умений");
     mk("shop", "win-shop", "Торговка Марфа");
   }
+  /** Свернуть или развернуть мини-карту (клавиша M), выбор запоминается. */
+  toggleMinimap() {
+    const hidden = this.mini.classList.toggle("collapsed");
+    try { localStorage.setItem("minimapHidden", hidden ? "1" : "0"); } catch {}
+  }
+
   toggle(id: string) {
     if (id === "arena") return this.arena.toggle();
     if (this.ctx.net.kind === "arena" && id === "shop") return;
