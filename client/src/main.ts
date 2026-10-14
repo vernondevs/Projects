@@ -1,3 +1,5 @@
+import "@fontsource/rubik/400.css";
+import "@fontsource/rubik/600.css";
 import "@fontsource/pixelify-sans/400.css";
 import "@fontsource/pixelify-sans/600.css";
 import "./styles.css";

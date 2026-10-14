@@ -114,7 +114,7 @@ export class GameScene extends Phaser.Scene {
     const s = this.add.sprite(at.x, at.y, tex, 0).setOrigin(0.5, 30 / 32).setDepth(at.y);
     if (tint) s.setTint(tint);
     this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
-    const label = { fontFamily: FONT, fontSize: "8px", color, stroke: "#120a10", strokeThickness: 3, resolution: 4 };
+    const label = { fontFamily: FONT, fontSize: "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 };
     this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.add.text(at.x, at.y - 40, kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : kind === "smith" ? "⚒" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.setFrame(Math.random() < 0.5 ? 0 : 24) });
@@ -394,7 +394,7 @@ export class GameScene extends Phaser.Scene {
   say(id: string, text: string) {
     const v = this.units.get(id);
     if (!v) return;
-    const t = this.add.text(v.x, v.y - 70, text, { fontFamily: FONT, fontSize: "9px", color: "#ffe0b0", stroke: "#200a0a", strokeThickness: 3, resolution: 4, align: "center", wordWrap: { width: 160 } }).setOrigin(0.5, 1).setDepth(DEPTH.top);
+    const t = this.add.text(v.x, v.y - 70, text, { fontFamily: FONT, fontSize: "10px", color: "#ffe0b0", stroke: "#200a0a", strokeThickness: 4, resolution: 4, align: "center", wordWrap: { width: 160 } }).setOrigin(0.5, 1).setDepth(DEPTH.top);
     this.bubbles.push({ t, id, until: this.time.now + 3500 });
     this.hud.chatLine({ from: v.u.name, text, sys: false });
   }

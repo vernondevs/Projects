@@ -26,6 +26,7 @@
     "@colyseus/schema": "^3.0.76",
     "@colyseus/ws-transport": "^0.16.5",
     "@fontsource/pixelify-sans": "^5.3.0",
+    "@fontsource/rubik": "^5.3.0",
     "colyseus.js": "^0.16.22",
     "express": "^4.22.3",
     "phaser": "^3.90.0"

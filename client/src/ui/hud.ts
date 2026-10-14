@@ -46,6 +46,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", html = ""):
   return e;
 }
 
+/** Слот экипировки → базовый предмет для силуэта пустой ячейки. */
+const ghostBase: Record<string, string> = {};
+
 export class Hud {
   ctx!: HudCtx;
   aimAtCursor = false;
@@ -56,6 +59,9 @@ export class Hud {
   private miniCanvas = el("canvas");
   private miniBase: HTMLCanvasElement | null = null;
   private bar = el("div", "panel hud-bar");
+  private menuBar = el("div", "hud-menu");
+  private uiScale = 100;
+  private chatSize = 14;
   private chatBox = el("div", "hud-chat");
   private chatLog = el("div", "log");
   private chatInput = el("input");
@@ -91,13 +97,8 @@ export class Hud {
     this.miniCanvas.height = 140;
     this.mini.innerHTML = `<div class="zn" id="mini-zone"></div>`;
     this.mini.prepend(this.miniCanvas);
-    const menu = el("div", "menu");
-    for (const [k, label, key] of [["char", "Герой", "C"], ["inv", "Сумка", "I"], ["skills", "Умения", "K"], ["arena", "Арена", "P"], ["bestiary", "Бестиарий", "B"]]) {
-      const b = el("button", "btn small", `${label} <span class="muted">${key}</span>`);
-      b.onclick = () => this.toggle(k);
-      menu.append(b);
-    }
-    this.mini.append(menu);
+    this.mini.append(this.menuBar);
+    this.buildMenu();
     this.makeWindows();
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
     this.bestiary = new BestiaryUI(root, icon);
@@ -110,10 +111,7 @@ export class Hud {
       if (this.trade.isOpen) this.wins.inv.hidden = false;
       if (this.ctx?.net.self) this.renderSelf(this.ctx.net.self);
     };
-    const mb = el("button", "btn small", `Карта <span class="muted">M</span>`);
-    mb.title = "Свернуть или развернуть мини-карту";
-    mb.onclick = () => this.toggleMinimap();
-    menu.append(mb);
+    this.applySettings();
     let hidden = false;
     try { hidden = localStorage.getItem("minimapHidden") === "1"; } catch {}
     this.mini.classList.toggle("collapsed", hidden);
@@ -219,6 +217,43 @@ export class Hud {
     mk("inv", "win-inv", "Снаряжение и сумка");
     mk("skills", "win-skills", "Дерево умений");
     mk("shop", "win-shop", "Торговка Марфа");
+    mk("settings", "win-settings", "Настройки");
+    this.buildSettings(this.wins.settings.querySelector(".body")!);
+  }
+  /** Нижняя панель меню: иконка, клавиша, подсказка. */
+  private buildMenu() {
+    const items: [string, string, string, string][] = [["char", "🛡", "C", "Герой"], ["inv", "🎒", "I", "Сумка"], ["skills", "✨", "K", "Умения"], ["arena", "⚔", "P", "Арена"], ["bestiary", "📖", "B", "Бестиарий"], ["map", "🗺", "M", "Карта: свернуть или развернуть"], ["settings", "⚙", "", "Настройки"]];
+    for (const [k, ic, key, label] of items) {
+      const b = el("button", "btn mbtn", `<span class="mi">${ic}</span><kbd>${key || "&nbsp;"}</kbd>`);
+      b.title = key ? `${label} (${key})` : label;
+      b.setAttribute("aria-label", label);
+      b.onclick = () => (k === "map" ? this.toggleMinimap() : this.toggle(k));
+      this.menuBar.append(b);
+    }
+  }
+  private buildSettings(body: Element) {
+    try {
+      this.uiScale = Math.min(150, Math.max(80, Number(localStorage.getItem("uiScale")) || 100));
+      this.chatSize = Math.min(22, Math.max(14, Number(localStorage.getItem("chatSize")) || 14));
+    } catch {}
+    const keys: [string, string][] = [["WASD / клик", "движение"], ["1–4", "умения"], ["Q / E", "зелья здоровья и маны"], ["Tab", "следующая цель"], ["Пробел", "подобрать предмет"], ["F", "поговорить с NPC"], ["X / Shift+X", "ездовое животное"], ["C / I / K", "герой / сумка / умения"], ["P / B / M", "арена / бестиарий / карта"], ["Enter", "чат"], ["Esc", "закрыть окна, снять цель"]];
+    body.innerHTML = `<div class="set-row"><label for="set-scale">Масштаб интерфейса</label><input id="set-scale" type="range" min="80" max="150" step="5"><output id="set-scale-v"></output></div>
+      <div class="set-row"><label for="set-chat">Размер шрифта чата</label><input id="set-chat" type="range" min="14" max="22" step="1"><output id="set-chat-v"></output></div>
+      <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Горячие клавиши</h3>
+      <dl class="keys">${keys.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>`;
+    const sc = body.querySelector<HTMLInputElement>("#set-scale")!, ch = body.querySelector<HTMLInputElement>("#set-chat")!;
+    sc.value = String(this.uiScale);
+    ch.value = String(this.chatSize);
+    sc.oninput = () => { this.uiScale = Number(sc.value); this.applySettings(); try { localStorage.setItem("uiScale", sc.value); } catch {} };
+    ch.oninput = () => { this.chatSize = Number(ch.value); this.applySettings(); try { localStorage.setItem("chatSize", ch.value); } catch {} };
+    this.settingsBody = body;
+  }
+  private settingsBody: Element | null = null;
+  private applySettings() {
+    (this.root.style as CSSStyleDeclaration & { zoom: string }).zoom = String(this.uiScale / 100);
+    this.root.style.setProperty("--fs-chat", this.chatSize + "px");
+    const b = this.settingsBody;
+    if (b) { b.querySelector("#set-scale-v")!.textContent = this.uiScale + "%"; b.querySelector("#set-chat-v")!.textContent = this.chatSize + "px"; }
   }
   /** Свернуть или развернуть мини-карту (клавиша M), выбор запоминается. */
   toggleMinimap() {
@@ -273,12 +308,13 @@ export class Hud {
   }
   private moveTip(e: MouseEvent) {
     if (this.tip.hidden) return;
+    const z = this.uiScale / 100;
     const r = this.tip.getBoundingClientRect();
     let x = e.clientX + 16, y = e.clientY + 16;
     if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 12;
     if (y + r.height > innerHeight - 8) y = innerHeight - r.height - 8;
-    this.tip.style.left = x + "px";
-    this.tip.style.top = y + "px";
+    this.tip.style.left = x / z + "px";
+    this.tip.style.top = y / z + "px";
   }
   itemTip(it: Item, s: SelfState, equipped = false): string {
     const b = BASE_ITEMS[it.base];
@@ -433,7 +469,12 @@ export class Hud {
       c.classList.add(`r${it.rarity}`);
       if (BASE_ITEMS[it.base].slot !== "consumable" && canEquip(it, s.cls, s.level)) c.classList.add("cant");
       c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(itemName(it))}">${plusBadge(it)}${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
-    } else if (label) c.innerHTML = `<span class="lbl">${label}</span>`;
+    } else if (label) {
+      // пустой слот экипировки: бледный силуэт вещи, название — в подсказке
+      const base = ghostBase[label];
+      c.title = label;
+      c.innerHTML = base ? `<img class="ghost" src="${icon(iconFor({ base, stats: {}, uid: "slot", rarity: 0 }))}" alt="${label}">` : `<span class="lbl">${label}</span>`;
+    }
     return c;
   }
   private renderInv(s: SelfState) {
@@ -443,6 +484,7 @@ export class Hud {
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
+      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? (s.cls === "mage" ? "staff" : s.cls === "ranger" ? "bow" : "sword") : slot;
       const c = this.cell(it, s, "", SLOT_NAMES[slot]);
       if (it) {
         c.onclick = () => this.ctx.net.send("unequip", { slot });
@@ -526,7 +568,7 @@ export class Hud {
     let box = document.getElementById("mount-cast");
     if (!ms) return void box?.remove();
     box?.remove();
-    box = el("div", "", `<div style="font-size:11px;color:#fff;text-shadow:0 1px 0 #000;text-align:center">${esc(name ?? "Маунт")}</div><div style="height:6px;background:#0a0608;border:1px solid #6a5a46;margin-top:2px"><i style="display:block;height:100%;width:0;background:#f0c050;transition:width ${ms}ms linear"></i></div>`);
+    box = el("div", "", `<div style="font-size: 14px;color:#fff;text-shadow:0 1px 0 #000;text-align:center">${esc(name ?? "Маунт")}</div><div style="height:6px;background:#0a0608;border:1px solid #6a5a46;margin-top:2px"><i style="display:block;height:100%;width:0;background:#f0c050;transition:width ${ms}ms linear"></i></div>`);
     box.id = "mount-cast";
     box.style.cssText = "position:fixed;left:50%;bottom:110px;width:180px;transform:translateX(-50%);z-index:20;pointer-events:none";
     document.body.append(box);

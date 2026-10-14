@@ -48,7 +48,7 @@ export class Effects {
 
   number(x: number, y: number, text: string, color: string, big = false) {
     const t = this.scene.add
-      .text(x + (Math.random() - 0.5) * 10, y, text, { fontFamily: FONT, fontSize: big ? "13px" : "10px", color, stroke: "#14080c", strokeThickness: 3, resolution: 4, fontStyle: big ? "bold" : "" })
+      .text(x + (Math.random() - 0.5) * 10, y, text, { fontFamily: FONT, fontSize: big ? "14px" : "11px", color, stroke: "#14080c", strokeThickness: 4, resolution: 4, fontStyle: big ? "bold" : "600" })
       .setOrigin(0.5)
       .setDepth(DEPTH.top);
     if (big) t.setScale(1.6);

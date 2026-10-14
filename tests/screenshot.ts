@@ -96,6 +96,21 @@ async function main() {
       await sleep(1500);
       await page.evaluate((sprite) => { const n = (window as any).__net; n.room.state.mobs.forEach((m: any, k: string) => { if (m.sprite === sprite) n.send("dbg", { op: "mobhp", id: k, v: 0.5 }); }); }, id);
       for (let i = 1; i <= 8; i++) { await sleep(900); await page.screenshot({ path: path.join(OUT, `shot-boss${i}.png`) }); }
+    } else if (scenario === "wins") {
+      await dbg({ op: "level", v: 12 });
+      await dbg({ op: "item", base: "sword", ilvl: 12, rarity: 2 });
+      await sleep(500);
+      for (const [key, name] of [["i", "inv"], ["k", "skills"], ["b", "bestiary"], ["p", "arena"]] as const) {
+        await page.keyboard.press(key);
+        await sleep(500);
+        await page.screenshot({ path: path.join(OUT, `shot-win-${name}.png`) });
+        await page.keyboard.press("Escape");
+      }
+      await page.click(".mbtn:last-child");
+      await sleep(300);
+      await page.evaluate(() => { const r = document.getElementById("set-scale") as HTMLInputElement; r.value = "120"; r.dispatchEvent(new Event("input")); });
+      await sleep(300);
+      await page.screenshot({ path: path.join(OUT, "shot-win-settings.png") });
     } else if (scenario === "ui") {
       await dbg({ op: "level", v: 12 });
       await dbg({ op: "item", base: "sword", ilvl: 12, rarity: 2 });

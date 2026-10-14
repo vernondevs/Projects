@@ -7,7 +7,7 @@ import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
 import { mountSprite } from "../../../shared/mounts";
 
-export const FONT = '"Pixelify Sans", monospace';
+export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
 const MELEE = new Set(["warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
 const rowOf = (dir: number) => (dir === Dir.Down ? 0 : dir === Dir.Up ? 1 : 2);
 
@@ -57,11 +57,11 @@ export class UnitView {
     this.lastAseq = u.aseq;
     const color = u.kind === UnitKind.Player ? (isSelf ? "#ffe9a8" : "#a8e0ff") : u.kind === UnitKind.Boss ? "#ff8a5a" : "#f0e6d2";
     this.label = scene.add
-      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "10px" : "8px", color, stroke: "#120a10", strokeThickness: 3, resolution: 4 })
+      .text(u.x, u.y, this.labelText(), { fontFamily: FONT, fontSize: u.kind === UnitKind.Boss ? "11px" : "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 })
       .setOrigin(0.5, 1)
       .setDepth(DEPTH.top - 5);
     this.bar = scene.add.graphics().setDepth(DEPTH.top - 6);
-    this.titleText = scene.add.text(u.x, u.y, "", { fontFamily: FONT, fontSize: "7px", color: "#f0c050", stroke: "#120a10", strokeThickness: 3, resolution: 4 }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    this.titleText = scene.add.text(u.x, u.y, "", { fontFamily: FONT, fontSize: "8px", color: "#f0c050", stroke: "#120a10", strokeThickness: 4, resolution: 4 }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.frameGfx = scene.add.graphics().setDepth(DEPTH.top - 7);
     this.sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, (a: Phaser.Animations.Animation) => {
       if (a.key.includes("-attack-")) {
