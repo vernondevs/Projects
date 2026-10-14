@@ -267,7 +267,7 @@ export class GameScene extends Phaser.Scene {
           return this.hud.trade.showMenu(uid, v.u.name, ev.clientX, ev.clientY);
         }
       }
-      const id = this.pick(wx, wy);
+      const id = this.pick(wx, wy) ?? (net.self?.cls === "healer" ? this.pickFriend(wx, wy) : null);
       if (id && p.rightButtonDown()) return this.setTarget(id);
       if (id) return this.setTarget(id);
       this.setTarget(null);
@@ -291,6 +291,17 @@ export class GameScene extends Phaser.Scene {
     let best: string | null = null, bd = Infinity;
     for (const [id, v] of this.units) {
       if (!this.isEnemy(v)) continue;
+      const d = v.hitTest(wx, wy);
+      if (d < bd) { bd = d; best = id; }
+    }
+    return best;
+  }
+
+  /** Союзник под курсором (для лекаря): игроки, включая себя и павших, и питомцы. */
+  pickFriend(wx: number, wy: number): string | null {
+    let best: string | null = null, bd = 22;
+    for (const [id, v] of this.units) {
+      if (this.isEnemy(v) || (v.u.kind !== UnitKind.Player && v.u.kind !== UnitKind.Pet)) continue;
       const d = v.hitTest(wx, wy);
       if (d < bd) { bd = d; best = id; }
     }
@@ -346,7 +357,9 @@ export class GameScene extends Phaser.Scene {
     if (def.target === "enemy" && !t) return this.hud.toast({ text: "Нужна цель: кликните по врагу", kind: "error" });
     if (t && def.target !== "self" && (def.target === "enemy" || !this.hud.aimAtCursor)) { x = t.x; y = t.y; }
     if (def.id === "blink" || def.id === "roll") { x = p.worldX; y = p.worldY; }
-    net.send("skill", { id: def.id, x, y, target: this.targetId });
+    // умения-лечилки: врага в цель не берём (сервер лечит самого лекаря)
+    const target = def.target === "ally" && t && this.isEnemy(t) ? null : this.targetId;
+    net.send("skill", { id: def.id, x, y, target });
   }
 
   usePotion(base: string) {

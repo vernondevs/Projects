@@ -81,7 +81,7 @@ export function derive(p: PlayerCore): Derived {
   return {
     stats: st,
     maxHp: Math.round(STAT_K.baseHp + st.vit * STAT_K.vitHp + st.str * STAT_K.strHp + p.level * 6 + (g.hp || 0)),
-    maxMp: Math.round((40 + st.int * 6 + p.level * 3) * (1 + 0.04 * sk("wisdom"))),
+    maxMp: Math.round((40 + st.int * 6 + p.level * 3) * (1 + 0.04 * sk("wisdom") + 0.03 * sk("insight"))),
     dmgMin: Math.round(wMin * mult),
     dmgMax: Math.round(wMax * mult),
     armor: Math.round(((g.armor || 0) + st.vit * STAT_K.vitArmor) * (1 + 0.06 * sk("toughness"))),
@@ -90,7 +90,7 @@ export function derive(p: PlayerCore): Derived {
     dodge: Math.min(DODGE_CAP, st.agi * STAT_K.agiDodge),
     attackCd: c.attackCd / (1 + st.agi * 0.004 + sk("quickhands") * 0.07),
     hpRegen: 0.6 + st.vit * 0.12,
-    mpRegen: (1.5 + st.int * 0.12) * (1 + sk("wisdom") * 0.12),
+    mpRegen: (1.5 + st.int * 0.12) * (1 + sk("wisdom") * 0.12 + sk("insight") * 0.12),
     lifesteal: sk("bloodlust") * 0.03,
     skillMult: (1 + sk("focus") * 0.06) * (1 + st.int * STAT_K.intSkill),
     dmgTaken: 1 - sk("arcane_shield") * 0.05 - sk("toughness") * 0.02,

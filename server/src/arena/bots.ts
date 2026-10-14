@@ -7,7 +7,7 @@ import { CLASSES, type ClassId } from "../../../shared/classes";
 import { canEquip, makeItem, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { walkable } from "../../../shared/map";
 import { findPath } from "../../../shared/path";
-import { activeSkills, classSkills } from "../../../shared/skills";
+import { SKILLS, activeSkills, classSkills } from "../../../shared/skills";
 import { PLAYER_RADIUS } from "../../../shared/constants";
 import type { PlayerSave } from "../db";
 import { newSave, type Player } from "../game/Player";
@@ -24,8 +24,8 @@ export interface BotSpec {
 }
 
 const BOT_NAMES = ["Гром", "Вихрь", "Клык", "Тень", "Искра", "Буран", "Шип", "Ворон"];
-const BOT_CLASSES: ClassId[] = ["warrior", "mage", "ranger"];
-const MAIN_STAT: Record<ClassId, "str" | "int" | "agi"> = { warrior: "str", mage: "int", ranger: "agi" };
+const BOT_CLASSES: ClassId[] = ["warrior", "mage", "ranger", "healer"];
+const MAIN_STAT: Record<ClassId, "str" | "int" | "agi"> = { warrior: "str", mage: "int", ranger: "agi", healer: "int" };
 
 /** Сохранение бота: уровень и предметы как у образца, очки характеристик и умений распределены. */
 export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerSave {
@@ -80,6 +80,23 @@ export function makeBots(count: number, level: number, rating: number, like: Pla
 
 const KEEP_MIN = 140; // дальний бой: ближе — отходим
 
+/** Лекарь-бот: лечит себя и союзников (щит и обновление на раненых, круг света на группу), остальное время бьёт автоатакой. */
+function healerThink(w: World, bot: Player) {
+  const mates = [...w.players.values()].filter((x) => !x.dead && (x === bot || !w.hostile(bot, x)) && Math.hypot(x.x - bot.x, x.y - bot.y) < 300);
+  const ratio = (x: Player) => x.unit.hp / Math.max(1, x.unit.maxHp);
+  const hurt = mates.filter((x) => ratio(x) < 0.7);
+  const can = (id: string) => {
+    const rank = bot.save.skills[id] || 0;
+    return rank > 0 && (bot.cds.get(id) || 0) <= w.time && bot.unit.mp >= SKILLS[id].mana!(rank);
+  };
+  const low = [...mates].sort((a, b) => ratio(a) - ratio(b))[0];
+  if (!low) return;
+  if (hurt.length >= 2 && can("circle")) { castSkill(w, bot, "circle", low.x, low.y, low.id); return; }
+  if (ratio(low) < 0.55 && can("holyshield") && low.shieldUntil <= w.time) { castSkill(w, bot, "holyshield", low.x, low.y, low.id); return; }
+  if (ratio(low) < 0.75 && can("heal")) { castSkill(w, bot, "heal", low.x, low.y, low.id); return; }
+  if (ratio(low) < 0.9 && can("renew")) castSkill(w, bot, "renew", low.x, low.y, low.id);
+}
+
 /** Один шаг решения бота (вызывается несколько раз в секунду). */
 export function botThink(w: World, bot: Player, enemies: Player[]) {
   if (bot.dead || bot.frozenUntil > w.time) return;
@@ -99,6 +116,7 @@ export function botThink(w: World, bot: Player, enemies: Player[]) {
       if (walkable(w.map, tx, ty, PLAYER_RADIUS) && findPath(w.map, bot.x, bot.y, tx, ty, PLAYER_RADIUS, 800)) { bot.moveTo = { x: tx, y: ty }; break; }
     }
   } else if (bot.moveTo && best >= KEEP_MIN) bot.moveTo = null;
+  if (bot.cls === "healer") return healerThink(w, bot);
   // умения
   for (const s of activeSkills(bot.cls)) {
     const rank = bot.save.skills[s.id] || 0;

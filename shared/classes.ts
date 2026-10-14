@@ -1,4 +1,4 @@
-export type ClassId = "warrior" | "mage" | "ranger";
+export type ClassId = "warrior" | "mage" | "ranger" | "healer";
 export type StatKey = "str" | "agi" | "int" | "vit";
 export type Stats = Record<StatKey, number>;
 
@@ -72,6 +72,20 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     projectile: "arrow",
     weaponTypes: ["bow"],
     startWeapon: "bow",
+  },
+  healer: {
+    id: "healer",
+    name: "Лекарь",
+    desc: "Исцеляет и защищает союзников, воскрешает павших. В одиночку разит врагов святым светом.",
+    base: { str: 3, agi: 4, int: 11, vit: 7 },
+    perLevel: { int: 1, vit: 1 },
+    mainStat: "int",
+    mainK: 0.021,
+    attackRange: 220,
+    attackCd: 1.2,
+    projectile: "holy",
+    weaponTypes: ["scepter", "staff"],
+    startWeapon: "scepter",
   },
 };
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];

@@ -283,6 +283,20 @@ export class World {
     }
     if (this.isPlayer(src) && this.isPlayer(dst)) amount *= PVP_DAMAGE_MULT;
     amount = legendary.absorb(this, dst, amount);
+    if (this.isPlayer(dst) && dst.shieldAmt > 0) {
+      if (dst.shieldUntil > this.time) {
+        const ab = Math.min(dst.shieldAmt, amount);
+        dst.shieldAmt -= ab;
+        amount -= ab;
+        if (dst.shieldBy) this.onHeal?.(dst.shieldBy, Math.round(ab));
+        if (amount < 0.5) {
+          dst.combatAt = this.time;
+          if (this.isPlayer(src)) src.combatAt = this.time;
+          this.emit({ t: "dmg", id: dst.id, v: Math.round(ab), abs: true });
+          return 0;
+        }
+      } else dst.shieldAmt = 0;
+    }
     const v = Math.max(1, Math.round(amount));
     this.applyDamage(dst, v, src);
     this.onDamage?.(src, dst, v);
@@ -302,12 +316,15 @@ export class World {
     return this.isPlayer(a) ? a.dead : a.dead;
   }
 
-  heal(p: Player, v: number, show = true) {
-    if (p.dead || v <= 0) return;
+  /** Лечение p; `by` — кто лечит (для статистики арены), по умолчанию сам p. Возвращает реально восстановленное. */
+  heal(p: Player, v: number, show = true, by?: Player): number {
+    if (p.dead || v <= 0) return 0;
     const before = p.unit.hp;
     p.unit.hp = Math.min(p.unit.maxHp, p.unit.hp + v);
-    if (p.unit.hp > before) this.onHeal?.(p, p.unit.hp - before);
-    if (show && p.unit.hp > before) this.emit({ t: "dmg", id: p.id, v: p.unit.hp - before, heal: true });
+    const got = p.unit.hp - before;
+    if (got > 0) this.onHeal?.(by ?? p, got);
+    if (show && got > 0) this.emit({ t: "dmg", id: p.id, v: got, heal: true });
+    return got;
   }
 
   applyDamage(dst: Actor, v: number, src?: Actor) {
@@ -351,6 +368,7 @@ export class World {
     this.breakMount(p);
     p.petCast = null;
     p.dead = true;
+    p.shieldAmt = 0;
     p.deadAt = this.time;
     p.unit.anim = Anim.Dead;
     p.unit.buffs = 0;
@@ -518,11 +536,11 @@ export class World {
     if (cls === "warrior") {
       this.later(140, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: "phys" }); });
     } else {
-      const kind = cls === "mage" ? "arcane" : "arrow";
-      const speed = cls === "mage" ? 420 : 620;
+      const kind = cls === "mage" ? "arcane" : cls === "healer" ? "holy" : "arrow";
+      const speed = cls === "mage" ? 420 : cls === "healer" ? 400 : 620;
       const ms = (this.dist(u, target) / speed) * 1000;
       this.emit({ t: "proj", k: kind, from: p.id, to: target.id, tx: target.x, ty: target.y, ms });
-      this.later(ms, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: cls === "mage" ? "arcane" : "phys" }); });
+      this.later(ms, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: cls === "mage" ? "arcane" : cls === "healer" ? "holy" : "phys" }); });
     }
   }
 

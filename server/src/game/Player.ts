@@ -62,6 +62,10 @@ export class Player {
   blockUntil = 0;
   blockPct = 0;
   blockReflect = 0;
+  /** Святой щит: остаток поглощения, срок и кто наложил (лечение засчитывается ему). */
+  shieldAmt = 0;
+  shieldUntil = 0;
+  shieldBy: Player | null = null;
   /** Ослабление (−20% к наносимому урону). */
   weakUntil = 0;
   /** Последний рубеж: действует до / откат до. */

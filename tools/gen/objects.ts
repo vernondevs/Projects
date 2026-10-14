@@ -404,6 +404,14 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
     case "roll": for (let a = 0.5; a < 5.5; a += 0.05) c.ellipse(16 + Math.cos(a) * 9, 16 + Math.sin(a) * 9, 1.3, 1.3, a > 4.6 ? W : fg[2]); c.poly([[22, 6], [28, 12], [20, 14]], W); break;
     case "quickhands": c.shadedEllipse(14, 18, 6, 7, P.skin); for (let i = 0; i < 3; i++) c.line(20, 10 + i * 5, 28, 8 + i * 5, fg[3], 1); break;
     case "rain": for (let i = 0; i < 6; i++) { const x = 6 + i * 4, y = 6 + (i % 2) * 6; c.line(x, y, x - 2, y + 12, P.wood[3], 1); c.set(x - 2, y + 13, W); } c.line(4, 28, 28, 28, fg[2], 2); break;
+    case "heal": g(16, 16, 12); c.rect(13, 7, 6, 18, W); c.rect(7, 13, 18, 6, W); c.rect(14, 8, 4, 16, fg[3]); c.rect(8, 14, 16, 4, fg[3]); break;
+    case "circle": for (const r of [12, 8]) for (let a = 0; a < 6.3; a += 0.05) c.set(16 + Math.cos(a) * r, 18 + Math.sin(a) * r * 0.6, r === 12 ? fg[3] : W); for (const [x, y] of [[16, 10], [10, 18], [22, 18], [16, 24]]) c.ellipse(x, y, 1.5, 1.5, W); break;
+    case "grace": c.poly([[16, 4], [26, 14], [16, 28], [6, 14]], fg[2]); c.poly([[16, 8], [22, 14], [16, 24], [10, 14]], bg[1]); c.ellipse(16, 14, 3, 3, W); break;
+    case "renew": for (let i = 0; i < 3; i++) { const x = 8 + i * 8; c.rect(x - 2, 14, 5, 5, fg[3]); c.rect(x - 1, 11, 3, 11, fg[3]); c.set(x, 14, W); } c.line(4, 26, 28, 26, fg[1], 2); c.line(4, 8, 28, 8, fg[2], 1); break;
+    case "smite": g(16, 16, 12); c.poly([[18, 2], [9, 17], [15, 17], [12, 30], [23, 12], [17, 12]], W); c.poly([[18, 5], [12, 16], [17, 16], [14, 26], [20, 13], [16, 13]], fg[3]); break;
+    case "resurrect": g(16, 18, 11); c.shadedEllipse(16, 21, 7, 7, P.bone); c.rect(13, 20, 2, 2, hex("#141018")); c.rect(18, 20, 2, 2, hex("#141018")); for (const s of [-1, 1]) c.line(16 + s * 9, 14, 16 + s * 12, 4, W, 2); c.line(16, 3, 16, 12, fg[3], 2); c.line(12, 7, 20, 7, fg[3], 2); break;
+    case "holyshield": g(16, 16, 12); c.poly([[16, 4], [27, 8], [25, 21], [16, 29], [7, 21], [5, 8]], fg[2]); c.poly([[16, 7], [24, 10], [22, 20], [16, 26], [10, 20], [8, 10]], bg[2]); c.rect(15, 10, 2, 13, W); c.rect(11, 14, 10, 2, W); break;
+    case "insight": c.ellipse(16, 16, 12, 7, P.bone[3]); c.shadedEllipse(16, 16, 6, 6, fg); c.ellipse(16, 16, 2.5, 2.5, hex("#141018")); for (let i = 0; i < 5; i++) { const a = -1.2 + i * 0.6; c.line(16 + Math.cos(a - Math.PI / 2) * 9, 12 + Math.sin(a - Math.PI / 2) * 9, 16 + Math.cos(a - Math.PI / 2) * 13, 12 + Math.sin(a - Math.PI / 2) * 13, W, 1); } break;
     case "hunter": for (let i = 0; i < 3; i++) c.line(9 + i * 6, 6, 5 + i * 6, 26, fg[2 + (i % 2)], 2); c.shadedEllipse(22, 22, 5, 5, P.cloth.red); break;
   }
   return c;
@@ -418,6 +426,8 @@ export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_fireball: ["fireball", Pu, P.magic.fire], sk_frostnova: ["frostnova", B, P.magic.blue], sk_wisdom: ["wisdom", Pu, P.gold], sk_blink: ["blink", Pu, P.magic.purple],
   sk_focus: ["focus", B, P.magic.purple], sk_meteor: ["meteor", P.cloth.black, P.magic.fire], sk_shield: ["shield", B, P.magic.blue],
   sk_aimed: ["aimed", G, P.magic.fire], sk_volley: ["volley", G, P.gold], sk_precision: ["precision", Br, P.magic.fire], sk_roll: ["roll", G, P.magic.green],
+  sk_heal: ["heal", G, P.gold], sk_circle: ["circle", B, P.gold], sk_grace: ["grace", B, P.gold], sk_renew: ["renew", G, P.magic.green],
+  sk_smite: ["smite", P.cloth.black, P.gold], sk_resurrect: ["resurrect", B, P.gold], sk_holyshield: ["holyshield", B, P.gold], sk_insight: ["insight", Pu, P.gold],
   sk_quickhands: ["quickhands", Br, P.gold], sk_rain: ["rain", G, P.steel], sk_hunter: ["hunter", P.cloth.black, P.magic.green],
 };
 export function buildItemIcon(k: string) {
@@ -450,6 +460,7 @@ export const FX_ART: Record<string, () => PC> = {
   arrow: () => { const c = new PC(16, 6); c.line(1, 3, 12, 3, P.wood[3], 1); c.poly([[11, 1], [15, 3], [11, 5]], P.steel[3]); c.line(0, 1, 3, 3, hex("#e8e4d8"), 1); c.line(0, 5, 3, 3, hex("#e8e4d8"), 1); return c; },
   arcane: () => orb(4, P.magic.purple),
   fireball: () => orb(5, P.magic.fire),
+  holy: () => orb(4, P.gold),
   fire: () => orb(4, P.magic.fire),
   poison: () => orb(4, P.magic.green),
   shadow: () => orb(4, [hex("#1a0a2a"), hex("#3a1a5a"), hex("#6a3a9a"), hex("#a080d0"), hex("#ffffff")]),

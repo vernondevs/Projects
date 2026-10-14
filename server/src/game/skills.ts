@@ -3,6 +3,7 @@ import { PLAYER_RADIUS } from "../../../shared/constants";
 import { lineClear, walkable } from "../../../shared/map";
 import { Anim } from "../../../shared/protocol";
 import { SKILLS } from "../../../shared/skills";
+import type { Pet } from "./Pet";
 import type { Player } from "./Player";
 import { World, type Actor } from "./World";
 
@@ -260,6 +261,137 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
         });
       return null;
     }
+
+    // ---------- лекарь ----------
+    case "heal": {
+      const a = resolveAlly(w, p, targetId);
+      if (a.player?.dead) {
+        const rr = p.save.skills.resurrect || 0;
+        if (!rr) return "Цель мертва (нужен талант «Воскрешение»)";
+        if (p.team !== 0 || w.pvpActive) return "На арене воскрешение недоступно";
+        if (w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
+        const tp = a.player, rv = SKILLS.resurrect.v(rr);
+        ok();
+        p.castUntil = w.time + rv.cast * 1000;
+        p.moveTo = null;
+        u.anim = Anim.Cast;
+        w.emit({ t: "buff", id: p.id, k: "heal", ms: rv.cast * 1000 });
+        w.later(rv.cast * 1000, () => {
+          if (u.anim === Anim.Cast && !p.dead) u.anim = Anim.Idle;
+          if (!tp.dead || w.players.get(tp.id) !== tp) return;
+          if (p.dead || p.stunUntil > w.time || w.dist(u, tp) > range + PLAYER_RADIUS + 40) return void p.send("toast", { text: "Воскрешение прервано", kind: "error" });
+          tp.dead = false;
+          tp.unit.hp = Math.max(1, Math.round(tp.unit.maxHp * rv.hp / 100));
+          tp.unit.anim = Anim.Idle;
+          tp.stunUntil = tp.rootUntil = tp.slowUntil = 0;
+          tp.combatAt = w.time;
+          tp.selfDirty = true;
+          tp.send("toast", { text: `${p.name} воскрешает вас`, kind: "info" });
+          w.emit({ t: "buff", id: tp.id, k: "heal", ms: 900 });
+          w.emit({ t: "aoe", k: "heal", x: tp.x, y: tp.y, r: 60 });
+        });
+        return null;
+      }
+      if (a.id !== p.id && w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
+      ok();
+      w.emit({ t: "buff", id: a.id, k: "heal", ms: 700 });
+      smite(w, p, applyHeal(w, p, a, healPower(p) * v.heal / 100));
+      return null;
+    }
+    case "circle": {
+      const d = Math.min(range, Math.hypot(ax - u.x, ay - u.y));
+      const cx = u.x + Math.cos(aim) * d, cy = u.y + Math.sin(aim) * d;
+      ok();
+      w.emit({ t: "aoe", k: "heal", x: cx, y: cy, r: v.radius });
+      const amt = healPower(p) * v.heal / 100;
+      let got = 0;
+      for (const q of w.playersInCircle(cx, cy, v.radius)) if (q === p || !w.hostile(p, q)) got += w.heal(q, amt, true, p);
+      for (const pet of w.pets.values()) {
+        if (pet.dead || w.dist(pet.unit, { x: cx, y: cy }) > v.radius + 12 || w.hostile(p, pet.owner)) continue;
+        got += applyHeal(w, p, { id: pet.id, x: pet.unit.x, y: pet.unit.y, pet }, amt);
+      }
+      smite(w, p, got);
+      return null;
+    }
+    case "renew": {
+      const a = resolveAlly(w, p, targetId);
+      if (a.player?.dead) return "Цель мертва";
+      if (a.id !== p.id && w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
+      ok();
+      const token = (hotToken.get(a.id) || 0) + 1;
+      hotToken.set(a.id, token);
+      const amt = healPower(p) * v.tick / 100;
+      w.emit({ t: "buff", id: a.id, k: "renew", ms: v.dur * 1000 });
+      for (let i = 1; i <= v.ticks; i++)
+        w.later(i * 1000, () => {
+          if (hotToken.get(a.id) !== token || p.dead) return;
+          const pl = w.players.get(a.id), pet = w.pets.get(a.id);
+          if (pl && !pl.dead) applyHeal(w, p, { id: pl.id, x: pl.x, y: pl.y, player: pl }, amt);
+          else if (pet && !pet.dead) applyHeal(w, p, { id: pet.id, x: pet.unit.x, y: pet.unit.y, pet }, amt);
+        });
+      return null;
+    }
+    case "holyshield": {
+      const a = resolveAlly(w, p, targetId);
+      if (!a.player) return "Щит можно наложить только на героя";
+      if (a.player.dead) return "Цель мертва";
+      if (a.id !== p.id && w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
+      ok();
+      const tp = a.player;
+      tp.shieldAmt = healPower(p) * v.absorb / 100;
+      tp.shieldUntil = w.time + v.dur * 1000;
+      tp.shieldBy = p;
+      w.emit({ t: "buff", id: tp.id, k: "shield", ms: v.dur * 1000 });
+      return null;
+    }
   }
   return "Умение недоступно";
+}
+
+// ---------- помощники лекаря ----------
+interface Ally { id: string; x: number; y: number; player?: Player; pet?: Pet }
+const hotToken = new Map<string, number>();
+
+/** Союзная цель по id (игрок или питомец, не враг); иначе сам лекарь. */
+function resolveAlly(w: World, p: Player, targetId: string | null): Ally {
+  const self: Ally = { id: p.id, x: p.x, y: p.y, player: p };
+  if (!targetId) return self;
+  const tp = w.players.get(targetId);
+  if (tp) return tp === p || !w.hostile(p, tp) ? { id: tp.id, x: tp.x, y: tp.y, player: tp } : self;
+  const pet = w.pets.get(targetId);
+  if (pet && !pet.dead && !w.hostile(p, pet.owner)) return { id: pet.id, x: pet.unit.x, y: pet.unit.y, pet };
+  return self;
+}
+
+/** Сила лечения: средний урон оружия × сила умений × «Благодать». */
+export function healPower(p: Player): number {
+  const d = p.derived;
+  return ((d.dmgMin + d.dmgMax) / 2) * d.skillMult * (1 + 0.06 * (p.save.skills.grace || 0));
+}
+
+function applyHeal(w: World, p: Player, a: Ally, amount: number): number {
+  if (a.player) return w.heal(a.player, Math.round(amount), true, p);
+  if (a.pet && !a.pet.dead) {
+    const u = a.pet.unit, before = u.hp;
+    u.hp = Math.min(u.maxHp, u.hp + Math.round(amount));
+    if (u.hp > before) w.emit({ t: "dmg", id: a.pet.id, v: u.hp - before, heal: true });
+    return u.hp - before;
+  }
+  return 0;
+}
+
+/** «Кара»: часть вылеченного обрушивается святым светом на ближайшего врага. */
+function smite(w: World, p: Player, healed: number) {
+  const r = p.save.skills.smite || 0;
+  if (!r || healed <= 0) return;
+  let best: Actor | undefined, bd = 260;
+  for (const m of w.enemiesInCircle(p, p.x, p.y, 260)) {
+    const d = w.dist(p, m);
+    if (d < bd && lineClear(w.map, p.x, p.y, m.x, m.y)) { bd = d; best = m; }
+  }
+  if (!best) return;
+  const m = best, dmg = Math.max(1, Math.round((healed * SKILLS.smite.v(r).pct) / 100));
+  const ms = (bd / 450) * 1000;
+  w.emit({ t: "proj", k: "holy", from: p.id, to: m.id, tx: m.x, ty: m.y, ms });
+  w.later(ms, () => { if (!w.isDead(m) && w.hostile(p, m)) w.hit(p, m, { flat: dmg, canCrit: false, kind: "holy", skill: true }); });
 }

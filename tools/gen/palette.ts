@@ -22,6 +22,7 @@ export const P = {
     brown: ramp("#2e2016", "#4a3424", "#6a4c34", "#8c6a4a"),
     black: ramp("#141218", "#24202c", "#383244", "#4e4660"),
     rag: ramp("#3a3428", "#5a5040", "#7c705a", "#a09478"),
+    white: ramp("#7a7480", "#aaa4ae", "#d6d0d8", "#f6f2f8"),
   },
   hair: {
     brown: ramp("#2a1a12", "#4a2e1c", "#6e4428", "#94623a"),

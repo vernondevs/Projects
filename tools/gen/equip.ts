@@ -8,7 +8,7 @@ const GEM: Ramp[] = [P.magic.green, P.magic.blue, P.magic.purple];
 const GLOW: RGBA[] = [hex("#ffffff"), hex("#7ab8ff"), hex("#c47bff")];
 const TRIM: Ramp[] = [P.steel, P.gold, P.gold];
 
-type V = "warrior" | "mage" | "ranger";
+type V = "warrior" | "mage" | "ranger" | "healer";
 
 function draw(kind: string, v: V, r: number): PC {
   const c = new PC(32, 32);
@@ -37,6 +37,13 @@ function draw(kind: string, v: V, r: number): PC {
       if (r === 1) c.poly([[20, 12], [23, 14], [26, 12], [23, 10]], trim[3]);
       break;
     }
+    case "scepter": {
+      c.line(9, 28, 20, 11, P.gold[2], 2); c.line(10, 28, 21, 11, P.gold[1], 1);
+      c.poly([[22, 3], [26, 7], [22, 12], [18, 7]], r ? trim[3] : P.gold[3]); c.shadedEllipse(22, 7, 2.2, 2.2, GEM[r === 0 ? 1 : r]);
+      if (r) { c.rect(14, 18, 5, 2, trim[3]); c.line(17, 4, 17, 8, trim[2], 1); c.line(27, 4, 27, 8, trim[2], 1); }
+      if (r === 2) for (const [x, y] of [[18, 2], [28, 11], [16, 12]]) c.set(x, y, GEM[2][4]);
+      break;
+    }
     case "bow": {
       const col = r ? trim[2] : P.wood[2];
       for (let t = -1; t <= 1.001; t += 0.05) { const x = 12 + (1 - t * t) * 9, y = 16 + t * 12; c.ellipse(x, y, 1.1, 1.1, col); }
@@ -52,6 +59,11 @@ function draw(kind: string, v: V, r: number): PC {
         c.rect(15, 5, 2, 5, r ? gem[2] : P.cloth.red[2]); c.rect(14, 4, 4, 2, r ? gem[3] : P.cloth.red[3]);
         if (r) { c.rect(6, 25, 20, 1, trim[2]); c.rect(8, 16, 16, 1, trim[3]); }
         if (r === 2) gemDot(16, 14, 1.8);
+      } else if (v === "healer") {
+        c.poly([[16, 3], [24, 10], [26, 25], [20, 22], [12, 22], [6, 25], [8, 10]], (x) => P.cloth.white[x < 12 ? 2 : x > 20 ? 1 : 3]);
+        c.poly([[16, 7], [21, 12], [21, 20], [11, 20], [11, 12]], P.cloth.white[0]);
+        c.rect(7, 22, 18, 2, r ? trim[2] : P.gold[2]); c.rect(15, 11, 2, 7, P.gold[3]); c.rect(13, 13, 6, 2, P.gold[3]);
+        if (r === 2) gemDot(16, 21, 1.5);
       } else if (v === "mage") {
         c.ellipse(16, 24, 13, 4, P.cloth.purple[1]); c.ellipse(16, 23, 12, 3, P.cloth.purple[2]);
         c.poly([[16, 2], [22, 12], [25, 23], [7, 23], [11, 12]], (x) => P.cloth.purple[x < 14 ? 3 : x > 19 ? 1 : 2]);
@@ -75,6 +87,12 @@ function draw(kind: string, v: V, r: number): PC {
         c.line(16, 10, 16, 26, P.steel[1], 1); c.rect(9, 20, 14, 2, r ? trim[2] : P.leather[2]);
         if (r) { c.rect(7, 8, 5, 2, trim[3]); c.rect(20, 8, 5, 2, trim[3]); gemDot(16, 21, 1.8); }
         if (r === 2) { c.line(10, 12, 10, 18, trim[3], 1); c.line(22, 12, 22, 18, trim[3], 1); }
+      } else if (v === "healer") {
+        c.poly([[11, 5], [16, 8], [21, 5], [27, 15], [24, 17], [23, 14], [25, 28], [7, 28], [9, 14], [8, 17], [5, 15]], (x) => P.cloth.white[x < 13 ? 2 : x > 20 ? 1 : 3]);
+        c.poly([[13, 5], [16, 8], [19, 5], [16, 14]], P.gold[3]);
+        c.rect(8, 19, 16, 2, P.gold[2]); c.rect(15, 21, 2, 6, P.gold[3]); c.rect(13, 23, 6, 2, P.gold[3]);
+        if (r) c.rect(7, 26, 18, 2, trim[2]);
+        if (r === 2) gemDot(16, 20, 1.6);
       } else if (v === "mage") {
         c.poly([[11, 5], [16, 8], [21, 5], [27, 15], [24, 17], [23, 14], [25, 28], [7, 28], [9, 14], [8, 17], [5, 15]], (x) => P.cloth.purple[x < 13 ? 3 : x > 20 ? 1 : 2]);
         c.poly([[13, 5], [16, 8], [19, 5], [16, 14]], P.cloth.blue[3]);
@@ -94,6 +112,13 @@ function draw(kind: string, v: V, r: number): PC {
     case "boots": {
       if (v === "warrior") {
         for (const [x, d] of [[8, 0], [17, 1]]) { c.shadedRect(x, 7 + d, 7, 14, P.steel, 1); c.shadedRect(x, 20 + d, 11, 6, P.steel, 2); c.rect(x, 8 + d, 7, 2, r ? trim[3] : P.steel[4]); if (r) c.rect(x + 3, 14 + d, 2, 2, gem[3]); }
+      } else if (v === "healer") {
+        for (const [x, d] of [[9, 0], [18, 1]]) {
+          c.shadedRect(x, 9 + d, 6, 12, P.cloth.white, 1);
+          c.poly([[x, 20 + d], [x + 6, 20 + d], [x + 9, 24 + d], [x + 12, 22 + d], [x + 11, 26 + d], [x, 26 + d]], P.cloth.white[2]);
+          c.rect(x, 10 + d, 6, 2, r ? trim[3] : P.gold[3]);
+          if (r) c.set(x + 3, 15 + d, gem[3]);
+        }
       } else if (v === "mage") {
         for (const [x, d] of [[9, 0], [18, 1]]) {
           c.shadedRect(x, 9 + d, 6, 12, P.cloth.purple, 1);

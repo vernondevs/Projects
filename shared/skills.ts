@@ -1,6 +1,6 @@
 import type { ClassId } from "./classes";
 
-export type SkillTarget = "enemy" | "point" | "self";
+export type SkillTarget = "enemy" | "point" | "self" | "ally";
 
 export interface SkillDef {
   id: string;
@@ -174,6 +174,61 @@ export const SKILLS: Record<string, SkillDef> = {
     id: "hunter", cls: "ranger", name: "Охотник на чудовищ", kind: "passive", maxRank: 3, reqLevel: 20, req: { id: "rain", rank: 1 }, icon: "sk_hunter",
     v: (r) => ({ boss: 10 * r }),
     desc: (r) => `Урон по боссам +${10 * Math.max(1, r)}%.`,
+    tree: [4, 1],
+  },
+
+  // ---------------- Лекарь ----------------
+  // Сила лечения = средний урон оружия × сила умений × «Благодать»; проценты ниже — доля от неё.
+  heal: {
+    id: "heal", cls: "healer", name: "Исцеление", kind: "active", slot: 0, maxRank: 5, reqLevel: 1, icon: "sk_heal",
+    target: "ally", range: 320, cd: () => 3, mana: () => 10,
+    v: (r) => ({ heal: 240 + 40 * (r - 1) }),
+    desc: (r) => `Исцеляет союзника (без цели — вас или питомца) на ${pct(240 + 40 * (r - 1))} силы лечения. С талантом «Воскрешение» поднимает павшего.`,
+    tree: [0, 1],
+  },
+  circle: {
+    id: "circle", cls: "healer", name: "Круг света", kind: "active", slot: 1, maxRank: 5, reqLevel: 3, req: { id: "heal", rank: 1 }, icon: "sk_circle",
+    target: "point", range: 300, cd: () => 10, mana: () => 22,
+    v: (r) => ({ heal: 130 + 25 * (r - 1), radius: 120 }),
+    desc: (r) => `Круг света в выбранной точке исцеляет всех союзников в нём на ${pct(130 + 25 * (r - 1))} силы лечения.`,
+    tree: [1, 0],
+  },
+  grace: {
+    id: "grace", cls: "healer", name: "Благодать", kind: "passive", maxRank: 5, reqLevel: 5, icon: "sk_grace",
+    v: (r) => ({ power: 6 * r }),
+    desc: (r) => `Сила лечения и щитов +${6 * Math.max(1, r)}%.`,
+    tree: [1, 2],
+  },
+  renew: {
+    id: "renew", cls: "healer", name: "Обновление", kind: "active", slot: 2, maxRank: 5, reqLevel: 8, req: { id: "circle", rank: 1 }, icon: "sk_renew",
+    target: "ally", range: 320, cd: () => 7, mana: () => 16,
+    v: (r) => ({ tick: 55 + 10 * (r - 1), ticks: 9, dur: 9 }),
+    desc: (r) => `Исцеление со временем: 9 с по ${pct(55 + 10 * (r - 1))} силы лечения каждую секунду.`,
+    tree: [2, 0],
+  },
+  smite: {
+    id: "smite", cls: "healer", name: "Кара", kind: "passive", maxRank: 3, reqLevel: 10, req: { id: "heal", rank: 3 }, icon: "sk_smite",
+    v: (r) => ({ pct: 20 * r }),
+    desc: (r) => `Каждое ваше исцеление ещё и поражает ближайшего врага святым светом на ${20 * Math.max(1, r)}% от вылеченного.`,
+    tree: [2, 2],
+  },
+  resurrect: {
+    id: "resurrect", cls: "healer", name: "Воскрешение", kind: "passive", maxRank: 3, reqLevel: 12, req: { id: "heal", rank: 2 }, icon: "sk_resurrect",
+    v: (r) => ({ hp: 20 + 10 * r, cast: 3 }),
+    desc: (r) => `«Исцеление» на павшем герое (вне арены) воскрешает его за 3 с с ${20 + 10 * Math.max(1, r)}% здоровья.`,
+    tree: [3, 2],
+  },
+  holyshield: {
+    id: "holyshield", cls: "healer", name: "Святой щит", kind: "active", slot: 3, maxRank: 5, reqLevel: 15, req: { id: "renew", rank: 1 }, icon: "sk_holyshield",
+    target: "ally", range: 320, cd: () => 14, mana: () => 24,
+    v: (r) => ({ absorb: 320 + 60 * (r - 1), dur: 8 }),
+    desc: (r) => `Щит на союзнике: поглощает ${pct(320 + 60 * (r - 1))} силы лечения урона в течение 8 с.`,
+    tree: [3, 0],
+  },
+  insight: {
+    id: "insight", cls: "healer", name: "Озарение", kind: "passive", maxRank: 3, reqLevel: 20, req: { id: "holyshield", rank: 1 }, icon: "sk_insight",
+    v: (r) => ({ regen: 12 * r, mana: 3 * r }),
+    desc: (r) => `Восстановление маны +${12 * Math.max(1, r)}%, запас маны +${3 * Math.max(1, r)}%.`,
     tree: [4, 1],
   },
 };

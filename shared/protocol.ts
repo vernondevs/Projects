@@ -114,7 +114,7 @@ export interface LootBag {
 export type FxKind = "phys" | "fire" | "frost" | "poison" | "arcane" | "shadow" | "nature" | "holy";
 
 export type Fx =
-  | { t: "dmg"; id: string; v: number; crit?: boolean; k?: FxKind; heal?: boolean; miss?: boolean }
+  | { t: "dmg"; id: string; v: number; crit?: boolean; k?: FxKind; heal?: boolean; miss?: boolean; abs?: boolean }
   | { t: "proj"; k: string; from: string; tx: number; ty: number; ms: number; to?: string }
   | { t: "aoe"; k: string; x: number; y: number; r: number }
   | { t: "cone"; k: string; x: number; y: number; a: number; r: number; w: number }

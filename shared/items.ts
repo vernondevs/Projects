@@ -71,7 +71,8 @@ const r1 = (v: number) => Math.round(v);
 export const BASE_ITEMS: Record<string, BaseItem> = {
   sword: { id: "sword", name: "Меч", slot: "weapon", icon: "sword", weaponType: "sword", classes: ["warrior"], roll: (l) => ({ dmgMin: r1(4 + l * 1.8), dmgMax: r1(8 + l * 2.6) }) },
   axe: { id: "axe", name: "Топор", slot: "weapon", icon: "axe", weaponType: "axe", classes: ["warrior"], roll: (l) => ({ dmgMin: r1(3 + l * 1.5), dmgMax: r1(10 + l * 3.1) }) },
-  staff: { id: "staff", name: "Посох", slot: "weapon", icon: "staff", weaponType: "staff", classes: ["mage"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(8 + l * 2.6), int: r1(1 + l * 0.2) }) },
+  staff: { id: "staff", name: "Посох", slot: "weapon", icon: "staff", weaponType: "staff", classes: ["mage", "healer"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(8 + l * 2.6), int: r1(1 + l * 0.2) }) },
+  scepter: { id: "scepter", name: "Жезл", slot: "weapon", icon: "scepter", weaponType: "scepter", classes: ["healer"], roll: (l) => ({ dmgMin: r1(4 + l * 1.6), dmgMax: r1(7 + l * 2.4), int: r1(1 + l * 0.25) }) },
   bow: { id: "bow", name: "Лук", slot: "weapon", icon: "bow", weaponType: "bow", classes: ["ranger"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(7 + l * 2.5) }) },
   helmet: { id: "helmet", name: "Шлем", slot: "helmet", icon: "helmet", roll: (l) => ({ armor: r1(2 + l * 1.6) }) },
   armor: { id: "armor", name: "Доспех", slot: "armor", icon: "armor", roll: (l) => ({ armor: r1(4 + l * 3), hp: r1(l * 2) }) },
@@ -137,7 +138,7 @@ export function makeItem(baseId: string, ilvl: number, rarity: Rarity, rand: () 
 
 /** Слоты, у которых вид иконки зависит от класса (плотная броня / мантия / кожа). */
 export const ICON_VARIANT_SLOTS = ["helmet", "armor", "boots"];
-export const ICON_VARIANTS: ClassId[] = ["warrior", "mage", "ranger"];
+export const ICON_VARIANTS: ClassId[] = ["warrior", "mage", "ranger", "healer"];
 
 /** Класс-принадлежность предмета: по classes, затем по главной характеристике, иначе по uid. */
 export function iconVariant(it: Pick<Item, "base" | "stats" | "uid">): ClassId {
@@ -146,9 +147,10 @@ export function iconVariant(it: Pick<Item, "base" | "stats" | "uid">): ClassId {
   const s = it.stats;
   const v: [ClassId, number][] = [["warrior", s.str || 0], ["mage", s.int || 0], ["ranger", s.agi || 0]];
   v.sort((a, c) => c[1] - a[1]);
-  if (v[0][1] > 0 && v[0][1] > v[1][1]) return v[0][0];
   let h = 0;
   for (let i = 0; i < it.uid.length; i++) h = (h * 31 + it.uid.charCodeAt(i)) >>> 0;
+  // у «интеллектуальных» вещей половина получает белую рясу лекаря
+  if (v[0][1] > 0 && v[0][1] > v[1][1]) return v[0][0] === "mage" && h % 2 ? "healer" : v[0][0];
   return ICON_VARIANTS[h % 3];
 }
 

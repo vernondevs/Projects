@@ -525,6 +525,10 @@ const SPECS: Record<string, HSpec> = {
     skin: P.skin, hair: P.hair.white, hairStyle: "long", torso: P.cloth.purple, legs: P.cloth.purple, boots: P.cloth.black, robe: P.cloth.purple,
     head: "hat", headRamp: P.cloth.purple, weapon: "staff", orb: P.magic.blue, belt: P.gold, beard: P.hair.white,
   },
+  healer: {
+    skin: P.skin, hair: P.hair.blond, hairStyle: "long", torso: P.cloth.white, legs: P.cloth.white, boots: P.leather, robe: P.cloth.white,
+    head: "hood", headRamp: P.cloth.white, weapon: "staff", orb: P.gold, belt: P.gold, cape: P.gold,
+  },
   ranger: {
     skin: P.skin, hair: P.hair.blond, hairStyle: "short", torso: P.leather, legs: P.cloth.brown, boots: P.leather, belt: P.cloth.brown,
     head: "hood", headRamp: P.cloth.green, weapon: "bow", cape: P.cloth.green, quiver: true,
@@ -623,6 +627,7 @@ export const UNIT_ART: Record<string, UnitArt> = {
   warrior: humanoidArt(SPECS.warrior),
   mage: humanoidArt(SPECS.mage),
   ranger: humanoidArt(SPECS.ranger),
+  healer: humanoidArt(SPECS.healer),
   merchant: humanoidArt(SPECS.merchant),
   arenamaster: humanoidArt(SPECS.arenamaster),
   goblin: humanoidArt(SPECS.goblin),

@@ -5,9 +5,9 @@ import { DEPTH } from "./terrain";
 import { FONT, type UnitView } from "./UnitView";
 
 const KIND_COLOR: Record<string, number> = {
-  phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0,
+  phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0, heal: 0x9affb8,
 };
-const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow" };
+const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow", holy: "fx_holy" };
 
 export class Effects {
   private hazards = new Map<string, Phaser.GameObjects.GameObject[]>();
@@ -64,7 +64,8 @@ export class Effects {
         if (!u) return;
         const y = u.y - (u.frame > 32 ? 56 : 28);
         if (f.miss) return this.number(u.x, y, "Уклонение", "#c8c0b0");
-        if (f.heal) return this.number(u.x, y, `+${f.v}`, "#7aff7a");
+        if (f.heal) { this.burst(u.x, u.y - 8, "fx_spark", 0x9affb8, 5, 25, 600, -50, 0.7); return this.number(u.x, y, `+${f.v}`, "#7aff7a"); }
+        if (f.abs) return this.number(u.x, y, `Щит ${f.v}`, "#ffd84a");
         u.flash();
         const mine = f.id === this.selfId;
         const col = mine ? "#ff6a5a" : f.crit ? "#ffd84a" : "#" + (KIND_COLOR[f.k ?? "phys"] ?? 0xffffff).toString(16).padStart(6, "0");
@@ -82,7 +83,7 @@ export class Effects {
         const tx = to ? to.x : f.tx, ty = to ? to.y - (to.frame > 32 ? 26 : 12) : f.ty - 12;
         const img = s.add.image(sx, sy, tex).setDepth(DEPTH.top - 40).setRotation(Math.atan2(ty - sy, tx - sx));
         if (f.k === "fireball" || f.k === "fire") img.setScale(f.k === "fireball" ? 1.3 : 1);
-        const trailColor = f.k === "arrow" ? 0xd8c8a0 : f.k === "poison" ? 0x9aff5a : f.k === "shadow" ? 0x8a5aff : f.k === "frost" ? 0x8ad0ff : f.k === "arcane" ? 0xc08aff : 0xff8a3a;
+        const trailColor = f.k === "arrow" ? 0xd8c8a0 : f.k === "poison" ? 0x9aff5a : f.k === "shadow" ? 0x8a5aff : f.k === "frost" ? 0x8ad0ff : f.k === "arcane" ? 0xc08aff : f.k === "holy" ? 0xffe890 : 0xff8a3a;
         const trail = s.add.particles(0, 0, "fx_spark", { follow: img, lifespan: 260, scale: { start: f.k === "arrow" ? 0.35 : 0.8, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: trailColor, frequency: 20, blendMode: Phaser.BlendModes.ADD });
         trail.setDepth(DEPTH.top - 41);
         s.tweens.add({
@@ -119,6 +120,11 @@ export class Effects {
         s.tweens.add({ targets: ring, scaleX: f.r / 30, scaleY: (f.r / 30) * 0.7, alpha: { from: 1, to: 0 }, duration: 450, ease: "Cubic.easeOut", onComplete: () => ring.destroy() });
         const tex = f.k === "frost" ? "fx_shard" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
         this.burst(f.x, f.y - 6, tex, col, Math.min(40, 10 + f.r / 5), f.r * 1.4, 520);
+        if (f.k === "heal") {
+          const r3 = s.add.image(f.x, f.y, "fx_ring").setTint(0xffe890).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 21).setScale(0.1, 0.07);
+          s.tweens.add({ targets: r3, scaleX: f.r / 26, scaleY: (f.r / 26) * 0.7, alpha: { from: 1, to: 0 }, duration: 650, ease: "Cubic.easeOut", onComplete: () => r3.destroy() });
+          this.burst(f.x, f.y - 4, "fx_spark", 0xfff0b0, Math.min(30, 8 + f.r / 6), f.r * 0.5, 900, -70, 0.9);
+        }
         if (f.k === "taunt") {
           const r2 = s.add.image(f.x, f.y, "fx_ring").setTint(0xffe0a0).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 21).setScale(0.1, 0.07);
           s.tweens.add({ targets: r2, scaleX: f.r / 18, scaleY: (f.r / 18) * 0.7, alpha: { from: 1, to: 0 }, duration: 650, delay: 120, ease: "Cubic.easeOut", onComplete: () => r2.destroy() });
@@ -223,8 +229,17 @@ export class Effects {
         const u = this.unit(f.id);
         if (!u) return;
         const color = f.k === "warcry" ? 0xff6a3a : f.k === "haste" ? 0x6aff8a : f.k === "enrage" ? 0xff2a1a : 0xffffff;
-        if (f.k === "block") {
-          const bub = s.add.ellipse(u.x, u.y - 10, 44, 52, 0x6ac0ff, 0.22).setStrokeStyle(2, 0xbfe6ff, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
+        if (f.k === "heal" || f.k === "renew") {
+          this.burst(u.x, u.y - 6, "fx_spark", f.k === "heal" ? 0x9affb8 : 0xffe890, 14, 30, 900, -80, 0.8);
+          if (f.k === "renew") {
+            const rep = s.time.addEvent({ delay: 450, loop: true, callback: () => { const q = this.unit(f.id); if (q) this.burst(q.x, q.y - 4, "fx_spark", 0xb8ffc8, 2, 20, 700, -70, 0.6); } });
+            s.time.delayedCall(f.ms, () => rep.remove());
+          }
+          break;
+        }
+        if (f.k === "block" || f.k === "shield") {
+          const gold = f.k === "shield";
+          const bub = s.add.ellipse(u.x, u.y - 10, 44, 52, gold ? 0xffd84a : 0x6ac0ff, 0.22).setStrokeStyle(2, gold ? 0xfff0b0 : 0xbfe6ff, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
           const follow = s.time.addEvent({ delay: 30, loop: true, callback: () => { const q = this.unit(f.id); if (q) bub.setPosition(q.x, q.y - 10); } });
           s.tweens.add({ targets: bub, alpha: { from: 0.9, to: 0.5 }, yoyo: true, repeat: -1, duration: 300 });
           s.time.delayedCall(f.ms, () => { follow.remove(); s.tweens.killTweensOf(bub); s.tweens.add({ targets: bub, alpha: 0, duration: 200, onComplete: () => bub.destroy() }); });
