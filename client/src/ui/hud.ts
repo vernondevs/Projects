@@ -1,7 +1,7 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
-import { BASE_ITEMS, canEquip, isBound, ITEM_STAT_NAMES, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
+import { BASE_ITEMS, iconFor, canEquip, isBound, ITEM_STAT_NAMES, itemValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
 import { T, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
 import { MOBS } from "../../../shared/mobs";
 import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
@@ -351,7 +351,7 @@ export class Hud {
     if (it) {
       c.classList.add(`r${it.rarity}`);
       if (BASE_ITEMS[it.base].slot !== "consumable" && canEquip(it, s.cls, s.level)) c.classList.add("cant");
-      c.innerHTML = `<img src="${icon(BASE_ITEMS[it.base].icon)}" alt="${esc(it.name)}">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
+      c.innerHTML = `<img src="${icon(iconFor(it))}" alt="${esc(it.name)}">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}`;
     } else if (label) c.innerHTML = `<span class="lbl">${label}</span>`;
     return c;
   }

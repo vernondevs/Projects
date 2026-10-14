@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import { PNG } from "pngjs";
 import path from "node:path";
+import { buildEquipIcons } from "./gen/equip";
 import { buildItemIcon, buildSkillIcon, FX_ART, ITEM_ICONS, OBJECT_ART, SKILL_ICONS } from "./gen/objects";
 import { buildLavaGlow, buildTileset, buildWater } from "./gen/tiles";
 import { buildUnitSheet, UNIT_ART } from "./gen/units";
@@ -31,7 +32,11 @@ for (const [id, art] of Object.entries(OBJECT_ART)) {
   pc.save(path.join(OUT, `objects/${id}.png`));
   manifest.objects[id] = { w: pc.w, h: pc.h };
 }
-for (const id of ITEM_ICONS) {
+for (const [id, pc] of Object.entries(buildEquipIcons())) {
+  pc.save(path.join(OUT, `icons/${id}.png`));
+  manifest.icons.push(id);
+}
+for (const id of ITEM_ICONS.filter((i) => i.startsWith("potion") || i === "gold")) {
   buildItemIcon(id).save(path.join(OUT, `icons/${id}.png`));
   manifest.icons.push(id);
 }

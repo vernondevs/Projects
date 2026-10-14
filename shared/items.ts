@@ -126,6 +126,35 @@ export function makeItem(baseId: string, ilvl: number, rarity: Rarity, rand: () 
   return { uid: newUid(), base: baseId, name, rarity, ilvl, req: Math.max(1, ilvl - 2), stats };
 }
 
+/** Слоты, у которых вид иконки зависит от класса (плотная броня / мантия / кожа). */
+export const ICON_VARIANT_SLOTS = ["helmet", "armor", "boots"];
+export const ICON_VARIANTS: ClassId[] = ["warrior", "mage", "ranger"];
+
+/** Класс-принадлежность предмета: по classes, затем по главной характеристике, иначе по uid. */
+export function iconVariant(it: Pick<Item, "base" | "stats" | "uid">): ClassId {
+  const b = BASE_ITEMS[it.base];
+  if (b?.classes?.length) return b.classes[0];
+  const s = it.stats;
+  const v: [ClassId, number][] = [["warrior", s.str || 0], ["mage", s.int || 0], ["ranger", s.agi || 0]];
+  v.sort((a, c) => c[1] - a[1]);
+  if (v[0][1] > 0 && v[0][1] > v[1][1]) return v[0][0];
+  let h = 0;
+  for (let i = 0; i < it.uid.length; i++) h = (h * 31 + it.uid.charCodeAt(i)) >>> 0;
+  return ICON_VARIANTS[h % 3];
+}
+
+/** Имя иконки: base.icon + вариант класса (для шлема/доспеха/сапог) + редкость. */
+export function iconId(icon: string, variant: ClassId, rarity: Rarity): string {
+  if (icon.startsWith("potion") || icon === "gold") return icon;
+  return ICON_VARIANT_SLOTS.includes(icon) ? `${icon}_${variant}_${rarity}` : `${icon}_${rarity}`;
+}
+
+/** Единственная точка выбора иконки предмета для всего UI. */
+export function iconFor(it: Pick<Item, "base" | "stats" | "uid" | "rarity" | "unique">): string {
+  if (it.unique) return "uq_" + it.unique;
+  return iconId(BASE_ITEMS[it.base].icon, iconVariant(it), it.rarity);
+}
+
 /** Уникальные предметы боссов: фиксированное имя и набор характеристик. */
 export interface UniqueDef {
   id: string;
