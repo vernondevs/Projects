@@ -1,0 +1,94 @@
+{
+  "_doc": "Классы героев (shared/classes.ts). id классов Сольгарда не меняются (сохранения и предметы), меняются только названия. role: tank | healer | archer | caster | melee. attack: melee — ближний бой; proj — снаряд автоатаки (fx), hit — вид урона, speed — скорость снаряда. threat — множитель угрозы по мобам. trait — особая механика класса (показывается при создании).",
+  "warrior": {
+    "name": "Храмовник", "faction": "solgard", "role": "tank",
+    "desc": "Танк Сольгарда: святой щит, провокация, оглушающий натиск. Блокирует урон и держит врагов на себе.",
+    "trait": "Щит веры: блок и отражение урона, двойная угроза.",
+    "base": { "str": 10, "agi": 5, "int": 3, "vit": 9 }, "perLevel": { "str": 1, "vit": 1 },
+    "mainStat": "str", "mainK": 0.025, "attackRange": 50, "attackCd": 1.0,
+    "attack": { "melee": true, "hit": "phys" }, "threat": 2,
+    "weaponTypes": ["sword", "axe"], "startWeapon": "sword"
+  },
+  "healer": {
+    "name": "Клирик", "faction": "solgard", "role": "healer",
+    "desc": "Лекарь Сольгарда: лечение светом, благословения, щит веры и воскрешение павших. В одиночку разит святым светом.",
+    "trait": "Свет: лечение и щиты тратят только ману.",
+    "base": { "str": 3, "agi": 4, "int": 11, "vit": 7 }, "perLevel": { "int": 1, "vit": 1 },
+    "mainStat": "int", "mainK": 0.021, "attackRange": 220, "attackCd": 1.2,
+    "attack": { "melee": false, "proj": "holy", "hit": "holy", "speed": 400 }, "threat": 1,
+    "weaponTypes": ["scepter", "staff"], "startWeapon": "scepter"
+  },
+  "ranger": {
+    "name": "Егерь", "faction": "solgard", "role": "archer",
+    "desc": "Лучник Сольгарда: точные выстрелы, залпы и ловкие отскоки. Высокий шанс крита.",
+    "trait": "Меткость: быстрые выстрелы и криты.",
+    "base": { "str": 4, "agi": 11, "int": 4, "vit": 7 }, "perLevel": { "agi": 1, "vit": 1 },
+    "mainStat": "agi", "mainK": 0.0235, "attackRange": 260, "attackCd": 0.85,
+    "attack": { "melee": false, "proj": "arrow", "hit": "phys", "speed": 620 }, "threat": 1,
+    "weaponTypes": ["bow"], "startWeapon": "bow"
+  },
+  "mage": {
+    "name": "Боевой маг", "faction": "solgard", "role": "caster",
+    "desc": "Маг Сольгарда: огонь, лёд, мерцание и метеоры. Хрупкий, но сжигает группы врагов.",
+    "trait": "Стихии: мощный урон по площади.",
+    "base": { "str": 3, "agi": 5, "int": 11, "vit": 6 }, "perLevel": { "int": 1, "vit": 1 },
+    "mainStat": "int", "mainK": 0.022, "attackRange": 230, "attackCd": 1.1,
+    "attack": { "melee": false, "proj": "arcane", "hit": "arcane", "speed": 420 }, "threat": 1,
+    "weaponTypes": ["staff"], "startWeapon": "staff"
+  },
+  "rogue": {
+    "name": "Ассасин", "faction": "solgard", "role": "melee",
+    "desc": "Разбойник Сольгарда: удар в спину, яды, прыжок за спину цели и скрытность.",
+    "trait": "Тень: двойной урон со спины и из скрытности.",
+    "base": { "str": 4, "agi": 11, "int": 3, "vit": 7 }, "perLevel": { "agi": 1, "vit": 1 },
+    "mainStat": "agi", "mainK": 0.026, "attackRange": 50, "attackCd": 0.72,
+    "attack": { "melee": true, "hit": "phys" }, "threat": 1,
+    "weaponTypes": ["dagger"], "startWeapon": "dagger"
+  },
+
+  "deathknight": {
+    "name": "Рыцарь смерти", "faction": "umbrath", "role": "tank",
+    "desc": "Танк Умбрата: рунический клинок, цепи, притягивающие врагов, броня изо льда и костей. Живёт за счёт чужой жизни.",
+    "trait": "Вытягивание жизни: удары умений лечат рыцаря, угроза ×2.",
+    "base": { "str": 10, "agi": 4, "int": 4, "vit": 9 }, "perLevel": { "str": 1, "vit": 1 },
+    "mainStat": "str", "mainK": 0.025, "attackRange": 50, "attackCd": 1.05,
+    "attack": { "melee": true, "hit": "frost" }, "threat": 2,
+    "weaponTypes": ["sword", "axe"], "startWeapon": "sword"
+  },
+  "bloodweaver": {
+    "name": "Кровотворец", "faction": "umbrath", "role": "healer",
+    "desc": "Лекарь Умбрата: лечит кровью врагов, связывает союзников кровавыми узами и жертвует своим здоровьем ради других.",
+    "trait": "Цена крови: сильные лечения тратят здоровье, а урон по врагам лечит союзников.",
+    "base": { "str": 3, "agi": 4, "int": 11, "vit": 8 }, "perLevel": { "int": 1, "vit": 1 },
+    "mainStat": "int", "mainK": 0.021, "attackRange": 220, "attackCd": 1.15,
+    "attack": { "melee": false, "proj": "blood", "hit": "blood", "speed": 420 }, "threat": 1,
+    "weaponTypes": ["scepter", "staff"], "startWeapon": "scepter"
+  },
+  "darkranger": {
+    "name": "Тёмный следопыт", "faction": "umbrath", "role": "archer",
+    "desc": "Лучник Умбрата: проклятые стрелы, стрелы ослабления, теневой ворон-спутник и уход в тень.",
+    "trait": "Проклятия: стрелы ослабляют и медленно убивают.",
+    "base": { "str": 4, "agi": 11, "int": 5, "vit": 6 }, "perLevel": { "agi": 1, "vit": 1 },
+    "mainStat": "agi", "mainK": 0.0235, "attackRange": 260, "attackCd": 0.9,
+    "attack": { "melee": false, "proj": "shadow", "hit": "shadow", "speed": 600 }, "threat": 1,
+    "weaponTypes": ["bow"], "startWeapon": "bow"
+  },
+  "warlock": {
+    "name": "Чернокнижник", "faction": "umbrath", "role": "caster",
+    "desc": "Маг Умбрата: проклятия и урон со временем, призыв скелетов, вытягивание маны.",
+    "trait": "Скверна: проклятия тикают сами, мана вытягивается из врагов.",
+    "base": { "str": 3, "agi": 4, "int": 12, "vit": 6 }, "perLevel": { "int": 1, "vit": 1 },
+    "mainStat": "int", "mainK": 0.021, "attackRange": 220, "attackCd": 1.2,
+    "attack": { "melee": false, "proj": "poison", "hit": "shadow", "speed": 400 }, "threat": 1,
+    "weaponTypes": ["staff"], "startWeapon": "staff"
+  },
+  "reaver": {
+    "name": "Потрошитель", "faction": "umbrath", "role": "melee",
+    "desc": "Разбойник Умбрата: кровотечения, прыжок с разрезом, удары по нескольким целям. Чем тяжелее раны, тем страшнее ярость.",
+    "trait": "Ярость от ран: урон растёт, когда здоровья мало.",
+    "base": { "str": 11, "agi": 7, "int": 2, "vit": 7 }, "perLevel": { "str": 1, "vit": 1 },
+    "mainStat": "str", "mainK": 0.026, "attackRange": 50, "attackCd": 0.8,
+    "attack": { "melee": true, "hit": "phys" }, "threat": 1, "rage": 0.5,
+    "weaponTypes": ["axe", "dagger"], "startWeapon": "axe"
+  }
+}

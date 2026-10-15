@@ -16,6 +16,8 @@ import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
 import { MOUNTS } from "../../../shared/mounts";
 import { net, type UnitState } from "../net";
 import { PETS } from "../../../shared/pets";
+import { CLASSES } from "../../../shared/classes";
+import { factionsHostile, pvpPlace } from "../../../shared/factions";
 import type { Hud } from "../ui/hud";
 import { Effects } from "./effects";
 import { Scenes } from "./scenes";
@@ -371,7 +373,7 @@ export class GameScene extends Phaser.Scene {
           return this.hud.trade.showMenu(uid, v.u.name, ev.clientX, ev.clientY);
         }
       }
-      const id = this.pick(wx, wy) ?? (net.self?.cls === "healer" ? this.pickFriend(wx, wy) : null);
+      const id = this.pick(wx, wy) ?? (net.self && CLASSES[net.self.cls].role === "healer" ? this.pickFriend(wx, wy) : null);
       if (id && p.rightButtonDown()) return this.setTarget(id);
       if (id) return this.setTarget(id);
       this.setTarget(null);
@@ -384,11 +386,14 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  /** Враг ли юнит: мобы всегда, игроки — только на арене из другой команды. */
+  /** Враг ли юнит: мобы всегда; игроки — на арене из другой команды, в мире — противоположная фракция в спорной зоне или нейтральном городе (как World.hostile). */
   isEnemy(v: UnitView): boolean {
     if (v.u.kind === UnitKind.Pet || v.npc) return false;
     if (v.u.kind !== UnitKind.Player) return true;
-    return net.kind === "arena" && v.u.team !== 0 && v.u.team !== net.arena?.team && !(v.u.buffs & BUFF_STEALTH);
+    if (v.u.buffs & BUFF_STEALTH) return false;
+    if (net.kind === "arena") return v.u.team !== 0 && v.u.team !== net.arena?.team;
+    const me = net.self;
+    return !!me && v.id !== net.id && factionsHostile(this.map, me.faction, this.pos.x, this.pos.y, v.u.faction, v.u.x, v.u.y);
   }
 
   /** Ближайший к курсору живой враг. */
@@ -635,7 +640,13 @@ export class GameScene extends Phaser.Scene {
     if (z !== this.zone) {
       this.zone = z;
       if (z === Zone.Arena) this.hud.showZone(`Арена · ${MODE_NAMES[net.arena?.mode ?? "1v1"]}`, "Победит тот, кто устоит");
-      else this.hud.showZone(ZONES[z].name, ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`), ZONE_COLOR[z]);
+      else {
+        // фракции: спорная зона (PvP с противоположной фракцией) и нейтральный город (бой запрещён)
+        const place = net.kind === "world" ? pvpPlace(this.map, this.pos.x, this.pos.y) : "peace";
+        const base = ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`);
+        const sub = place === "pvp" ? `${base} · спорная зона: PvP фракций` : place === "neutral" ? "Нейтральный город: бой фракций запрещён" : base;
+        this.hud.showZone(ZONES[z].name, sub, place === "pvp" ? "#ff7a5a" : ZONE_COLOR[z]);
+      }
     }
     const cam = this.cameras.main;
     const tint = zoneTint(z);

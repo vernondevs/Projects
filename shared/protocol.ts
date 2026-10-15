@@ -1,5 +1,5 @@
 /** Сообщения между клиентом и сервером. Сервер проверяет каждое входящее сообщение. */
-import type { ClassId, StatKey, Stats } from "./classes";
+import type { ClassId, FactionId, StatKey, Stats } from "./classes";
 import type { Derived } from "./formulas";
 import type { Item, Slot } from "./items";
 import type { QuestSave } from "./quests";
@@ -47,6 +47,9 @@ export const BUFF_ENRAGE = 32;
 export const BUFF_POISON = 64;
 export const BUFF_BURN = 128;
 export const BUFF_STEALTH = 256;
+/** Проклятие (урон тенью со временем) и кровотечение — классы Умбрата. */
+export const BUFF_CURSE = 512;
+export const BUFF_BLEED = 1024;
 
 // ---------- клиент -> сервер ----------
 export interface ClientMessages {
@@ -85,6 +88,7 @@ export interface SelfState {
   id: string;
   name: string;
   cls: ClassId;
+  faction: FactionId;
   level: number;
   xp: number;
   xpNext: number;
@@ -125,7 +129,7 @@ export interface LootBag {
   boss?: boolean;
 }
 
-export type FxKind = "phys" | "fire" | "frost" | "poison" | "arcane" | "shadow" | "nature" | "holy";
+export type FxKind = "phys" | "fire" | "frost" | "poison" | "arcane" | "shadow" | "nature" | "holy" | "blood";
 
 export type Fx =
   | { t: "dmg"; id: string; v: number; crit?: boolean; k?: FxKind; heal?: boolean; miss?: boolean; abs?: boolean }
@@ -148,6 +152,9 @@ export interface ChatLine {
   text: string;
   sys?: boolean;
   cls?: ClassId;
+  /** Фракция автора; foreign — чужая фракция (текст на «чужом языке»). */
+  faction?: FactionId;
+  foreign?: boolean;
 }
 
 export interface ToastMsg {

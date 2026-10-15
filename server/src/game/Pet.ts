@@ -155,8 +155,10 @@ function removePet(w: World, pet: Pet) {
 
 function killPet(w: World, pet: Pet) {
   pet.dead = true;
-  pet.owner.petCdUntil = w.time + PET_RESUMMON_MS;
-  pet.owner.send("toast", { text: `${pet.def.name} пал. Призвать снова можно через ${PET_RESUMMON_MS / 1000} с`, kind: "error" });
+  if (!pet.def.temp) {
+    pet.owner.petCdUntil = w.time + PET_RESUMMON_MS;
+    pet.owner.send("toast", { text: `${pet.def.name} пал. Призвать снова можно через ${PET_RESUMMON_MS / 1000} с`, kind: "error" });
+  }
   removePet(w, pet);
 }
 

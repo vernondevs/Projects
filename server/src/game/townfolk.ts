@@ -1,7 +1,7 @@
 /**
  * Жители Эмберхолла на сервере: стражники (посты у ворот и патрули по улицам) и горожане.
  * Синхронизируются юнитами в state.mobs (kind Guard/Citizen), позиция пишется в схему не чаще SYNC_MS —
- * клиент плавно доводит. Стражники неуязвимы, с игроками не воюют и добивают мобов у стен.
+ * клиент плавно доводит. Стражники неуязвимы, добивают мобов у стен и стреляют в нарушителей мира (бой фракций в нейтральном городе).
  */
 import data from "../../../data/townfolk.json";
 import { CITIES, CITY_CITIZEN_COUNT, CITY_CITIZEN_SPOTS, CITY_GATE_GUARDS, CITY_PATROLS } from "../../../shared/cities";
@@ -12,6 +12,7 @@ import { Anim, Dir, UnitKind } from "../../../shared/protocol";
 import { CITIZEN_COUNT, CITIZEN_SPOTS, GATE_GUARDS, GUARD_RANGE_TILES, PATROLS, TOWN, TOWN_HALF, WALL } from "../../../shared/town";
 import { Unit } from "../rooms/schema";
 import type { Mob } from "./Mob";
+import type { Player } from "./Player";
 import type { World } from "./World";
 
 const dirTo = (dx: number, dy: number): Dir => (Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? Dir.Left : Dir.Right) : dy < 0 ? Dir.Up : Dir.Down);
@@ -175,6 +176,32 @@ export class Townfolk {
         this.w.emit({ t: "say", id: best.id, text: best.site.guard.lines[Math.floor(Math.random() * best.site.guard.lines.length)] });
       }
     }
+  }
+
+  /** Стража бьёт нарушителя мира в нейтральном городе (задача 38): выстрел ближайшего стражника. */
+  punish(p: Player, dmg: number) {
+    let best: Folk | null = null, bd = Infinity;
+    for (const f of this.folk) {
+      if (!f.guard) continue;
+      const d = Math.hypot(f.x - p.x, f.y - p.y);
+      if (d < bd) { bd = d; best = f; }
+    }
+    if (!best || bd > 1200) return;
+    const g = best, t = this.w.time;
+    g.dir = Math.abs(p.x - g.x) > Math.abs(p.y - g.y) ? (p.x < g.x ? Dir.Left : Dir.Right) : p.y < g.y ? Dir.Up : Dir.Down;
+    g.unit.dir = g.dir;
+    g.unit.aseq = (g.unit.aseq + 1) % 65535;
+    if (t >= g.sayAt) {
+      g.sayAt = t + 8000;
+      this.w.emit({ t: "say", id: g.id, text: "Нарушитель! Взять его!", snd: "alarm" });
+    }
+    const ms = (bd / 700) * 1000;
+    this.w.emit({ t: "proj", k: "arrow", from: g.id, to: p.id, tx: p.x, ty: p.y, ms });
+    this.w.later(ms, () => {
+      if (p.dead || this.w.players.get(p.id) !== p) return;
+      this.w.applyDamage(p, dmg);
+      this.w.emit({ t: "dmg", id: p.id, v: dmg, k: "phys" });
+    });
   }
 
   /** Есть ли живой игрок в радиусе px от точки. */

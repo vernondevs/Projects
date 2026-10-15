@@ -108,6 +108,9 @@ export interface UnitState {
   ownerId: string;
   mount: string;
   look: number;
+  /** Игрок: фракция и метка нарушителя мира. */
+  faction: string;
+  outlaw: number;
 }
 
 export function serverUrl(): string {

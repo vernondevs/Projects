@@ -30,6 +30,21 @@
   "rogue": {
    "frame": 32
   },
+  "deathknight": {
+   "frame": 32
+  },
+  "bloodweaver": {
+   "frame": 32
+  },
+  "darkranger": {
+   "frame": 32
+  },
+  "warlock": {
+   "frame": 32
+  },
+  "reaver": {
+   "frame": 32
+  },
   "merchant": {
    "frame": 32
   },
@@ -600,6 +615,26 @@
   "sk_quickhands",
   "sk_rain",
   "sk_hunter",
+  "sk_dk_rune_strike",
+  "sk_dk_death_grip",
+  "sk_dk_bone_armor",
+  "sk_dk_blood_drain",
+  "sk_bw_blood_bolt",
+  "sk_bw_blood_bond",
+  "sk_bw_sacrifice",
+  "sk_bw_crimson_pool",
+  "sk_dr_cursed_arrow",
+  "sk_dr_weakening",
+  "sk_dr_raven",
+  "sk_dr_shadowmeld",
+  "sk_wl_agony",
+  "sk_wl_drain_mana",
+  "sk_wl_skeletons",
+  "sk_wl_doom",
+  "sk_rv_lacerate",
+  "sk_rv_leap",
+  "sk_rv_carve",
+  "sk_rv_frenzy",
   "mount_horse",
   "mount_ashwolf",
   "pet_wolf",

@@ -6,7 +6,8 @@
 import express from "express";
 import { randomBytes } from "node:crypto";
 import { MAX_CHARS, normLook, type AccountView, type CharSummary } from "../../shared/accounts";
-import { CLASS_IDS, type ClassId } from "../../shared/classes";
+import { CLASSES, isClassId, type ClassId } from "../../shared/classes";
+import { FACTIONS, isFactionId } from "../../shared/factions";
 import { NAME_RE } from "../../shared/constants";
 import { iconFor, SLOTS } from "../../shared/items";
 import { MAP_VERSION, ZONES, zoneAtPx, type WorldMap } from "../../shared/map";
@@ -86,6 +87,7 @@ function summary(row: CharRow, map: WorldMap | null): CharSummary {
   return {
     name: row.name,
     cls: row.cls,
+    faction: row.faction ?? CLASSES[row.cls]?.faction ?? "solgard",
     level: row.level,
     zone,
     look: normLook(save.look),
@@ -160,13 +162,18 @@ export function accountRouter(d: AccountDeps): express.Router {
     const a = auth(req);
     if (!a) return fail(res, 401, "Сессия истекла, войдите снова");
     const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-    const cls = req.body?.cls as ClassId;
+    const cls = req.body?.cls;
     if (!NAME_RE.test(name)) return fail(res, 400, "Имя: 3–16 букв (можно кириллицу), цифр или _");
-    if (!CLASS_IDS.includes(cls)) return fail(res, 400, "Выберите класс");
+    if (!isClassId(cls)) return fail(res, 400, "Выберите класс");
+    // фракция: выбирается первой; без неё (старый клиент) — фракция класса
+    const faction = req.body?.faction ?? CLASSES[cls].faction;
+    if (!isFactionId(faction)) return fail(res, 400, "Выберите фракцию");
+    if (CLASSES[cls].faction !== faction) return fail(res, 400, `Класс «${CLASSES[cls].name}» не принадлежит фракции ${FACTIONS[faction].name}`);
     const db = d.db();
     if (db.charsOf(a.s.accountId).length >= MAX_CHARS) return fail(res, 400, `Не больше ${MAX_CHARS} героев на аккаунте`);
     if (db.ownerOf(name) !== null) return fail(res, 409, "Это имя уже занято");
-    const save = d.newSave(cls);
+    const save = d.newSave(cls as ClassId);
+    save.faction = faction;
     save.look = normLook(req.body?.look);
     try {
       db.createChar(a.s.accountId, name, save);

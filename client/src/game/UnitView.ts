@@ -1,15 +1,16 @@
 /** Отображение одного юнита: спрайт с анимациями, тень, имя, полоска здоровья, эффекты состояния. */
 import Phaser from "phaser";
-import { BUFF_STEALTH, BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
+import { BUFF_BLEED, BUFF_CURSE, BUFF_STEALTH, BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
 import { RARITY_COLORS } from "../../../shared/items";
 import { net, type UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
 import { nightLevel } from "../../../shared/daynight";
 import { mountSprite } from "../../../shared/mounts";
+import { factionColor } from "../../../shared/factions";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
-const MELEE = new Set(["guard", "guard_desert", "guard_snow", "pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
+const MELEE = new Set(["guard", "guard_desert", "guard_snow", "pet_wolf", "pet_turtle", "warrior", "deathknight", "reaver", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
 const rowOf = (dir: number) => (dir === Dir.Down ? 0 : dir === Dir.Up ? 1 : 2);
 
 export class UnitView {
@@ -90,7 +91,7 @@ export class UnitView {
     if (u.kind === UnitKind.Mob) return `${u.name} · ${u.level}`;
     if (u.kind === UnitKind.Boss || u.kind === UnitKind.Guard || u.kind === UnitKind.Citizen) return u.name;
     if (u.kind === UnitKind.Pet) return `${u.name} (${net.unit(u.ownerId)?.name ?? "?"}) · ${u.level}`;
-    return `${u.name} · ${u.level}`;
+    return `${u.outlaw ? "⚔ " : ""}${u.name} · ${u.level}`;
   }
 
   /** Короткий след удара оружием в сторону взгляда. */
@@ -200,9 +201,10 @@ export class UnitView {
     this.label.setPosition(Math.round(this.x), Math.round(top - 4));
     const lt = this.labelText();
     if (lt !== this.lastLabel) { this.lastLabel = lt; this.label.setText(lt); }
-    // на арене: союзники зелёные, враги красные
+    // на арене: союзники зелёные, враги красные; в мире герои противоположной фракции — в цвете своей фракции
     if (u.kind === UnitKind.Player) {
-      const color = this.isSelf ? "#ffe9a8" : net.kind === "arena" && u.team ? (u.team === net.arena?.team ? "#9ae07a" : "#ff8a7a") : "#a8e0ff";
+      const foe = !this.isSelf && !!u.faction && !!net.self && u.faction !== net.self.faction;
+      const color = this.isSelf ? "#ffe9a8" : net.kind === "arena" && u.team ? (u.team === net.arena?.team ? "#9ae07a" : "#ff8a7a") : u.outlaw ? "#ff5a4a" : foe ? factionColor(u.faction) : "#a8e0ff";
       if (color !== this.lastColor) { this.lastColor = color; this.label.setColor(color); }
     }
     if (u.title !== this.lastTitle) { this.lastTitle = u.title; this.titleText.setText(u.title ? `«${u.title.replace(/ \(.*\)$/, "")}»` : ""); }
@@ -251,6 +253,8 @@ export class UnitView {
     else if (b & BUFF_SLOW || b & BUFF_ROOT) this.sprite.setTint(0x9ac8ff);
     else if (b & BUFF_POISON) this.sprite.setTint(0xb0ff90);
     else if (b & BUFF_BURN) this.sprite.setTint(0xffb080);
+    else if (b & BUFF_BLEED) this.sprite.setTint(0xff8a8a);
+    else if (b & BUFF_CURSE) this.sprite.setTint(0xc8a0ff);
     else if (b & BUFF_ENRAGE) this.sprite.setTint(0xff8a7a);
     else if (this.hovered && u.kind !== UnitKind.Player && !this.npc) this.sprite.setTint(0xffe0c0);
     else if (u.look) this.sprite.setTint(u.look);
@@ -278,7 +282,8 @@ export class UnitView {
       this.bar.clear();
       this.bar.fillStyle(u.elite ? 0xf0c040 : 0x0a0608, 0.9).fillRect(bx - 1, by - 1, w + 2, 4);
       if (u.elite) this.bar.fillStyle(0x0a0608, 1).fillRect(bx, by, w, 2);
-      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : 0x4ab0ff) : u.kind === UnitKind.Pet ? 0x6ad06a : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
+      const foeBar = u.kind === UnitKind.Player && !this.isSelf && !!net.self && !!u.faction && u.faction !== net.self.faction && net.kind !== "arena";
+      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : foeBar ? Phaser.Display.Color.HexStringToColor(factionColor(u.faction)).color : 0x4ab0ff) : u.kind === UnitKind.Pet ? 0x6ad06a : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
       this.bar.fillStyle(col, 1).fillRect(bx, by, Math.round(w * k), 2);
       if (u.kind === UnitKind.Player && u.weapon) {
         const r = Number(u.weapon.split(":")[1] || 0);

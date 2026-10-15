@@ -70,6 +70,6 @@ export function registerCombat(on: On, world: () => World) {
     if (!text) return;
     if (w().time - p.lastChat < 600) return p.send("toast", { text: "Не так быстро", kind: "error" });
     p.lastChat = w().time;
-    w().chat({ from: p.name, text, cls: p.cls });
+    w().playerChat(p, text);
   });
 }

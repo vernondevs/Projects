@@ -1,6 +1,7 @@
-/** Экран выбора героя: 6 ячеек аккаунта, создание (имя, класс, внешность) и удаление с подтверждением именем. */
+/** Экран выбора героя: 6 ячеек аккаунта, создание (имя, фракция → класс, внешность) и удаление с подтверждением именем. */
 import { LOOKS, MAX_CHARS, type AccountView, type CharSummary } from "../../../shared/accounts";
-import { CLASSES, CLASS_IDS, type ClassId } from "../../../shared/classes";
+import { CLASSES, type ClassId } from "../../../shared/classes";
+import { FACTIONS, FACTION_IDS, factionColor, type FactionId } from "../../../shared/factions";
 import { NAME_RE } from "../../../shared/constants";
 import { SLOT_NAMES } from "../../../shared/items";
 import { api } from "../account";
@@ -142,7 +143,7 @@ export class CharSelect {
       const cv = heroCanvas(96, c.cls, c.look);
       const eq = c.equip.map((e) => `<span class="cell r${e.rarity}" title="${esc(SLOT_NAMES[e.slot] + ": " + e.name)}"><img src="/assets/icons/${esc(e.icon)}.png" alt=""></span>`).join("");
       b.innerHTML = `<div class="cs-eq">${eq || `<span class="muted">без снаряжения</span>`}</div>
-        <span class="nm">${esc(c.name)}</span><span class="meta">${esc(CLASSES[c.cls]?.name ?? c.cls)} · ${c.level} ур.</span>
+        <span class="nm">${esc(c.name)}</span><span class="meta">${esc(CLASSES[c.cls]?.name ?? c.cls)} · ${c.level} ур.</span><span class="meta fac" style="color:${factionColor(c.faction)}">${esc(FACTIONS[c.faction]?.name ?? "")}</span>
         <span class="meta zone">${esc(c.zone)}</span>${c.banned ? `<span class="cs-banned">${esc(c.banned)}</span>` : ""}`;
       b.prepend(cv);
       if (c.name === this.sel) this.live = { cv, cls: c.cls, look: c.look };
@@ -220,12 +221,13 @@ export class CharSelect {
   private renderCreate(msg = "") {
     this.mode = "create";
     const v = this.view!;
-    let cls: ClassId = "warrior", look = 0;
+    let faction: FactionId = "solgard", cls: ClassId = FACTIONS.solgard.classes[0], look = 0;
     const p = this.panel("cs-create", `<div class="cs-head"><h1>Новый герой</h1><span class="muted">Аккаунт <b class="gold">${esc(v.login)}</b> · героев ${v.chars.length}/${MAX_CHARS}</span></div>
       <form class="cs-form" autocomplete="off">
         <div class="cs-preview"><div class="cs-stage"></div><b class="nm"></b><p class="muted desc"></p></div>
         <div class="cs-fields">
           <label class="cs-label">Имя героя <input name="name" minlength="3" maxlength="16" required placeholder="3–16 букв или цифр"></label>
+          <fieldset class="cs-factions"><legend>Фракция</legend><div class="factions"></div><p class="muted fdesc"></p></fieldset>
           <fieldset class="classes"><legend>Класс</legend></fieldset>
           <fieldset class="cs-looks"><legend>Внешность</legend><div class="looks"></div></fieldset>
           <p class="error" role="alert">${esc(msg)}</p>
@@ -240,23 +242,54 @@ export class CharSelect {
       this.live = { cv, cls, look };
       drawHero(cv, cls, look, this.anim);
       nameEl.textContent = `${CLASSES[cls].name} · ${LOOKS[look].name.toLowerCase()} облик`;
-      descEl.textContent = CLASSES[cls].desc;
+      descEl.innerHTML = `${esc(CLASSES[cls].desc)}<br><b class="trait">${esc(CLASSES[cls].trait)}</b>`;
+      p.dataset.faction = faction;
     };
+    // шаг 1 — фракция, шаг 2 — один из 5 классов фракции
+    const fbox = p.querySelector<HTMLElement>(".factions")!, fdesc = p.querySelector<HTMLElement>(".fdesc")!;
     const box = p.querySelector<HTMLElement>(".classes")!;
-    for (const id of CLASS_IDS) {
+    const renderClasses = () => {
+      box.querySelectorAll("button").forEach((x) => x.remove());
+      for (const id of FACTIONS[faction].classes) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn";
+        b.dataset.cls = id;
+        b.setAttribute("aria-pressed", String(id === cls));
+        b.innerHTML = `<span class="cls-sprite" style="background-image:url(/assets/units/${id}.png)"></span>${CLASSES[id].name}`;
+        b.onclick = () => {
+          cls = id;
+          box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+          update();
+        };
+        box.append(b);
+      }
+    };
+    for (const fid of FACTION_IDS) {
+      const f = FACTIONS[fid];
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "btn";
-      b.dataset.cls = id;
-      b.setAttribute("aria-pressed", String(id === cls));
-      b.innerHTML = `<span class="cls-sprite" style="background-image:url(/assets/units/${id}.png)"></span>${CLASSES[id].name}`;
+      b.className = "btn fac";
+      b.dataset.faction = fid;
+      b.style.color = f.color;
+      b.setAttribute("aria-pressed", String(fid === faction));
+      b.innerHTML = `<b>${esc(f.name)}</b><small>${esc(f.race)}</small>`;
+      b.title = f.full;
       b.onclick = () => {
-        cls = id;
-        box.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        if (faction === fid) return;
+        faction = fid;
+        // тот же по роли класс другой фракции
+        const i = FACTIONS[faction === "solgard" ? "umbrath" : "solgard"].classes.indexOf(cls);
+        cls = f.classes[Math.max(0, i)];
+        fbox.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        fdesc.textContent = `${f.full}. ${f.desc}`;
+        renderClasses();
         update();
       };
-      box.append(b);
+      fbox.append(b);
     }
+    fdesc.textContent = `${FACTIONS[faction].full}. ${FACTIONS[faction].desc}`;
+    renderClasses();
     const looks = p.querySelector<HTMLElement>(".looks")!;
     LOOKS.forEach((l, i) => {
       const b = document.createElement("button");
@@ -288,7 +321,7 @@ export class CharSelect {
       go.disabled = true;
       err.textContent = "";
       try {
-        const nv = await api.create(name, cls, look);
+        const nv = await api.create(name, cls, look, faction);
         this.sel = nv.chars.find((c) => c.name.toLowerCase() === name.toLowerCase())?.name ?? "";
         this.show(nv);
       } catch (ex) {

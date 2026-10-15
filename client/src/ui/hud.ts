@@ -2,6 +2,7 @@
 import { gold, goldify } from "./gold";
 import { initWindowDrag, resetWindowPositions } from "./drag";
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
+import { FACTIONS, factionColor } from "../../../shared/factions";
 import * as sfx from "../game/sfx";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
 import { LEGENDARIES } from "../../../shared/legendary";
@@ -34,7 +35,10 @@ import { DODGE_CAP, STAT_K } from "../../../shared/formulas";
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
-const CLASS_COLOR: Record<string, string> = { warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a", healer: "#ffe9a0", rogue: "#b8a0e0" };
+const CLASS_COLOR: Record<string, string> = {
+  warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a", healer: "#ffe9a0", rogue: "#b8a0e0",
+  deathknight: "#8ad8ff", bloodweaver: "#ff6a7a", darkranger: "#9a8aff", warlock: "#9aff6a", reaver: "#e06a4a",
+};
 const TERRAIN_COLORS = ["#2a5a9e", "#e05412", "#d0b07e", "#3c432c", "#463e40", "#86593a", "#4f873c", "#2f5336", "#746e7a", "#3a3444", "#e8eef4", "#a8d4ec", "#2a2230", "#d8b878", "#3a6a7a"];
 
 export interface HudCtx {
@@ -209,7 +213,11 @@ export class Hud {
     const n = ctx.net;
     if (!this.netBound) {
       this.netBound = true;
-      n.on("self", (s) => this.renderSelf(s));
+      n.on("self", (s) => {
+        // цвета интерфейса по фракции героя (styles.css: body[data-faction])
+        if (document.body.dataset.faction !== s.faction) document.body.dataset.faction = s.faction;
+        this.renderSelf(s);
+      });
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
       n.on("combat", (m) => this.setCombat(m.on));
@@ -274,7 +282,13 @@ export class Hud {
     const d = el("div", l.sys ? (l.loot ? "loot" : "sys") : "");
     if (l.html) d.innerHTML = l.html;
     else if (l.sys) d.innerHTML = goldify(esc(l.text));
-    else d.innerHTML = `<b style="color:${CLASS_COLOR[l.cls ?? ""] ?? "#ffb070"}">${esc(l.from)}:</b> ${esc(l.text)}`;
+    else if (l.foreign) {
+      // противоположная фракция: имя и «чужой язык» в цвете её фракции
+      const c = factionColor(l.faction);
+      d.className = "foreign";
+      d.title = `${FACTIONS[l.faction ?? "solgard"]?.name ?? ""}: чужой язык`;
+      d.innerHTML = `<b style="color:${c}">${esc(l.from)}:</b> <i style="color:${c}">${esc(l.text)}</i>`;
+    } else d.innerHTML = `<b style="color:${CLASS_COLOR[l.cls ?? ""] ?? "#ffb070"}">${esc(l.from)}:</b> ${esc(l.text)}`;
     const atBottom = this.chatLog.scrollTop + this.chatLog.clientHeight >= this.chatLog.scrollHeight - 4;
     this.chatLog.append(d);
     while (this.chatLog.children.length > 80) this.chatLog.firstElementChild!.remove();
@@ -520,7 +534,7 @@ export class Hud {
     // панель героя
     const pts = [s.statPoints ? `<span class="pill" data-open="char">+${s.statPoints} хар.</span>` : "", s.skillPoints ? `<span class="pill" data-open="skills">+${s.skillPoints} ум.</span>` : ""].join("");
     this.player.innerHTML = `
-      <div class="row1"><span class="nm">${esc(s.name)}</span><span class="lv">${CLASSES[s.cls].name} · ур. ${s.level}</span></div>
+      <div class="row1"><span class="nm">${esc(s.name)}</span><span class="lv">${CLASSES[s.cls].name} · ур. ${s.level}</span><span class="fac-badge" title="${esc(FACTIONS[s.faction]?.full ?? "")}">${esc(FACTIONS[s.faction]?.name ?? "")}</span></div>
       <div class="combat-badge" ${this.inCombat ? "" : "hidden"}>╳ В бою</div>
       <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
       <div class="bar mp"><i id="mp-fill"></i><span id="mp-text"></span></div>
@@ -701,7 +715,7 @@ export class Hud {
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
-      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? (s.cls === "mage" ? "staff" : s.cls === "healer" ? "scepter" : s.cls === "ranger" ? "bow" : s.cls === "rogue" ? "dagger" : "sword") : slot;
+      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? CLASSES[s.cls].startWeapon : slot;
       const c = this.cell(it, s, "", SLOT_NAMES[slot]);
       if (it) {
         c.onclick = () => this.ctx.net.send("unequip", { slot });

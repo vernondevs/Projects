@@ -1,5 +1,5 @@
 /** Аккаунты и экран выбора героя: общие типы HTTP API, внешность героя, выход из игры. */
-import type { ClassId } from "./classes";
+import type { ClassId, FactionId } from "./classes";
 import type { Rarity, Slot } from "./items";
 
 /** Героев на аккаунт. */
@@ -39,6 +39,7 @@ export function lookTint(v: unknown): number {
 export interface CharSummary {
   name: string;
   cls: ClassId;
+  faction: FactionId;
   level: number;
   zone: string;
   look: number;

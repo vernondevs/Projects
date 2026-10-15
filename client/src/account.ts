@@ -1,6 +1,6 @@
 /** HTTP API аккаунта: вход, список героев, создание и удаление. Токен сессии хранится только во вкладке (sessionStorage). */
 import type { AccountView } from "../../shared/accounts";
-import type { ClassId } from "../../shared/classes";
+import type { ClassId, FactionId } from "../../shared/classes";
 import { serverUrl } from "./net";
 
 const KEY = "emberfall-token";
@@ -43,7 +43,7 @@ async function call(path: string, body?: unknown): Promise<AccountView> {
 export const api = {
   login: (login: string, password: string, create = false) => call("/login", { login, password, create }),
   chars: () => call("/chars"),
-  create: (name: string, cls: ClassId, look: number) => call("/chars", { name, cls, look }),
+  create: (name: string, cls: ClassId, look: number, faction?: FactionId) => call("/chars", { name, cls, look, faction }),
   remove: (name: string, confirm: string) => call("/chars/delete", { name, confirm }),
   async logout() {
     const t = session.token;

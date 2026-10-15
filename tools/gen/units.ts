@@ -547,6 +547,28 @@ const SPECS: Record<string, HSpec> = {
     skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: P.cloth.black, legs: P.cloth.black, boots: P.cloth.black, belt: P.leather,
     head: "hood", headRamp: P.cloth.black, weapon: "dagger", cape: P.cloth.black,
   },
+  // ---------- Умбрат: нежить (бледно-зелёная кожа, тёмный металл, пурпур и ядовитая зелень, горящие глаза) ----------
+  deathknight: {
+    skin: ramp_("#3a4a44", "#5a6e64", "#84988a", "#b0c4b0"), hair: P.hair.white, hairStyle: "long", torso: P.darkSteel, legs: P.darkSteel, boots: P.darkSteel, belt: P.bone,
+    head: "darkhelm", headRamp: P.darkSteel, weapon: "sword", shield: P.bone, armorPlates: P.darkSteel, cape: P.cloth.purple, eye: hex("#7ad8ff"), glowEyes: true,
+  },
+  bloodweaver: {
+    skin: ramp_("#4a3a44", "#6e5866", "#9a8290", "#c4b0b8"), hair: P.hair.black, hairStyle: "long", torso: P.cloth.black, legs: P.cloth.black, boots: P.cloth.black,
+    robe: ramp_("#3a0a14", "#6a1424", "#a02436", "#d04a52"), head: "hood", headRamp: ramp_("#3a0a14", "#6a1424", "#a02436", "#d04a52"), weapon: "skullstaff", orb: ramp_("#5a0a14", "#a01828", "#e0304a", "#ff8a8a", "#ffd0d0"),
+    belt: P.bone, eye: hex("#ff4050"), glowEyes: true,
+  },
+  darkranger: {
+    skin: ramp_("#3a4a44", "#5a6e64", "#84988a", "#b0c4b0"), hair: P.hair.white, hairStyle: "long", torso: P.cloth.black, legs: P.cloth.black, boots: P.leather, belt: P.cloth.purple,
+    head: "hood", headRamp: P.cloth.purple, weapon: "bow", cape: P.cloth.purple, quiver: true, eye: hex("#c070ff"), glowEyes: true,
+  },
+  warlock: {
+    skin: P.bone, torso: P.cloth.black, legs: P.cloth.black, boots: P.cloth.black, robe: P.cloth.purple, hairStyle: "none",
+    head: "horns", headRamp: P.bone, weapon: "skullstaff", orb: P.magic.green, belt: P.magic.green, cape: P.cloth.black, eye: hex("#8aff5a"), glowEyes: true, ribs: true,
+  },
+  reaver: {
+    skin: ramp_("#3e3a40", "#5e5860", "#8a8288", "#b4aab0"), hair: P.hair.black, hairStyle: "wild", torso: ramp_("#2a0e14", "#4a1820", "#6e2430", "#94404a"), legs: P.cloth.black, boots: P.darkSteel, belt: P.bone,
+    head: "none", weapon: "axe", armorPlates: P.bone, eye: hex("#ff5030"), glowEyes: true,
+  },
   merchant: {
     skin: P.skin, hair: P.hair.brown, hairStyle: "short", torso: P.cloth.blue, legs: P.cloth.brown, boots: P.leather, belt: P.leather,
     head: "cap", headRamp: P.cloth.red, apron: ramp_("#8a7a60", "#b8a684", "#d8c8a4", "#efe2c4"), beard: P.hair.brown, weapon: "none", bodyW: 11,
@@ -681,6 +703,11 @@ export const UNIT_ART: Record<string, UnitArt> = {
   ranger: humanoidArt(SPECS.ranger),
   healer: humanoidArt(SPECS.healer),
   rogue: humanoidArt(SPECS.rogue),
+  deathknight: humanoidArt(SPECS.deathknight),
+  bloodweaver: humanoidArt(SPECS.bloodweaver),
+  darkranger: humanoidArt(SPECS.darkranger),
+  warlock: humanoidArt(SPECS.warlock),
+  reaver: humanoidArt(SPECS.reaver),
   merchant: humanoidArt(SPECS.merchant),
   arenamaster: humanoidArt(SPECS.arenamaster),
   guard: humanoidArt(SPECS.guard),

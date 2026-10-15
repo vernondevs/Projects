@@ -8,10 +8,12 @@ import { tickCities } from "./cities";
 import { nearestCity } from "../../../shared/cities";
 import { ELITE } from "../../../shared/elites";
 import { SKILLS } from "../../../shared/skills";
+import { CLASSES } from "../../../shared/classes";
+import { factionsHostile, OUTLAW, pvpPlace, scramble } from "../../../shared/factions";
 import { MOBS } from "../../../shared/mobs";
 import { MOUNTS, MOUNT_CAST_MS } from "../../../shared/mounts";
 import {
-  Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STEALTH, BUFF_STUN, BUFF_WARCRY, Dir,
+  Anim, BUFF_BLEED, BUFF_BURN, BUFF_CURSE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STEALTH, BUFF_STUN, BUFF_WARCRY, Dir,
   type ChatLine, type Fx, type FxKind,
 } from "../../../shared/protocol";
 import type { WorldState } from "../rooms/schema";
@@ -99,6 +101,12 @@ export class World {
   chat(line: ChatLine) {
     this.broadcast("chat", line);
   }
+  /** Чат героя: своя фракция читает, чужая видит «чужой язык» в цвете фракции автора. */
+  playerChat(p: Player, text: string) {
+    const own: ChatLine = { from: p.name, text, cls: p.cls, faction: p.faction };
+    const foreign: ChatLine = { ...own, text: scramble(text), foreign: true };
+    for (const q of this.players.values()) q.send("chat", q.faction === p.faction ? own : foreign);
+  }
   system(text: string) {
     this.chat({ from: "", text, sys: true });
   }
@@ -135,18 +143,37 @@ export class World {
   isPlayer(a: Actor): a is Player {
     return "save" in a;
   }
-  /** Враждебны ли двое: игрок и моб — всегда, игроки — только на арене во время боя и в разных командах. */
+  /**
+   * Враждебны ли двое: игрок и моб — всегда; игроки на арене — во время боя и в разных командах;
+   * в мире — герои разных фракций, если оба в спорной зоне или оба в нейтральном городе (там удар — нарушение, см. hit).
+   */
   hostile(a: Actor, b: Actor): boolean {
     if (a === b) return false;
     const pa = this.isPlayer(a), pb = this.isPlayer(b);
     if (pa !== pb) return true;
     if (!pa || !pb) return false;
-    return this.pvpActive && a.team !== 0 && b.team !== 0 && a.team !== b.team;
+    if (this.pvpActive || this.opts.mobs === false) return this.pvpActive && a.team !== 0 && b.team !== 0 && a.team !== b.team;
+    if (a.team !== 0 || b.team !== 0) return false;
+    return factionsHostile(this.map, a.faction, a.x, a.y, b.faction, b.x, b.y);
+  }
+  /** Нейтральный город: бой между фракциями запрещён (только в мире). */
+  inNeutral(x: number, y: number) {
+    return this.opts.mobs !== false && pvpPlace(this.map, x, y) === "neutral";
+  }
+  /** Удар героя по герою в нейтральном городе: нарушитель отмечается, стража его бьёт. */
+  markOutlaw(p: Player) {
+    const fresh = p.outlawUntil <= this.time;
+    p.outlawUntil = this.time + OUTLAW.ms;
+    p.unit.outlaw = 1;
+    if (fresh) {
+      p.guardHitAt = this.time + 300;
+      p.send("toast", { text: "В нейтральном городе сражаться нельзя! Стража атакует нарушителя", kind: "error" });
+    }
   }
   /** Живые враги в круге: мобы и враждебные игроки. */
   enemiesInCircle(src: Actor, x: number, y: number, r: number): Actor[] {
     const out: Actor[] = this.mobsInCircle(x, y, r);
-    if (this.pvpActive) for (const p of this.playersInCircle(x, y, r)) if (this.hostile(src, p)) out.push(p);
+    for (const p of this.playersInCircle(x, y, r)) if (this.hostile(src, p)) out.push(p);
     // урон по площади не проходит сквозь стены
     return out.filter((a) => lineClear(this.map, x, y, (a as { x: number }).x, (a as { y: number }).y));
   }
@@ -253,6 +280,13 @@ export class World {
   /** Нанесение урона с бронёй, критом, вампиризмом и наградой за убийство. */
   hit(src: Actor, dst: Actor, o: HitOpts = {}): number {
     if (this.isDead(dst) || this.isDead(src)) return 0;
+    // нейтральный город: герой не может ранить героя (кроме отпора нарушителю); попытка — нарушение
+    if (this.isPlayer(src) && this.isPlayer(dst) && src !== dst && (this.inNeutral(src.x, src.y) || this.inNeutral(dst.x, dst.y))) {
+      if (!(dst.outlawUntil > this.time && src.outlawUntil <= this.time)) {
+        if (!o.noProc) this.markOutlaw(src);
+        return 0;
+      }
+    }
     if (this.isPlayer(src) && !o.noBreak) src.stealthUntil = 0;
     // уклонение (Ловкость): обычные удары мобов и игроков, кроме фиксированного урона (зоны боссов, отражение, DoT)
     if (this.isPlayer(dst) && o.flat === undefined && src !== dst && Math.random() < dst.derived.dodge) {
@@ -267,7 +301,10 @@ export class World {
       amount = rnd(d.dmgMin, d.dmgMax + 1) * (o.mult ?? 1);
       if (o.skill) amount *= d.skillMult;
       if (src.warcryUntil > this.time) amount *= 1 + src.warcryDmg / 100;
-      if (src.weakUntil > this.time) amount *= 0.8;
+      if (src.weakUntil > this.time) amount *= 1 - src.weakPct / 100;
+      // ярость от ран (Потрошитель): чем меньше здоровья, тем сильнее удар
+      const rage = CLASSES[src.cls].rage;
+      if (rage) amount *= 1 + rage * (1 - src.unit.hp / Math.max(1, src.unit.maxHp));
       if (!this.isPlayer(dst) && dst.def.boss) amount *= d.bossMult;
       const forced = o.flat === undefined && src.critNextUntil > this.time;
       if (forced) src.critNextUntil = 0;
@@ -279,6 +316,7 @@ export class World {
     } else {
       amount = o.flat ?? src.stats.dmg * rnd(0.85, 1.15) * (o.mult ?? 1);
       if (src.unit.buffs & 0x20) amount *= 1.3; // ярость босса
+      if (src.weakUntil > this.time) amount *= 1 - src.weakPct / 100;
     }
     const level = this.isPlayer(src) ? src.level : src.level;
     let armor = this.isPlayer(dst) ? dst.derived.armor + (dst.warcryUntil > this.time ? dst.warcryArmor : 0) : dst.stats.armor;
@@ -299,6 +337,12 @@ export class World {
         reflect = (amount * dst.blockPct * dst.blockReflect) / 10000;
         amount *= 1 - dst.blockPct / 100;
       }
+      // костяная броня: бьющий вплотную замедлен
+      if (dst.boneUntil > this.time && src !== dst && this.dist(src, dst) < 90) {
+        const live = src.slowUntil > this.time ? src.slowPct : 0;
+        src.slowUntil = Math.max(src.slowUntil, this.time + 1500 * (this.isPlayer(src) ? 1 - src.derived.ccReduce : 1));
+        src.slowPct = Math.max(dst.boneChill, live);
+      }
     }
     if (this.isPlayer(src) && this.isPlayer(dst)) amount *= PVP_DAMAGE_MULT;
     amount = legendary.absorb(this, dst, amount);
@@ -316,12 +360,25 @@ export class World {
         }
       } else dst.shieldAmt = 0;
     }
+    // кровавые узы: часть урона по союзнику принимает Кровотворец
+    if (this.isPlayer(dst) && dst.bondUntil > this.time && dst.bondBy && dst.bondBy !== dst && !dst.bondBy.dead && this.players.get(dst.bondBy.id) === dst.bondBy) {
+      const share = (amount * dst.bondShare) / 100;
+      if (share >= 1) {
+        amount -= share;
+        const bw = dst.bondBy, sv = Math.round(share);
+        this.applyDamage(bw, sv, src);
+        this.emit({ t: "dmg", id: bw.id, v: sv, k: "blood" });
+      }
+    }
     const v = Math.max(1, Math.round(amount));
     this.applyDamage(dst, v, src);
     this.onDamage?.(src, dst, v);
     this.emit({ t: "dmg", id: this.idOf(dst), v, crit, k: o.kind ?? "phys" });
-    if (this.isPlayer(src) && src.derived.lifesteal > 0) this.heal(src, Math.round(v * src.derived.lifesteal), false);
-    if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1) * (this.isPlayer(src) && src.cls === "warrior" ? 2 : 1));
+    if (this.isPlayer(src)) {
+      const ls = src.derived.lifesteal + (src.frenzyUntil > this.time ? src.frenzyLeech / 100 : 0);
+      if (ls > 0) this.heal(src, Math.round(v * ls), false);
+    }
+    if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1) * (this.isPlayer(src) ? CLASSES[src.cls].threat : 1));
     if (reflect >= 1 && !o.noReflect && !this.isDead(src)) this.hit(dst, src, { flat: Math.round(reflect), canCrit: false, noReflect: true, noProc: true, threat: 1 });
     legendary.onHit(this, src, dst, v, crit, o);
     legendary.onDamaged(this, src, dst, v, o);
@@ -393,6 +450,7 @@ export class World {
     p.petCast = null;
     p.dead = true;
     p.shieldAmt = 0;
+    p.bondUntil = p.boneUntil = p.frenzyUntil = p.curseUntil = p.bleedUntil = 0;
     p.deadAt = this.time;
     p.unit.anim = Anim.Dead;
     p.unit.buffs = 0;
@@ -500,7 +558,17 @@ export class World {
     if (p.poisonUntil > t) b |= BUFF_POISON;
     if (p.burnUntil > t) b |= BUFF_BURN;
     if (p.stealthUntil > t) b |= BUFF_STEALTH;
+    if (p.curseUntil > t) b |= BUFF_CURSE;
+    if (p.bleedUntil > t) b |= BUFF_BLEED;
     u.buffs = b;
+    // нарушитель мира: стража бьёт, пока он в нейтральном городе
+    if (p.outlawUntil > 0) {
+      if (p.outlawUntil <= t) { p.outlawUntil = 0; u.outlaw = 0; }
+      else if (t >= p.guardHitAt && this.inNeutral(u.x, u.y)) {
+        p.guardHitAt = t + OUTLAW.hitMs;
+        this.town?.punish(p, Math.max(1, Math.round(u.maxHp * OUTLAW.pctMaxHp)));
+      }
+    }
 
     p.checkFood();
     const cb = p.inCombat(t);
@@ -568,19 +636,17 @@ export class World {
     p.combatAt = this.time;
     u.dir = World.dirTo(target.x - u.x, target.y - u.y);
     u.aseq = (u.aseq + 1) % 65535;
-    const cls = p.cls;
-    if (cls === "warrior" || cls === "rogue") {
+    const cls = p.cls, atk = CLASSES[cls].attack;
+    if (atk.melee) {
       this.later(140, () => {
         if (this.isDead(target) || !this.hostile(p, target)) return;
-        this.hit(p, target, { kind: "phys" });
+        this.hit(p, target, { kind: atk.hit });
         if (cls === "rogue") rogueProc(this, p, target);
       });
     } else {
-      const kind = cls === "mage" ? "arcane" : cls === "healer" ? "holy" : "arrow";
-      const speed = cls === "mage" ? 420 : cls === "healer" ? 400 : 620;
-      const ms = (this.dist(u, target) / speed) * 1000;
-      this.emit({ t: "proj", k: kind, from: p.id, to: target.id, tx: target.x, ty: target.y, ms });
-      this.later(ms, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: cls === "mage" ? "arcane" : cls === "healer" ? "holy" : "phys" }); });
+      const ms = (this.dist(u, target) / (atk.speed ?? 500)) * 1000;
+      this.emit({ t: "proj", k: atk.proj ?? "arcane", from: p.id, to: target.id, tx: target.x, ty: target.y, ms });
+      this.later(ms, () => { if (!this.isDead(target) && this.hostile(p, target)) this.hit(p, target, { kind: atk.hit }); });
     }
   }
 
@@ -667,6 +733,8 @@ export class World {
     if (m.slowUntil > t) b |= BUFF_SLOW;
     if (m.stunUntil > t) b |= BUFF_STUN;
     if (m.rootUntil > t) b |= BUFF_ROOT;
+    if (m.curseUntil > t) b |= BUFF_CURSE;
+    if (m.bleedUntil > t) b |= BUFF_BLEED;
     u.buffs = (u.buffs & 0x20) | b;
 
     if (m.boss) m.boss.update(dt);

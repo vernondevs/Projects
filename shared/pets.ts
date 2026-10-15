@@ -27,6 +27,8 @@ export interface PetDef {
   radius: number;
   projectile?: string;
   skills: PetSkill[];
+  /** Временный призыв умения (скелет чернокнижника): без опыта и перезарядки после гибели. */
+  temp?: boolean;
 }
 
 export const PETS: Record<string, PetDef> = Object.fromEntries(Object.entries(data.pets).map(([id, p]) => [id, { ...(p as object), id } as PetDef]));

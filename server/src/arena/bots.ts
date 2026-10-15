@@ -3,7 +3,8 @@
  * ИИ: ближний бой — сближение (A* через Nav в World.stepToward), дальний — держит дистанцию,
  * автоатака через targetId, умения — когда готовы и хватает маны.
  */
-import { CLASSES, type ClassId } from "../../../shared/classes";
+import { CLASSES, type ClassId, type FactionId } from "../../../shared/classes";
+import { FACTIONS } from "../../../shared/factions";
 import { canEquip, makeItem, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { walkable } from "../../../shared/map";
 import { findPath } from "../../../shared/path";
@@ -24,8 +25,6 @@ export interface BotSpec {
 }
 
 const BOT_NAMES = ["Гром", "Вихрь", "Клык", "Тень", "Искра", "Буран", "Шип", "Ворон"];
-const BOT_CLASSES: ClassId[] = ["warrior", "mage", "ranger", "healer", "rogue"];
-const MAIN_STAT: Record<ClassId, "str" | "int" | "agi"> = { warrior: "str", mage: "int", ranger: "agi", healer: "int", rogue: "agi" };
 
 /** Сохранение бота: уровень и предметы как у образца, очки характеристик и умений распределены. */
 export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerSave {
@@ -33,8 +32,9 @@ export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerS
   s.level = level;
   const pts = (level - 1) * 3;
   s.alloc = { str: 0, agi: 0, int: 0, vit: 0 };
-  s.alloc[MAIN_STAT[cls]] = Math.ceil(pts * 0.6);
-  s.alloc.vit = pts - s.alloc[MAIN_STAT[cls]];
+  const main = CLASSES[cls].mainStat === "vit" ? "str" : CLASSES[cls].mainStat;
+  s.alloc[main] = Math.ceil(pts * 0.6);
+  s.alloc.vit = pts - s.alloc[main];
   if (like) {
     for (const slot of SLOTS as Slot[]) {
       const it = like.equip[slot];
@@ -65,14 +65,15 @@ export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerS
 }
 
 /** Набор ботов с неповторяющимися именами под уровень/снаряжение образца. */
-export function makeBots(count: number, level: number, rating: number, like: PlayerSave | undefined, taken: Set<string>): BotSpec[] {
+export function makeBots(count: number, level: number, rating: number, like: PlayerSave | undefined, taken: Set<string>, faction: FactionId = "solgard"): BotSpec[] {
+  const pool = FACTIONS[faction].classes;
   const out: BotSpec[] = [];
   const names = BOT_NAMES.filter((n) => !taken.has(n)).sort(() => Math.random() - 0.5);
   for (let i = 0; i < count; i++) {
     const n = names[i] ?? `${BOT_NAMES[0]} ${i + 1}`;
     taken.add(n);
     const name = `Бот ${n}`;
-    const cls = BOT_CLASSES[Math.floor(Math.random() * BOT_CLASSES.length)];
+    const cls = pool[Math.floor(Math.random() * pool.length)];
     out.push({ name, nameKey: name.toLowerCase(), cls, level, rating, save: botSave(cls, level, like) });
   }
   return out;
@@ -121,7 +122,7 @@ export function botThink(w: World, bot: Player, enemies: Player[]) {
   // умения
   for (const s of activeSkills(bot.cls)) {
     const rank = bot.save.skills[s.id] || 0;
-    if (!rank || s.id === "stealth" || (bot.cds.get(s.id) || 0) > w.time || bot.unit.mp < s.mana!(rank)) continue;
+    if (!rank || s.id === "stealth" || s.id === "dr_shadowmeld" || (bot.cds.get(s.id) || 0) > w.time || bot.unit.mp < s.mana!(rank)) continue;
     const reach = s.target === "self" ? Math.max(bot.attackRange(), 90) : (s.range ?? bot.attackRange()) + 20;
     if (best > reach) continue;
     if (!castSkill(w, bot, s.id, target.x, target.y, target.id)) break; // одно умение за раз

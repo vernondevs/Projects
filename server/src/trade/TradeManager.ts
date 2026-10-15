@@ -57,6 +57,7 @@ export class TradeManager {
     const w = this.world();
     if (p.offline || q.offline) return "Игрок не в сети";
     if (p.dead || q.dead) return "Мёртвые не торгуют";
+    if (p.faction !== q.faction) return "С противоположной фракцией торговать нельзя";
     if (w.dist(p, q) > TRADE_RANGE_TILES * TILE) return "Слишком далеко для обмена (до 5 шагов)";
     if (p.inCombat(w.time) || q.inCombat(w.time)) return "Нельзя торговать в бою";
     if (this.busy(p) || this.busy(q)) return "Нельзя торговать на арене или в очереди на неё";

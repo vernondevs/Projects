@@ -3,13 +3,15 @@ import { DatabaseSync } from "node:sqlite";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { ClassId, Stats } from "../../shared/classes";
+import { classFaction, type ClassId, type FactionId, type Stats } from "../../shared/classes";
 import type { Item, Slot } from "../../shared/items";
 import type { BankSave } from "../../shared/bank";
 import type { QuestSave } from "../../shared/quests";
 
 export interface PlayerSave {
   cls: ClassId;
+  /** Фракция (задача 38); в старых сохранениях нет — берётся из класса (Сольгард). */
+  faction?: FactionId;
   level: number;
   xp: number;
   gold: number;
@@ -52,6 +54,7 @@ export interface PlayerSave {
 export interface CharRow {
   name: string;
   cls: ClassId;
+  faction: FactionId;
   level: number;
   data: string;
   banned_until: number;
@@ -120,6 +123,8 @@ export class GameDB {
     if (!acols.includes("bank")) this.db.exec("ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT ''");
     if (!cols.includes("account_id")) this.db.exec("ALTER TABLE players ADD COLUMN account_id INTEGER NOT NULL DEFAULT 0");
     this.db.exec("CREATE INDEX IF NOT EXISTS players_account ON players(account_id)");
+    // задача 38: фракции; все прежние герои — Сольгард (классы те же, меняются только названия)
+    if (!cols.includes("faction")) this.db.exec("ALTER TABLE players ADD COLUMN faction TEXT NOT NULL DEFAULT 'solgard'");
     this.migrateAccounts(file);
   }
 
@@ -172,7 +177,7 @@ export class GameDB {
   }
   /** Герои аккаунта в порядке создания. */
   charsOf(accountId: number): CharRow[] {
-    return this.db.prepare("SELECT name, cls, level, data, banned_until, ban_reason FROM players WHERE account_id = ? ORDER BY created, rowid").all(accountId) as unknown as CharRow[];
+    return this.db.prepare("SELECT name, cls, faction, level, data, banned_until, ban_reason FROM players WHERE account_id = ? ORDER BY created, rowid").all(accountId) as unknown as CharRow[];
   }
   /** Владелец героя (id аккаунта) или null, если героя нет. */
   ownerOf(name: string): number | null {
@@ -182,8 +187,8 @@ export class GameDB {
   createChar(accountId: number, name: string, save: PlayerSave) {
     const now = Date.now();
     this.db
-      .prepare("INSERT INTO players (name_key, name, salt, hash, cls, level, data, created, updated, account_id) VALUES (?, ?, '', '', ?, ?, ?, ?, ?, ?)")
-      .run(GameDB.key(name), name.trim(), save.cls, save.level, JSON.stringify(save), now, now, accountId);
+      .prepare("INSERT INTO players (name_key, name, salt, hash, cls, faction, level, data, created, updated, account_id) VALUES (?, ?, '', '', ?, ?, ?, ?, ?, ?, ?)")
+      .run(GameDB.key(name), name.trim(), save.cls, save.faction ?? classFaction(save.cls), save.level, JSON.stringify(save), now, now, accountId);
   }
   /** Удаление героя вместе с его записями арены. */
   deleteChar(accountId: number, name: string): boolean {
@@ -265,7 +270,10 @@ export class GameDB {
   /** Сохранение без проверки пароля (для перехода между комнатами на сервере). */
   load(name: string): PlayerSave | null {
     const row = this.db.prepare("SELECT data FROM players WHERE name_key = ?").get(GameDB.key(name)) as { data: string } | undefined;
-    return row ? (JSON.parse(row.data) as PlayerSave) : null;
+    if (!row) return null;
+    const save = JSON.parse(row.data) as PlayerSave;
+    save.faction ??= classFaction(save.cls);
+    return save;
   }
 
   get raw(): DatabaseSync {

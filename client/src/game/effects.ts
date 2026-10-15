@@ -8,12 +8,12 @@ import { TeleportFx } from "./teleportFx";
 
 const MAX_BURST = 36;
 const MAX_POOL = 90;
-const SFX_OF: Record<string, sfx.SfxName> = { fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit" };
+const SFX_OF: Record<string, sfx.SfxName> = { blood: "shadow", fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit" };
 
 const KIND_COLOR: Record<string, number> = {
-  phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0, heal: 0x9affb8,
+  phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0, heal: 0x9affb8, blood: 0xe0304a,
 };
-const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow", holy: "fx_holy" };
+const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow", holy: "fx_holy", blood: "fx_fire" };
 
 export class Effects {
   private hazards = new Map<string, Phaser.GameObjects.GameObject[]>();
@@ -133,8 +133,9 @@ export class Effects {
         const tx = to ? to.x : f.tx, ty = to ? to.y - (to.frame > 32 ? 26 : 12) : f.ty - 12;
         this.sound(f.k === "arrow" || f.k === "aimed" ? "arrow" : (SFX_OF[f.k === "fireball" ? "fire" : f.k] ?? "arcane"), sx, sy);
         const img = s.add.image(sx, sy, tex).setDepth(DEPTH.top - 40).setRotation(Math.atan2(ty - sy, tx - sx));
+        if (f.k === "blood") img.setTint(0xe0304a);
         if (f.k === "fireball" || f.k === "fire") img.setScale(f.k === "fireball" ? 1.3 : 1);
-        const trailColor = f.k === "arrow" ? 0xd8c8a0 : f.k === "poison" ? 0x9aff5a : f.k === "shadow" ? 0x8a5aff : f.k === "frost" ? 0x8ad0ff : f.k === "arcane" ? 0xc08aff : f.k === "holy" ? 0xffe890 : 0xff8a3a;
+        const trailColor = f.k === "arrow" ? 0xd8c8a0 : f.k === "poison" ? 0x9aff5a : f.k === "shadow" ? 0x8a5aff : f.k === "frost" ? 0x8ad0ff : f.k === "arcane" ? 0xc08aff : f.k === "holy" ? 0xffe890 : f.k === "blood" ? 0xe0304a : 0xff8a3a;
         const trail = s.add.particles(0, 0, "fx_spark", { follow: img, lifespan: 260, scale: { start: f.k === "arrow" ? 0.35 : 0.8, end: 0 }, alpha: { start: 0.8, end: 0 }, tint: trailColor, frequency: 20, blendMode: Phaser.BlendModes.ADD });
         trail.setDepth(DEPTH.top - 41);
         s.tweens.add({

@@ -33,6 +33,10 @@ export class Unit extends Schema {
   @type("uint8") elite = 0;
   /** Питомец: id хозяина. */
   @type("string") ownerId = "";
+  /** Игрок: фракция (solgard | umbrath) — цвет имени и вражда в спорных зонах. */
+  @type("string") faction = "";
+  /** Игрок: нарушитель мира в нейтральном городе (стража атакует). */
+  @type("uint8") outlaw = 0;
 }
 
 export class WorldState extends Schema {

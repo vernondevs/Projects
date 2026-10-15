@@ -70,12 +70,12 @@ export interface BaseItem {
 
 const r1 = (v: number) => Math.round(v);
 export const BASE_ITEMS: Record<string, BaseItem> = {
-  sword: { id: "sword", name: "Меч", slot: "weapon", icon: "sword", weaponType: "sword", classes: ["warrior"], roll: (l) => ({ dmgMin: r1(4 + l * 1.8), dmgMax: r1(8 + l * 2.6) }) },
-  axe: { id: "axe", name: "Топор", slot: "weapon", icon: "axe", weaponType: "axe", classes: ["warrior"], roll: (l) => ({ dmgMin: r1(3 + l * 1.5), dmgMax: r1(10 + l * 3.1) }) },
-  staff: { id: "staff", name: "Посох", slot: "weapon", icon: "staff", weaponType: "staff", classes: ["mage", "healer"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(8 + l * 2.6), int: r1(1 + l * 0.2) }) },
-  scepter: { id: "scepter", name: "Жезл", slot: "weapon", icon: "scepter", weaponType: "scepter", classes: ["healer"], roll: (l) => ({ dmgMin: r1(4 + l * 1.6), dmgMax: r1(7 + l * 2.4), int: r1(1 + l * 0.25) }) },
-  dagger: { id: "dagger", name: "Кинжалы", slot: "weapon", icon: "dagger", weaponType: "dagger", classes: ["rogue"], roll: (l) => ({ dmgMin: r1(3 + l * 1.3), dmgMax: r1(5 + l * 1.9), agi: r1(1 + l * 0.2) }) },
-  bow: { id: "bow", name: "Лук", slot: "weapon", icon: "bow", weaponType: "bow", classes: ["ranger"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(7 + l * 2.5) }) },
+  sword: { id: "sword", name: "Меч", slot: "weapon", icon: "sword", weaponType: "sword", classes: ["warrior", "deathknight"], roll: (l) => ({ dmgMin: r1(4 + l * 1.8), dmgMax: r1(8 + l * 2.6) }) },
+  axe: { id: "axe", name: "Топор", slot: "weapon", icon: "axe", weaponType: "axe", classes: ["warrior", "deathknight", "reaver"], roll: (l) => ({ dmgMin: r1(3 + l * 1.5), dmgMax: r1(10 + l * 3.1) }) },
+  staff: { id: "staff", name: "Посох", slot: "weapon", icon: "staff", weaponType: "staff", classes: ["mage", "healer", "warlock", "bloodweaver"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(8 + l * 2.6), int: r1(1 + l * 0.2) }) },
+  scepter: { id: "scepter", name: "Жезл", slot: "weapon", icon: "scepter", weaponType: "scepter", classes: ["healer", "bloodweaver"], roll: (l) => ({ dmgMin: r1(4 + l * 1.6), dmgMax: r1(7 + l * 2.4), int: r1(1 + l * 0.25) }) },
+  dagger: { id: "dagger", name: "Кинжалы", slot: "weapon", icon: "dagger", weaponType: "dagger", classes: ["rogue", "reaver"], roll: (l) => ({ dmgMin: r1(3 + l * 1.3), dmgMax: r1(5 + l * 1.9), agi: r1(1 + l * 0.2) }) },
+  bow: { id: "bow", name: "Лук", slot: "weapon", icon: "bow", weaponType: "bow", classes: ["ranger", "darkranger"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(7 + l * 2.5) }) },
   helmet: { id: "helmet", name: "Шлем", slot: "helmet", icon: "helmet", roll: (l) => ({ armor: r1(2 + l * 1.6) }) },
   armor: { id: "armor", name: "Доспех", slot: "armor", icon: "armor", roll: (l) => ({ armor: r1(4 + l * 3), hp: r1(l * 2) }) },
   boots: { id: "boots", name: "Сапоги", slot: "boots", icon: "boots", roll: (l) => ({ armor: r1(1 + l * 1.2) }) },

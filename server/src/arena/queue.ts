@@ -7,6 +7,8 @@
  */
 import { ACCEPT_MS, MAX_REPEAT, MODE_NAMES, queueWindow, TEAM_SIZE, type ArenaMode, type MatchFoundMsg, type QueueStatus } from "../../../shared/arena";
 import type { Player } from "../game/Player";
+import type { FactionId } from "../../../shared/classes";
+import { enemyFaction } from "../../../shared/factions";
 import type { ArenaStore } from "./store";
 import { makeBots, type BotSpec } from "./bots";
 
@@ -19,6 +21,8 @@ export interface QueueEntry {
   members: string[]; // ключи имён
   ratings: Record<string, number>;
   joinedAt: number;
+  /** Фракция записи: напарники из одиночек — только своей фракции. */
+  faction?: FactionId;
   /** Бой с ботом уже предлагали — повторно не предлагаем. */
   botOffered?: boolean;
 }
@@ -78,7 +82,8 @@ export class ArenaQueue {
     }
     const ratings: Record<string, number> = {};
     for (const p of players) ratings[p.name.toLowerCase()] = this.store.rating(p.name.toLowerCase(), mode).rating;
-    this.entries.push({ id: this.nextId++, mode, members: players.map((p) => p.name.toLowerCase()), ratings, joinedAt: now });
+    if (players.some((p) => p.faction !== players[0].faction)) return "Команда арены — только из одной фракции";
+    this.entries.push({ id: this.nextId++, mode, members: players.map((p) => p.name.toLowerCase()), ratings, joinedAt: now, faction: players[0].faction });
     this.changed(players.map((p) => p.name.toLowerCase()));
     return null;
   }
@@ -186,8 +191,8 @@ export class ArenaQueue {
       const size = TEAM_SIZE[e.mode];
       const rating = Math.round(entryRating(e));
       const taken = new Set<string>();
-      const mates = makeBots(size - e.members.length, lead.level, rating, lead.save, taken);
-      const foes = makeBots(size, lead.level, rating, lead.save, taken);
+      const mates = makeBots(size - e.members.length, lead.level, rating, lead.save, taken, lead.faction);
+      const foes = makeBots(size, lead.level, rating, lead.save, taken, enemyFaction(lead.faction));
       const m: PendingMatch = { id: this.nextId++, mode: e.mode, teams: [[e], []], accepted: new Set(), expiresAt: now + ACCEPT_MS, bots: [mates, foes] };
       this.entries = this.entries.filter((x) => x !== e);
       this.pending.set(m.id, m);
@@ -208,7 +213,7 @@ export class ArenaQueue {
       if (used.has(e)) continue;
       let best: QueueEntry | null = null, bd = Infinity;
       for (const o of solos) {
-        if (o === e || used.has(o)) continue;
+        if (o === e || used.has(o) || (o.faction ?? "solgard") !== (e.faction ?? "solgard")) continue;
         const d = Math.abs(entryRating(o) - entryRating(e));
         if (d <= Math.max(queueWindow(now - e.joinedAt), queueWindow(now - o.joinedAt)) && d < bd) { bd = d; best = o; }
       }

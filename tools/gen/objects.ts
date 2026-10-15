@@ -1,5 +1,6 @@
 /** Объекты мира, иконки предметов и умений, эффекты. Опорная точка объектов — нижняя середина. */
-import { PC, hash01, hex, mix, rng, shade, withA, type RGBA, type Ramp } from "./canvas";
+import { PC, hash01, hex, mix, ramp, rng, shade, withA, type RGBA, type Ramp } from "./canvas";
+import { DATA_SKILL_ICONS } from "../../shared/skills";
 import { P } from "./palette";
 import { FOOD } from "../../shared/food";
 import { TOWN_ART } from "./town";
@@ -460,6 +461,15 @@ export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
 };
 export function buildItemIcon(k: string) {
   return itemIcon(k);
+}
+// иконки умений из data/skills.json (классы Умбрата): рисунок + палитры по именам
+const ICON_RAMP: Record<string, Ramp> = {
+  black: P.cloth.black, purple: P.cloth.purple, red: P.cloth.red, green: P.magic.green, blue: P.magic.blue, frost: P.ice, bone: P.bone, gold: P.gold, steel: P.steel, fire: P.magic.fire,
+};
+for (const [id, ic] of Object.entries(DATA_SKILL_ICONS)) {
+  const bg = ic.bg === "green" ? P.cloth.green : ic.bg === "red" ? P.cloth.red : ICON_RAMP[ic.bg] ?? P.cloth.black;
+  const fg = ic.fg === "red" ? ramp("#5a0a14", "#a01828", "#e0304a", "#ff8a8a", "#ffd0d0") : ic.fg === "purple" ? P.magic.purple : ICON_RAMP[ic.fg] ?? P.magic.purple;
+  SKILL_ICONS[id] = [ic.glyph, bg, fg];
 }
 export function buildSkillIcon(id: string) {
   const [k, bg, fg] = SKILL_ICONS[id];

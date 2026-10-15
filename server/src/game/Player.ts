@@ -1,4 +1,4 @@
-import { CLASSES, type ClassId, type StatKey } from "../../../shared/classes";
+import { CLASSES, classFaction, type ClassId, type FactionId, type StatKey } from "../../../shared/classes";
 import { lookTint } from "../../../shared/accounts";
 import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
@@ -22,6 +22,7 @@ export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSa
   equip.weapon.name = "Потёртый " + equip.weapon.name.toLowerCase();
   return {
     cls,
+    faction: classFaction(cls),
     level: 1,
     xp: 0,
     gold: 25,
@@ -72,8 +73,22 @@ export class Player {
   shieldAmt = 0;
   shieldUntil = 0;
   shieldBy: Player | null = null;
-  /** Ослабление (−20% к наносимому урону). */
+  /** Ослабление (−weakPct% к наносимому урону, по умолчанию 20). */
   weakUntil = 0;
+  weakPct = 20;
+  /** Умбрат: проклятие и кровотечение на герое (для значков), кровавые узы, костяная броня, безумие. */
+  curseUntil = 0;
+  bleedUntil = 0;
+  bondBy: Player | null = null;
+  bondUntil = 0;
+  bondShare = 0;
+  boneUntil = 0;
+  boneChill = 0;
+  frenzyUntil = 0;
+  frenzyLeech = 0;
+  /** Нарушитель мира в нейтральном городе: стража бьёт его до этого момента. */
+  outlawUntil = 0;
+  guardHitAt = 0;
   /** Последний рубеж: действует до / откат до. */
   lastStandUntil = 0;
   lastStandReady = 0;
@@ -141,10 +156,12 @@ export class Player {
       save.skills = { [starterSkill(save.cls)]: 1 };
       send("toast", { text: "Умения воина изменены — очки возвращены", kind: "info" });
     }
+    save.faction ??= classFaction(save.cls);
     const u = this.unit;
     u.kind = UnitKind.Player;
     u.name = name;
     u.sprite = save.cls;
+    u.faction = save.faction;
     u.x = save.x;
     u.y = save.y;
     u.level = save.level;
@@ -158,6 +175,9 @@ export class Player {
 
   get cls() {
     return this.save.cls;
+  }
+  get faction(): FactionId {
+    return this.save.faction ?? classFaction(this.save.cls);
   }
   get level() {
     return this.save.level;
@@ -190,7 +210,7 @@ export class Player {
     return CLASSES[this.save.cls].attackRange;
   }
   ranged(): boolean {
-    return this.save.cls !== "warrior" && this.save.cls !== "rogue";
+    return !CLASSES[this.save.cls].attack.melee;
   }
 
   recalc() {
@@ -249,6 +269,7 @@ export class Player {
       id: this.id,
       name: this.name,
       cls: this.save.cls,
+      faction: this.faction,
       level: this.save.level,
       xp: this.save.xp,
       xpNext: xpToNext(this.save.level),

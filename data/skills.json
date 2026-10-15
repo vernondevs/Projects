@@ -1,0 +1,155 @@
+{
+  "_doc": "Базовые умения классов Умбрата (shared/skills.ts, логика — server/src/game/umbrath.ts). Числа: [база, прибавка за ранг] — значение на ранге r = база + прибавка × (r − 1). {ключ} в описании подставляется из v. icon: glyph — рисунок из tools/gen/objects.ts, bg/fg — палитры фона и знака. Полный набор умений — задачи 40–44.",
+  "skills": {
+    "dk_rune_strike": {
+      "cls": "deathknight", "name": "Рунический удар", "slot": 0, "maxRank": 5, "reqLevel": 1,
+      "target": "enemy", "range": 62, "cd": [5, 0], "mana": [8, 0],
+      "v": { "dmg": [160, 25], "leech": [30, 5], "threat": [80, 20] },
+      "desc": "Удар рунным клинком: {dmg}% урона оружия холодом, {leech}% нанесённого урона возвращается здоровьем.",
+      "icon": { "glyph": "cleave", "bg": "black", "fg": "frost" }, "tree": [0, 1]
+    },
+    "dk_death_grip": {
+      "cls": "deathknight", "name": "Хватка смерти", "slot": 1, "maxRank": 5, "reqLevel": 3, "req": { "id": "dk_rune_strike", "rank": 1 },
+      "target": "enemy", "range": 280, "cd": [12, -0.5], "mana": [12, 0],
+      "v": { "dmg": [60, 10], "slow": [50, 0], "slowDur": [2, 0], "taunt": [3, 0] },
+      "desc": "Цепи притягивают врага к вам: {dmg}% урона, замедление {slow}% на {slowDur} с, моб атакует вас {taunt} с. Босса цепи только замедляют.",
+      "icon": { "glyph": "charge", "bg": "purple", "fg": "frost" }, "tree": [1, 0]
+    },
+    "dk_bone_armor": {
+      "cls": "deathknight", "name": "Броня из костей", "slot": 2, "maxRank": 5, "reqLevel": 8, "req": { "id": "dk_death_grip", "rank": 1 },
+      "target": "self", "range": 0, "cd": [18, 0], "mana": [15, 0],
+      "v": { "absorb": [20, 3], "dur": [8, 0], "chill": [30, 0] },
+      "desc": "Броня изо льда и костей поглощает урон в {absorb}% от вашего здоровья ({dur} с). Кто бьёт вас вплотную — замедлен на {chill}%.",
+      "icon": { "glyph": "shieldblock", "bg": "black", "fg": "bone" }, "tree": [2, 0]
+    },
+    "dk_blood_drain": {
+      "cls": "deathknight", "name": "Вытягивание жизни", "slot": 3, "maxRank": 5, "reqLevel": 15, "req": { "id": "dk_bone_armor", "rank": 1 },
+      "target": "self", "range": 0, "cd": [14, 0], "mana": [20, 0],
+      "v": { "dmg": [110, 15], "radius": [120, 0], "heal": [50, 0], "threat": [150, 30] },
+      "desc": "Вытягивает жизнь из всех врагов вокруг: {dmg}% урона тенью и {heal}% нанесённого возвращается вам. Много угрозы.",
+      "icon": { "glyph": "bloodlust", "bg": "black", "fg": "green" }, "tree": [3, 1]
+    },
+
+    "bw_blood_bolt": {
+      "cls": "bloodweaver", "name": "Кровавая стрела", "slot": 0, "maxRank": 5, "reqLevel": 1,
+      "target": "enemy", "range": 320, "cd": [2.5, 0], "mana": [8, 0],
+      "v": { "dmg": [140, 20], "transfuse": [80, 10], "radius": [320, 0] },
+      "desc": "Сгусток крови: {dmg}% урона врагу, {transfuse}% нанесённого лечит самого раненого союзника рядом (или вас).",
+      "icon": { "glyph": "fireball", "bg": "black", "fg": "red" }, "tree": [0, 1]
+    },
+    "bw_blood_bond": {
+      "cls": "bloodweaver", "name": "Кровавые узы", "slot": 1, "maxRank": 5, "reqLevel": 3, "req": { "id": "bw_blood_bolt", "rank": 1 },
+      "target": "ally", "range": 320, "cd": [14, 0], "mana": [14, 0],
+      "v": { "dur": [10, 0], "share": [30, 0], "regen": [30, 6] },
+      "desc": "Связывает вас с союзником или питомцем на {dur} с: {share}% урона по нему принимаете вы, а он каждую секунду лечится на {regen}% силы лечения.",
+      "icon": { "glyph": "renew", "bg": "black", "fg": "red" }, "tree": [1, 0]
+    },
+    "bw_sacrifice": {
+      "cls": "bloodweaver", "name": "Жертва крови", "slot": 2, "maxRank": 5, "reqLevel": 8, "req": { "id": "bw_blood_bond", "rank": 1 },
+      "target": "ally", "range": 320, "cd": [9, 0], "mana": [6, 0],
+      "v": { "cost": [12, 0], "heal": [320, 50], "mana": [25, 3] },
+      "desc": "Отдаёт {cost}% своего здоровья: союзник или питомец лечится на {heal}% силы лечения. Без цели кровь превращается в {mana}% маны.",
+      "icon": { "glyph": "heal", "bg": "black", "fg": "red" }, "tree": [2, 0]
+    },
+    "bw_crimson_pool": {
+      "cls": "bloodweaver", "name": "Багровая купель", "slot": 3, "maxRank": 5, "reqLevel": 15, "req": { "id": "bw_sacrifice", "rank": 1 },
+      "target": "point", "range": 300, "cd": [16, 0], "mana": [24, 0],
+      "v": { "radius": [110, 0], "ticks": [5, 0], "dmg": [45, 8], "heal": [50, 10] },
+      "desc": "Лужа крови на {ticks} с: каждую секунду {dmg}% урона врагам и лечение союзников на {heal}% силы лечения.",
+      "icon": { "glyph": "circle", "bg": "black", "fg": "red" }, "tree": [3, 1]
+    },
+
+    "dr_cursed_arrow": {
+      "cls": "darkranger", "name": "Проклятая стрела", "slot": 0, "maxRank": 5, "reqLevel": 1,
+      "target": "enemy", "range": 340, "cd": [4, 0], "mana": [8, 0],
+      "v": { "dmg": [150, 25], "tick": [25, 5], "dur": [6, 0] },
+      "desc": "Стрела с проклятием: {dmg}% урона и ещё {tick}% урона тенью каждую секунду {dur} с.",
+      "icon": { "glyph": "aimed", "bg": "black", "fg": "purple" }, "tree": [0, 1]
+    },
+    "dr_weakening": {
+      "cls": "darkranger", "name": "Стрела ослабления", "slot": 1, "maxRank": 5, "reqLevel": 3, "req": { "id": "dr_cursed_arrow", "rank": 1 },
+      "target": "enemy", "range": 320, "cd": [9, 0], "mana": [12, 0],
+      "v": { "dmg": [90, 15], "weak": [20, 2], "dur": [5, 0], "slow": [30, 0] },
+      "desc": "Отравленная тьмой стрела: {dmg}% урона, цель наносит на {weak}% меньше урона {dur} с и замедлена на {slow}%.",
+      "icon": { "glyph": "precision", "bg": "black", "fg": "green" }, "tree": [1, 0]
+    },
+    "dr_raven": {
+      "cls": "darkranger", "name": "Теневой ворон", "slot": 2, "maxRank": 5, "reqLevel": 8, "req": { "id": "dr_weakening", "rank": 1 },
+      "target": "enemy", "range": 360, "cd": [14, 0], "mana": [16, 0],
+      "v": { "pecks": [5, 0], "dmg": [45, 8], "every": [0.8, 0] },
+      "desc": "Теневой ворон-спутник клюёт цель {pecks} раз по {dmg}% урона тенью.",
+      "icon": { "glyph": "volley", "bg": "black", "fg": "purple" }, "tree": [2, 0]
+    },
+    "dr_shadowmeld": {
+      "cls": "darkranger", "name": "Уход в тень", "slot": 3, "maxRank": 5, "reqLevel": 15, "req": { "id": "dr_raven", "rank": 1 },
+      "target": "self", "range": 0, "cd": [18, 0], "mana": [12, 0],
+      "v": { "dur": [4, 0.5] },
+      "desc": "Растворяется в тени на {dur} с (мобы и игроки не видят), снимает замедление. Следующий выстрел — гарантированный крит.",
+      "icon": { "glyph": "stealth", "bg": "black", "fg": "green" }, "tree": [3, 1]
+    },
+
+    "wl_agony": {
+      "cls": "warlock", "name": "Агония", "slot": 0, "maxRank": 5, "reqLevel": 1,
+      "target": "enemy", "range": 320, "cd": [3, 0], "mana": [9, 0],
+      "v": { "hit": [40, 5], "tick": [40, 8], "dur": [8, 0] },
+      "desc": "Проклятие: {hit}% урона сразу и {tick}% урона тенью каждую секунду {dur} с. Повтор обновляет срок.",
+      "icon": { "glyph": "berserk", "bg": "purple", "fg": "green" }, "tree": [0, 1]
+    },
+    "wl_drain_mana": {
+      "cls": "warlock", "name": "Вытягивание маны", "slot": 1, "maxRank": 5, "reqLevel": 3, "req": { "id": "wl_agony", "rank": 1 },
+      "target": "enemy", "range": 300, "cd": [8, 0], "mana": [0, 0],
+      "v": { "dmg": [80, 12], "mana": [12, 2] },
+      "desc": "Пьёт силу врага: {dmg}% урона тенью и {mana}% вашей маны восстанавливается. У героя-врага столько же маны сгорает.",
+      "icon": { "glyph": "insight", "bg": "purple", "fg": "blue" }, "tree": [1, 0]
+    },
+    "wl_skeletons": {
+      "cls": "warlock", "name": "Восстание скелетов", "slot": 2, "maxRank": 5, "reqLevel": 8, "req": { "id": "wl_drain_mana", "rank": 1 },
+      "target": "point", "range": 260, "cd": [30, 0], "mana": [25, 0],
+      "v": { "dmg": [90, 15], "radius": [70, 0], "root": [1.5, 0], "dur": [20, 2] },
+      "desc": "Костяные руки рвутся из земли: {dmg}% урона и обездвиживание {root} с в точке. Скелет-прислужник сражается за вас {dur} с (вместо питомца).",
+      "icon": { "glyph": "resurrect", "bg": "black", "fg": "green" }, "tree": [2, 0]
+    },
+    "wl_doom": {
+      "cls": "warlock", "name": "Чумной туман", "slot": 3, "maxRank": 5, "reqLevel": 15, "req": { "id": "wl_skeletons", "rank": 1 },
+      "target": "point", "range": 320, "cd": [15, 0], "mana": [28, 0],
+      "v": { "radius": [110, 0], "tick": [35, 6], "dur": [6, 0], "weak": [15, 0] },
+      "desc": "Ядовитый туман проклинает всех врагов в области: {tick}% урона каждую секунду {dur} с и −{weak}% к их урону.",
+      "icon": { "glyph": "frostnova", "bg": "purple", "fg": "green" }, "tree": [3, 1]
+    },
+
+    "rv_lacerate": {
+      "cls": "reaver", "name": "Рваная рана", "slot": 0, "maxRank": 5, "reqLevel": 1,
+      "target": "enemy", "range": 62, "cd": [4, 0], "mana": [8, 0],
+      "v": { "dmg": [130, 20], "tick": [20, 4], "dur": [6, 0], "stacks": [3, 0] },
+      "desc": "Рваный удар: {dmg}% урона и кровотечение {tick}% урона в секунду {dur} с. Складывается до {stacks} раз.",
+      "icon": { "glyph": "backstab", "bg": "black", "fg": "red" }, "tree": [0, 1]
+    },
+    "rv_leap": {
+      "cls": "reaver", "name": "Прыжок с разрезом", "slot": 1, "maxRank": 5, "reqLevel": 3, "req": { "id": "rv_lacerate", "rank": 1 },
+      "target": "enemy", "range": 240, "cd": [11, -0.5], "mana": [12, 0],
+      "v": { "dmg": [120, 15], "splash": [60, 0], "radius": [70, 0] },
+      "desc": "Прыжок к врагу с разрезом: {dmg}% урона цели и {splash}% этого урона врагам рядом.",
+      "icon": { "glyph": "charge", "bg": "black", "fg": "red" }, "tree": [1, 0]
+    },
+    "rv_carve": {
+      "cls": "reaver", "name": "Кровавый вихрь", "slot": 2, "maxRank": 5, "reqLevel": 8, "req": { "id": "rv_leap", "rank": 1 },
+      "target": "self", "range": 0, "cd": [8, 0], "mana": [14, 0],
+      "v": { "dmg": [100, 15], "radius": [90, 0] },
+      "desc": "Круговой удар по всем врагам вокруг: {dmg}% урона, каждому — кровотечение «Рваной раны».",
+      "icon": { "glyph": "whirlwind", "bg": "black", "fg": "red" }, "tree": [2, 0]
+    },
+    "rv_frenzy": {
+      "cls": "reaver", "name": "Кровавое безумие", "slot": 3, "maxRank": 5, "reqLevel": 15, "req": { "id": "rv_carve", "rank": 1 },
+      "target": "self", "range": 0, "cd": [20, 0], "mana": [10, 0],
+      "v": { "cost": [10, 0], "dur": [8, 0], "haste": [30, 5], "leech": [10, 2] },
+      "desc": "Режет себя ({cost}% здоровья) и впадает в безумие на {dur} с: скорость атаки +{haste}%, {leech}% урона возвращается здоровьем.",
+      "icon": { "glyph": "berserk", "bg": "black", "fg": "red" }, "tree": [3, 1]
+    }
+  },
+  "summons": {
+    "wl_skeleton": {
+      "name": "Скелет-прислужник", "sprite": "skeleton", "price": 0, "level": 0, "hp": 0.9, "dmg": 1.1, "armor": 1.2,
+      "speed": 125, "range": 34, "attackCd": 1.2, "radius": 10, "skills": []
+    }
+  }
+}

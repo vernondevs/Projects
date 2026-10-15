@@ -23,6 +23,11 @@ export class Mob {
   rootUntil = 0;
   slowUntil = 0;
   slowPct = 0;
+  /** Ослабление (урон −weakPct%), проклятие и кровотечение (значки). */
+  weakUntil = 0;
+  weakPct = 0;
+  curseUntil = 0;
+  bleedUntil = 0;
   /** Кто сколько урона нанёс: для опыта, лута и угрозы. */
   damageBy = new Map<string, number>();
   threat = new Map<string, number>();
@@ -102,7 +107,7 @@ export class Mob {
     this.damageBy.clear();
     this.threat.clear();
     this.tauntUntil = 0;
-    this.stunUntil = this.rootUntil = this.slowUntil = 0;
+    this.stunUntil = this.rootUntil = this.slowUntil = this.weakUntil = this.curseUntil = this.bleedUntil = 0;
     this.boss?.reset();
   }
 

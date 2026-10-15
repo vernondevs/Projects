@@ -18,7 +18,7 @@ export const MODE_NAMES: Record<ArenaMode, string> = {
 export const TEAM_SIZE: Record<ArenaMode, number> = { "1v1": 1, "2v2": 2 };
 
 /** Множитель урона игрока по игроку: PvP длится дольше, чем по мобам. */
-export const PVP_DAMAGE_MULT = 0.3;
+export const PVP_DAMAGE_MULT = 0.25;
 export const START_RATING = 1000;
 export const ELO_K = 32;
 /** Окно подбора по рейтингу: ±100, затем +50 каждые 10 с ожидания, не больше ±1000. */

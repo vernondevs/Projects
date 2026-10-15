@@ -3,6 +3,8 @@ import { PLAYER_RADIUS } from "../../../shared/constants";
 import { lineClear, walkable } from "../../../shared/map";
 import { Anim } from "../../../shared/protocol";
 import { SKILLS } from "../../../shared/skills";
+import { CLASSES } from "../../../shared/classes";
+import { castUmbrath } from "./umbrath";
 import type { Pet } from "./Pet";
 import { applyPoison, facing, isBehind } from "./rogue";
 import type { Player } from "./Player";
@@ -16,7 +18,7 @@ const angDiff = (a: number, b: number) => {
 };
 
 /** Дальше всего достижимая точка по прямой (без стен и препятствий). */
-function reachable(w: World, x0: number, y0: number, x1: number, y1: number, maxDist: number) {
+export function reachable(w: World, x0: number, y0: number, x1: number, y1: number, maxDist: number) {
   const dx = x1 - x0, dy = y1 - y0, d = Math.hypot(dx, dy) || 1;
   const L = Math.min(maxDist, d);
   let best = { x: x0, y: y0 };
@@ -61,7 +63,7 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
 
   const ok = () => {
     w.breakMount(p);
-    if (id !== "stealth") p.stealthUntil = 0;
+    if (id !== "stealth" && id !== "dr_shadowmeld") p.stealthUntil = 0;
     u.mp -= mana;
     const cd = def.cd!(rank) * 1000;
     p.cds.set(id, w.time + cd);
@@ -72,6 +74,10 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
     p.attackAt = Math.max(p.attackAt, w.time + 250);
     return null;
   };
+
+  // классы Умбрата: своя механика (server/src/game/umbrath.ts)
+  if (CLASSES[def.cls].faction === "umbrath")
+    return castUmbrath({ w, p, id, def, rank, v, liveTarget, targetId, ax, ay, aim, ok, stun, slow, threat, isBoss });
 
   switch (id) {
     // ---------- воин ----------
@@ -406,11 +412,11 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
 }
 
 // ---------- помощники лекаря ----------
-interface Ally { id: string; x: number; y: number; player?: Player; pet?: Pet }
+export interface Ally { id: string; x: number; y: number; player?: Player; pet?: Pet }
 const hotToken = new Map<string, number>();
 
 /** Союзная цель по id (игрок или питомец, не враг); иначе сам лекарь. */
-function resolveAlly(w: World, p: Player, targetId: string | null): Ally {
+export function resolveAlly(w: World, p: Player, targetId: string | null): Ally {
   const self: Ally = { id: p.id, x: p.x, y: p.y, player: p };
   if (!targetId) return self;
   const tp = w.players.get(targetId);
@@ -426,7 +432,7 @@ export function healPower(p: Player): number {
   return ((d.dmgMin + d.dmgMax) / 2) * d.skillMult * (1 + 0.06 * (p.save.skills.grace || 0));
 }
 
-function applyHeal(w: World, p: Player, a: Ally, amount: number): number {
+export function applyHeal(w: World, p: Player, a: Ally, amount: number): number {
   if (a.player) return w.heal(a.player, Math.round(amount), true, p);
   if (a.pet && !a.pet.dead) {
     const u = a.pet.unit, before = u.hp;

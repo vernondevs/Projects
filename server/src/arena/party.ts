@@ -42,6 +42,7 @@ export class Parties {
     if (tk === fk) return "Нельзя пригласить себя";
     const target = this.find(tk);
     if (!target) return "Игрок не в мире";
+    if (target.faction !== from.faction) return "В группу можно звать только героев своей фракции";
     if (this.partyOf.has(tk)) return `${target.name} уже в группе`;
     const mine = this.partyOf.get(fk);
     if (mine && mine.length >= MAX_PARTY) return "Группа уже полная";

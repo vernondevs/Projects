@@ -1,4 +1,5 @@
 import type { ClassId } from "./classes";
+import skillData from "../data/skills.json";
 
 export type SkillTarget = "enemy" | "point" | "self" | "ally";
 
@@ -279,6 +280,33 @@ export const SKILLS: Record<string, SkillDef> = {
     tree: [3, 0],
   },
 };
+
+// ---------------- умения из /data/skills.json (классы Умбрата) ----------------
+type Lin = [number, number];
+interface RawSkill {
+  cls: ClassId; name: string; slot?: number; maxRank: number; reqLevel: number; req?: { id: string; rank: number };
+  target?: SkillTarget; range?: number; cd?: Lin; mana?: Lin; v: Record<string, Lin>; desc: string;
+  icon: { glyph: string; bg: string; fg: string }; tree: [number, number]; kind?: "active" | "passive";
+}
+const lin = ([a, b]: Lin, r: number) => Math.round((a + b * (Math.max(1, r) - 1)) * 100) / 100;
+/** Иконки умений из данных (для генератора ассетов): id иконки → рисунок и палитры. */
+export const DATA_SKILL_ICONS: Record<string, { glyph: string; bg: string; fg: string }> = {};
+for (const [id, s] of Object.entries(skillData.skills as unknown as Record<string, RawSkill>)) {
+  const icon = `sk_${id}`;
+  DATA_SKILL_ICONS[icon] = s.icon;
+  const v = (r: number) => Object.fromEntries(Object.entries(s.v).map(([k, p]) => [k, lin(p, r)]));
+  SKILLS[id] = {
+    id, cls: s.cls, name: s.name, kind: s.kind ?? "active", slot: s.slot, maxRank: s.maxRank, reqLevel: s.reqLevel, req: s.req, icon,
+    target: s.target, range: s.range,
+    cd: s.cd ? (r) => lin(s.cd!, r) : undefined,
+    mana: s.mana ? (r) => lin(s.mana!, r) : undefined,
+    v,
+    desc: (r) => { const vals = v(r); return s.desc.replace(/\{(\w+)\}/g, (_, k: string) => String(vals[k] ?? "?")); },
+    tree: s.tree,
+  };
+}
+/** Временные призванные союзники умений (питомец на время). */
+export const SUMMONS = skillData.summons as Record<string, { name: string; sprite: string; hp: number; dmg: number; armor: number; speed: number; range: number; attackCd: number; radius: number }>;
 
 export function classSkills(cls: ClassId): SkillDef[] {
   return Object.values(SKILLS).filter((s) => s.cls === cls);
