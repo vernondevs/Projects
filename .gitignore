@@ -5,3 +5,4 @@ tools/out/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+.claude/worktrees/
