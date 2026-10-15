@@ -11,6 +11,8 @@ import { ArenaStore } from "./arena/store";
 import { services } from "./arena/registry";
 import { GameDB } from "./db";
 import { ArenaRoom } from "./rooms/ArenaRoom";
+import { homeCity } from "../../shared/cities";
+import { classFaction } from "../../shared/classes";
 import { WorldRoom } from "./rooms/WorldRoom";
 
 const PORT = Number(process.env.PORT || 2567);
@@ -23,7 +25,8 @@ app.use(
     db: () => WorldRoom.db,
     map: () => WorldRoom.instance?.world.map ?? null,
     online: (key) => !!WorldRoom.instance?.world.findByName(key),
-    newSave: (cls) => newSave(cls, WorldRoom.instance!.world.map.playerSpawn),
+    // новый герой появляется в столице своей фракции
+    newSave: (cls) => newSave(cls, homeCity(classFaction(cls)).spawn),
     test: process.env.TEST_MODE === "1",
   }),
 );

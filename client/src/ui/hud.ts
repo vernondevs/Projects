@@ -321,12 +321,12 @@ export class Hud {
     mk("help", "win-help", "Помощь");
     fillHelp(this.wins.help.querySelector(".body")!);
     mk("worldmap", "win-worldmap", "Карта мира");
-    this.wins.worldmap.querySelector(".body")!.innerHTML = `<canvas width="760" height="570"></canvas>`;
+    this.wins.worldmap.querySelector(".body")!.innerHTML = `<canvas width="1000" height="360"></canvas>`;
   }
   openWorldMap() {
     const w = this.wins.worldmap;
     w.hidden = false;
-    drawWorldMap(w.querySelector("canvas")!, this.ctx.map, this.miniBase, this.lastPos, this.ctx.net.self?.cities);
+    drawWorldMap(w.querySelector("canvas")!, this.ctx.map, this.miniBase, this.lastPos, this.ctx.net.self?.cities, this.ctx.net.self?.faction);
   }
   /** Esc: закрыть верхнее окно; иначе снять цель; иначе открыть/закрыть меню. */
   escape(hasTarget: boolean, clearTarget: () => void) {
@@ -925,7 +925,9 @@ export class Hud {
         const c = CITIES.find((k) => k.style && Math.abs(x - k.x) <= k.half.x && Math.abs(y - k.y) <= k.half.y);
         if (c) {
           const ax = Math.abs(x - c.x), ay = Math.abs(y - c.y);
-          col = ax >= CITY_WALL.x || ay >= CITY_WALL.y ? (c.style === "desert" ? "#d8b878" : "#9a6a3a") : c.style === "desert" ? "#c8884a" : "#6a4a32";
+          const pal: Record<string, [string, string]> = { desert: ["#d8b878", "#c8884a"], snow: ["#9a6a3a", "#6a4a32"], solgard: ["#f0ead8", "#d8a830"], umbrath: ["#3a2c48", "#7a3ab0"] };
+          const [wallC, roofC] = pal[c.style!] ?? pal.snow;
+          col = ax >= CITY_WALL.x || ay >= CITY_WALL.y ? wallC : roofC;
         } else {
         // город: стены и башни — светлый камень, дома — черепица
         const dx = Math.abs(x - TOWN.x), dy = Math.abs(y - TOWN.y);
@@ -997,7 +999,7 @@ export class Hud {
         if (!this.deadSince) {
           this.deadSince = performance.now();
           this.death.hidden = false;
-          this.death.innerHTML = `<div class="panel"><h2>Вы пали в бою</h2><p class="muted">Вы потеряете 10% золота и очнётесь у фонтана в городе.</p><button class="btn primary" id="respawn">Возродиться</button></div>`;
+          this.death.innerHTML = `<div class="panel"><h2>Вы пали в бою</h2><p class="muted">Вы потеряете 10% золота и очнётесь в ближайшем открытом городе (или в столице своей фракции).</p><button class="btn primary" id="respawn">Возродиться</button></div>`;
           document.getElementById("respawn")!.onclick = () => this.ctx.net.send("respawn", {});
         }
         const left = Math.ceil((RESPAWN_DELAY_MS - (performance.now() - this.deadSince)) / 1000);

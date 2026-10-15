@@ -2131,13 +2131,13 @@ body:has(.arena-board:not([hidden])) .hud-target {
   left: 50%;
   top: 50px;
   transform: translateX(-50%);
-  width: min(760px, calc(100vw - 24px));
+  width: min(1000px, calc(100vw - 24px));
   z-index: 5;
 }
 .win-worldmap canvas {
   width: 100%;
   height: auto;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 25 / 9;
   image-rendering: pixelated;
   display: block;
   border-radius: 3px;

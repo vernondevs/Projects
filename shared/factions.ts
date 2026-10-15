@@ -1,7 +1,7 @@
 /** Фракции из /data/factions.json: Сольгард и Умбрат. Правила вражды: спорные зоны, арена, нейтральные города. */
 import data from "../data/factions.json";
 import { CLASSES, classFaction, type ClassId, type FactionId } from "./classes";
-import { cityAtTile } from "./cities";
+import { cityAtTile, isEnemyCapital } from "./cities";
 import { TILE } from "./constants";
 import { isTownZone, Zone, zoneAtPx, type WorldMap } from "./map";
 
@@ -37,12 +37,13 @@ export const isPvpZone = (z: Zone) => PVP.has(z);
 export const NEUTRAL_CITIES = new Set<string>(data.neutralCities);
 export const OUTLAW = data.outlaw;
 
-/** Место для вражды фракций: спорная зона, нейтральный город (бой запрещён, стража) или мирная земля. */
+/** Место для вражды фракций: спорная зона (и столицы — защитники бьют чужаков), нейтральный город (бой запрещён, стража) или мирная земля. */
 export type PvpPlace = "pvp" | "neutral" | "peace";
 export function pvpPlace(m: WorldMap, px: number, py: number): PvpPlace {
   const z = zoneAtPx(m, px, py);
   if (isTownZone(z)) {
     const c = cityAtTile(Math.floor(px / TILE), Math.floor(py / TILE));
+    if (c?.capital) return "pvp";
     return c && NEUTRAL_CITIES.has(c.id) ? "neutral" : "peace";
   }
   return isPvpZone(z) ? "pvp" : "peace";
@@ -52,6 +53,12 @@ export function factionsHostile(m: WorldMap, fa: string, ax: number, ay: number,
   if (!fa || !fb || fa === fb) return false;
   const a = pvpPlace(m, ax, ay);
   return a !== "peace" && a === pvpPlace(m, bx, by);
+}
+
+/** Герой в чужой столице (клетка в пикселях): стража считает его нарушителем. */
+export function inEnemyCapital(faction: string, px: number, py: number): boolean {
+  const c = cityAtTile(Math.floor(px / TILE), Math.floor(py / TILE));
+  return !!c && isEnemyCapital(c, faction);
 }
 
 /** «Чужой язык»: чат противоположной фракции виден, но не читается (слоги по хэшу слова). */

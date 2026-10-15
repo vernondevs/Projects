@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from "../../../shared/constants";
-import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
+import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, zoneAtPx, zoneStyle, ZONES, type WorldMap, Zone } from "../../../shared/map";
 import { ENV } from "../../../shared/biomes";
 import * as sfx from "./sfx";
 import { nightLevel } from "../../../shared/daynight";
@@ -27,11 +27,22 @@ import { FONT, UnitView } from "./UnitView";
 type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "bags" | "enc" | "quest" | "stone";
 type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string; objs?: Phaser.GameObjects.GameObject[] };
 
+/** Звуковой фон: по зоне, иначе по её биому (новые зоны звучат как биом, которым нарисованы). */
 const AMBIENCE: Partial<Record<Zone, string>> = {
   [Zone.Town]: "town", [Zone.OasisCity]: "desert", [Zone.SnowCity]: "snow", [Zone.Meadow]: "meadow", [Zone.Forest]: "forest", [Zone.Swamp]: "swamp", [Zone.Ashlands]: "ash", [Zone.Dungeon]: "dungeon", [Zone.Arena]: "ash",
-  [Zone.Desert]: "desert", [Zone.Snow]: "snow", [Zone.Volcano]: "volcano", [Zone.Underwater]: "water", [Zone.Frontier]: "meadow",
+  [Zone.Desert]: "desert", [Zone.Snow]: "snow", [Zone.Volcano]: "volcano", [Zone.Coast]: "water", [Zone.Frontier]: "meadow",
+  [Zone.SolgardCity]: "town", [Zone.UmbrathCity]: "dungeon",
 };
-const ZONE_COLOR: Partial<Record<Zone, string>> = { [Zone.OasisCity]: "#f0c070", [Zone.SnowCity]: "#bfe4ff", [Zone.Desert]: "#f0c070", [Zone.Snow]: "#bfe4ff", [Zone.Volcano]: "#ff8a4a", [Zone.Underwater]: "#7ad0ff", [Zone.Swamp]: "#a8d890", [Zone.Forest]: "#a8e080" };
+const ZONE_COLOR: Partial<Record<Zone, string>> = {
+  [Zone.OasisCity]: "#f0c070", [Zone.SnowCity]: "#bfe4ff", [Zone.Desert]: "#f0c070", [Zone.Snow]: "#bfe4ff", [Zone.Volcano]: "#ff8a4a", [Zone.Coast]: "#7ad0ff", [Zone.Swamp]: "#a8d890", [Zone.Forest]: "#a8e080",
+  [Zone.SolgardCity]: "#ffe27a", [Zone.SunFields]: "#ffe8a0", [Zone.KingsWood]: "#c8f0a0", [Zone.GryphonCliffs]: "#d8ecff", [Zone.FallenBarrens]: "#f0d090",
+  [Zone.UmbrathCity]: "#c890ff", [Zone.Barrows]: "#b8a0e0", [Zone.MistWood]: "#a8c0b0", [Zone.BoneRidge]: "#d8d0c0", [Zone.PlagueMarsh]: "#a0e070",
+  [Zone.StormPeaks]: "#a8d0ff", [Zone.AshFoothills]: "#e0a080",
+};
+/** Зоны Умбрата: туман и пурпурная дымка. */
+const GLOOM = new Set<Zone>([Zone.UmbrathCity, Zone.Barrows, Zone.MistWood, Zone.PlagueMarsh, Zone.BoneRidge]);
+/** Юниты дальше этого (px) не создаются на клиенте (мобы и NPC; герои — всегда). */
+const UNIT_NEAR = 1500, UNIT_FAR = 1900;
 
 export class GameScene extends Phaser.Scene {
   map!: WorldMap;
@@ -237,13 +248,14 @@ export class GameScene extends Phaser.Scene {
     this.selfLight = this.add.image(0, 0, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc88a).setScale(5.5).setAlpha(0).setDepth(DEPTH.top - 10);
   }
 
-  private updateAmbient(z: Zone) {
+  private updateAmbient(zone: Zone) {
+    const z = zoneStyle(zone);
     const cam = this.cameras.main;
     const v = cam.worldView;
     const want: Record<string, boolean> = {
-      leaves: z === Zone.Forest, fireflies: z === Zone.Swamp, fog: z === Zone.Swamp,
+      leaves: z === Zone.Forest && zone !== Zone.MistWood, fireflies: z === Zone.Swamp, fog: z === Zone.Swamp || GLOOM.has(zone),
       embers: z === Zone.Ashlands || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Volcano, ash: z === Zone.Volcano,
-      pollen: z === Zone.Meadow || z === Zone.Town, snow: z === Zone.Snow || z === Zone.SnowCity, sand: z === Zone.Desert || z === Zone.OasisCity, bubbles: z === Zone.Underwater,
+      pollen: (z === Zone.Meadow || z === Zone.Town) && zone !== Zone.UmbrathCity, snow: z === Zone.Snow || z === Zone.SnowCity, sand: z === Zone.Desert || z === Zone.OasisCity, bubbles: false,
     };
     for (const [k, e] of Object.entries(this.ambient)) {
       e.setPosition(v.x - 40, v.y - (k === "leaves" ? 60 : 0));
@@ -263,8 +275,29 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- юниты ----------
-  addUnit(id: string, u: UnitState) {
-    if (this.units.has(id)) return;
+  /** Мобы и NPC далеко от героя: только состояние, без спрайтов (создаются при приближении). */
+  private farUnits = new Map<string, UnitState>();
+  private cullAt = 0;
+  private isFar(u: UnitState, r: number) {
+    return Math.abs(u.x - this.pos.x) > r || Math.abs(u.y - this.pos.y) > r;
+  }
+  /** Подгрузка юнитов вокруг героя и выгрузка далёких (как куски карты). */
+  private cullUnits() {
+    if (!this.me) return;
+    for (const [id, u] of this.farUnits) if (!this.isFar(u, UNIT_NEAR)) { this.farUnits.delete(id); this.addUnit(id, u, true); }
+    for (const [id, v] of this.units) {
+      if (id === net.id || id === this.targetId || v.u.kind === UnitKind.Player || !this.isFar(v.u, UNIT_FAR)) continue;
+      v.destroy();
+      this.units.delete(id);
+      this.farUnits.set(id, v.u);
+    }
+  }
+  addUnit(id: string, u: UnitState, near = false) {
+    if (this.units.has(id) || this.farUnits.has(id)) return;
+    if (!near && id !== net.id && u.kind !== UnitKind.Player && u.kind !== UnitKind.Pet && (!this.me || this.isFar(u, UNIT_NEAR))) {
+      this.farUnits.set(id, u);
+      return;
+    }
     const v = new UnitView(this, id, u, id === net.id);
     this.units.set(id, v);
     if (id === net.id) {
@@ -274,6 +307,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
   removeUnit(id: string) {
+    this.farUnits.delete(id);
     this.units.get(id)?.destroy();
     this.units.delete(id);
     if (this.targetId === id) this.setTarget(null);
@@ -590,6 +624,7 @@ export class GameScene extends Phaser.Scene {
       }
       me.update(dt, this.pos.x, this.pos.y);
     }
+    if (now >= this.cullAt) { this.cullAt = now + 400; this.cullUnits(); }
     for (const [id, v] of this.units) {
       if (id !== net.id) v.update(dt);
       // шаги и звон доспехов идущей стражи рядом (до ~20 тайлов, громкость по расстоянию)
@@ -644,22 +679,22 @@ export class GameScene extends Phaser.Scene {
         // фракции: спорная зона (PvP с противоположной фракцией) и нейтральный город (бой запрещён)
         const place = net.kind === "world" ? pvpPlace(this.map, this.pos.x, this.pos.y) : "peace";
         const base = ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`);
-        const sub = place === "pvp" ? `${base} · спорная зона: PvP фракций` : place === "neutral" ? "Нейтральный город: бой фракций запрещён" : base;
-        this.hud.showZone(ZONES[z].name, sub, place === "pvp" ? "#ff7a5a" : ZONE_COLOR[z]);
+        const cap = z === Zone.SolgardCity ? "solgard" : z === Zone.UmbrathCity ? "umbrath" : null;
+        const sub = cap ? (net.self?.faction === cap ? "Столица вашей фракции" : "Вражеская столица: стража атакует чужаков")
+          : place === "pvp" ? `${base} · спорная зона: PvP фракций` : place === "neutral" ? "Нейтральный город: бой фракций запрещён" : base;
+        this.hud.showZone(ZONES[z].name, sub, place === "pvp" ? "#ff7a5a" : ZONE_COLOR[z] ?? ZONE_COLOR[zoneStyle(z)]);
       }
     }
     const cam = this.cameras.main;
     const tint = zoneTint(z);
     // ночь (общий цикл по часам): затемнение и синева на поверхности, не в подземельях/арене/под водой
-    const night = z === Zone.Dungeon || z === Zone.Arena || z === Zone.Underwater || z === Zone.Volcano ? 0 : nightLevel(Date.now());
+    const zs = zoneStyle(z);
+    const night = z === Zone.Dungeon || z === Zone.Arena || zs === Zone.Volcano ? 0 : nightLevel(Date.now());
     const target = Math.max(tint.dark, night * 0.5);
     const dark = this.world.dark;
     const nc = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.IntegerToColor(tint.color), Phaser.Display.Color.IntegerToColor(0x060a28), 100, Math.round(night * 100));
     dark.setFillStyle(Phaser.Display.Color.GetColor(nc.r, nc.g, nc.b), 1);
-    const cs = this.world.caustics;
-    cs.setSize(cam.width, cam.height).setAlpha(cs.alpha + ((z === Zone.Underwater ? 0.3 : 0) - cs.alpha) * Math.min(1, dt * 2));
-    cs.setTilePosition(now * 0.02, now * 0.012);
-    sfx.setAmbience(AMBIENCE[z] ?? null);
+    sfx.setAmbience(AMBIENCE[z] ?? AMBIENCE[zs] ?? null);
     dark.setSize(cam.width / cam.zoom + 4, cam.height / cam.zoom + 4).setPosition(-2, -2);
     dark.setAlpha(dark.alpha + (target - dark.alpha) * Math.min(1, dt * 2));
     dark.setDisplayOrigin(0, 0);

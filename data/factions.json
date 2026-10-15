@@ -1,5 +1,5 @@
 {
-  "_doc": "Фракции (FACTIONS.md, shared/factions.ts). color — имена и чат игроков фракции в мире; ui — цвета интерфейса своего героя. pvpZones — спорные зоны (Zone из shared/map.ts), где фракции враждуют; neutralCities — города, где бой между фракциями запрещён и стража бьёт нарушителя. До задачи 47 (столицы фракций) все города нейтральные.",
+  "_doc": "Фракции (FACTIONS.md, shared/factions.ts). color — имена и чат игроков фракции в мире; ui — цвета интерфейса своего героя. pvpZones — спорные зоны (Zone из shared/map.ts), где фракции враждуют; neutralCities — города, где бой между фракциями запрещён и стража бьёт нарушителя. Столицы (data/cities.json, поле capital): свои герои появляются и возрождаются там; чужак в столице — нарушитель, стража бьёт его, защитники могут атаковать.",
   "factions": {
     "solgard": {
       "name": "Сольгард",
@@ -22,7 +22,7 @@
       "classes": ["deathknight", "bloodweaver", "darkranger", "warlock", "reaver"]
     }
   },
-  "pvpZones": ["Ashlands", "Dungeon", "Volcano", "Underwater"],
+  "pvpZones": ["Ashlands", "Dungeon", "Volcano", "StormPeaks"],
   "neutralCities": ["ember", "oasis", "snow_valley"],
   "outlaw": {
     "_doc": "Нарушитель в нейтральном городе: стража бьёт его каждые hitMs на pctMaxHp от макс. здоровья, пока не истечёт ms.",

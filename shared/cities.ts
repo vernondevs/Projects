@@ -1,16 +1,17 @@
 /**
- * Города: Эмберхолл (shared/town.ts) и два малых — Оазис Миражей (пустыня) и Снежная долина (снега).
- * Малые города строятся по одной раскладке (стены 27×21, две ворота — север и юг), стиль задаёт арт и покрытие.
+ * Города: Эмберхолл (shared/town.ts, нейтральный центр мира), малые нейтральные — Оазис Миражей (пустыня) и Снежная долина (снега),
+ * и столицы фракций на краях мира — Аурелион (Сольгард, запад) и Мортхейм (Умбрат, восток).
+ * Малые города и столицы строятся по одной раскладке (стены 27×21, две ворота — север и юг), стиль задаёт арт и покрытие.
  * Файл не зависит от map.ts: карта, сервер (стражи, телепорт, задания) и клиент берут разметку отсюда.
  *
  *   смещения (dx, dy) — от центра города; стены dx = ±14, dy = ±11; башни 2×2 снаружи;
  *   улицы: проспект |dx|≤1, поперечная |dy|≤1, кольцо вдоль стен dx = ±12 / dy = ±9; площадь |dx|≤6, |dy|≤4.
  */
 import data from "../data/cities.json";
-import { TILE } from "./constants";
+import { MAP_W, MID, TILE } from "./constants";
 import { TOWN, TOWN_HALF } from "./town";
 
-export type CityStyle = "desert" | "snow";
+export type CityStyle = "desert" | "snow" | "solgard" | "umbrath";
 export const CITY_WALL = { x: 14, y: 11 };
 /** Полуразмеры зоны города вместе с башнями. */
 export const CITY_HALF = { x: 15, y: 12 };
@@ -53,6 +54,16 @@ export const STYLE = {
     wall_h: "sand_wall_h", wall_v: "sand_wall_v", tower: "sand_tower", gate: "sand_gate", houses: ["sand_house", "sand_house_b"],
     stalls: ["stall_sand", "stall_green"], light: "lamp", tree: "palm",
     extra: [["tent", -11, -2], ["tent", 9, -2], ["palm", -9, 4], ["palm", 9, -4]] as [string, number, number][],
+  },
+  solgard: {
+    wall_h: "sol_wall_h", wall_v: "sol_wall_v", tower: "sol_tower", gate: "sol_gate", houses: ["sol_house", "sol_temple"],
+    stalls: ["stall_gold", "stall_blue"], light: "lamp", tree: "oak",
+    extra: [["sun_banner", -11, -2], ["sun_banner", 10, -2], ["sun_statue", -9, 5], ["sun_banner", 9, -4]] as [string, number, number][],
+  },
+  umbrath: {
+    wall_h: "umb_wall_h", wall_v: "umb_wall_v", tower: "umb_tower", gate: "umb_gate", houses: ["umb_house", "umb_crypt"],
+    stalls: ["stall_purple", "stall_purple"], light: "soul_brazier", tree: "dead_tree",
+    extra: [["crown_banner", -11, -2], ["crown_banner", 10, -2], ["bone_pile", -9, 5], ["dark_obelisk", 9, -4]] as [string, number, number][],
   },
   snow: {
     wall_h: "pal_h", wall_v: "pal_v", tower: "pal_tower", gate: "pal_gate", houses: ["log_house", "log_house_b"],
@@ -99,6 +110,8 @@ export interface City {
   name: string;
   /** Стиль малого города; у Эмберхолла нет. */
   style?: CityStyle;
+  /** Столица фракции: здесь появляются и возрождаются её герои; врагам вход под ударами стражи. */
+  capital?: string;
   /** Центр в тайлах и полуразмеры зоны. */
   x: number;
   y: number;
@@ -122,8 +135,9 @@ const tileCenter = (tx: number, ty: number) => ({ x: tx * TILE + 16, y: ty * TIL
 const npcStall = (c: { x: number; y: number }, at: [number, number], n: RawNpc): CityNpc => ({ ...n, tint: Number(n.tint), x: (c.x + at[0]) * TILE, y: (c.y + at[1]) * TILE + 8 });
 const npcTile = (c: { x: number; y: number }, at: [number, number], n: RawNpc): CityNpc => ({ ...n, tint: Number(n.tint), ...tileCenter(c.x + at[0], c.y + at[1]) });
 
-function small(id: "oasis" | "snow_valley", style: CityStyle, x: number, y: number): City {
-  const d = data[id];
+type CityId = Exclude<keyof typeof data, "_doc">;
+function small(id: CityId, style: CityStyle, x: number, y: number): City {
+  const d = data[id] as (typeof data)[CityId] & { capital?: string };
   const c = { x, y };
   const st = { x: x + STONE_AT[0], y: y + STONE_AT[1] };
   return {
@@ -131,12 +145,14 @@ function small(id: "oasis" | "snow_valley", style: CityStyle, x: number, y: numb
     stoneTile: st,
     stone: { x: st.x * TILE + 16, y: (st.y + 1) * TILE - 2 },
     arrive: tileCenter(st.x, st.y + 1),
-    spawn: tileCenter(x, y + 4),
+    // столица: в центре площади (просторно — сюда приходят новички); малый город — у колодца
+    spawn: d.capital ? tileCenter(x, y) : tileCenter(x, y + 4),
     merchant: npcStall(c, MERCHANT_AT, d.merchant),
     cook: npcStall(c, COOK_AT, d.cook),
     quest: npcTile(c, QUEST_AT, d.quest),
     guard: d.guard,
     people: d.people,
+    capital: d.capital,
   };
 }
 
@@ -149,20 +165,33 @@ export const CITIES: City[] = [
     arrive: tileCenter(EMBER_STONE.x, EMBER_STONE.y + 1),
     spawn: tileCenter(TOWN.x, TOWN.y + 3),
   },
-  small("oasis", "desert", 30, 152),
-  small("snow_valley", "snow", 112, 18),
+  small("oasis", "desert", 30 + MID.x, 152 + MID.y),
+  small("snow_valley", "snow", 112 + MID.x, 18 + MID.y),
+  // столицы на противоположных краях мира
+  small("aurelion", "solgard", 56, 180),
+  small("morthaim", "umbrath", MAP_W - 57, 180),
 ];
 export const cityById = (id: string) => CITIES.find((c) => c.id === id);
+/** Столица фракции (место появления и возрождения её героев); без фракции — Эмберхолл. */
+export const homeCity = (faction: string | undefined): City => CITIES.find((c) => c.capital && c.capital === faction) ?? CITIES[0];
+/** Чужая столица: телепорт не открывается, возрождения там нет. */
+export const isEnemyCapital = (c: City, faction: string | undefined) => !!c.capital && c.capital !== faction;
+/** Открыт ли город для героя: своя столица — всегда, остальные — после первого визита пешком. */
+export function cityKnown(c: City, found: readonly string[] | undefined, faction: string | undefined): boolean {
+  if (isEnemyCapital(c, faction)) return false;
+  if (!faction) return c.id === "ember" || !!found?.includes(c.id);
+  return homeCity(faction).id === c.id || !!found?.includes(c.id);
+}
 /** Город, в чьей зоне лежит клетка (тайлы), или null. */
 export function cityAtTile(x: number, y: number): City | null {
   for (const c of CITIES) if (Math.abs(x - c.x) <= c.half.x && Math.abs(y - c.y) <= c.half.y) return c;
   return null;
 }
-/** Ближайший к точке (пиксели) город из списка открытых; Эмберхолл открыт всегда. */
-export function nearestCity(found: readonly string[] | undefined, px: number, py: number): City {
-  let best = CITIES[0], bd = Infinity;
+/** Ближайший к точке (пиксели) город из открытых герою: своя столица открыта всегда (без фракции — Эмберхолл). */
+export function nearestCity(found: readonly string[] | undefined, px: number, py: number, faction?: string): City {
+  let best = homeCity(faction), bd = Infinity;
   for (const c of CITIES) {
-    if (c.id !== "ember" && !found?.includes(c.id)) continue;
+    if (!cityKnown(c, found, faction)) continue;
     const d = Math.hypot(c.spawn.x - px, c.spawn.y - py);
     if (d < bd) { bd = d; best = c; }
   }

@@ -3,6 +3,7 @@ import { lookTint } from "../../../shared/accounts";
 import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
 import { MAP_VERSION } from "../../../shared/map";
+import { homeCity } from "../../../shared/cities";
 import { derive, xpToNext, type Derived } from "../../../shared/formulas";
 import { FOOD } from "../../../shared/food";
 import { MOUNTS } from "../../../shared/mounts";
@@ -13,6 +14,7 @@ import { hasUnknownSkills, starterSkill } from "../../../shared/skills";
 import type { PlayerSave } from "../db";
 import { Unit } from "../rooms/schema";
 
+/** Новый герой в точке spawn (в игре — столица его фракции, см. server/src/index.ts). */
 export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSave {
   const inventory: (Item | null)[] = new Array(INVENTORY_SIZE).fill(null);
   inventory[0] = { ...makeItem("hp_potion", 1, Rarity.Common), qty: 5 };
@@ -88,6 +90,8 @@ export class Player {
   frenzyLeech = 0;
   /** Нарушитель мира в нейтральном городе: стража бьёт его до этого момента. */
   outlawUntil = 0;
+  /** Сейчас во вражеской столице (стража бьёт). */
+  intruder = false;
   guardHitAt = 0;
   /** Последний рубеж: действует до / откат до. */
   lastStandUntil = 0;
@@ -290,8 +294,11 @@ export class Player {
     };
   }
 
+  /** Погибший сохраняется в столице своей фракции (spawn — запасная точка без столицы). */
   toSave(spawn: { x: number; y: number }): PlayerSave {
     const s = this.save;
+    const home = homeCity(this.faction);
+    if (home.capital) spawn = home.spawn;
     s.x = this.dead ? spawn.x : this.unit.x;
     s.y = this.dead ? spawn.y : this.unit.y;
     s.mapVer = MAP_VERSION;

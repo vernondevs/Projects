@@ -1,6 +1,7 @@
 import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
 import { ARENA_MODES, MODE_NAMES, rankOf, TEAM_SIZE, type ArenaInfo, type ArenaMode, type ModeRating } from "../../../shared/arena";
-import { STAT_NAMES, type StatKey } from "../../../shared/classes";
+import { classFaction, STAT_NAMES, type StatKey } from "../../../shared/classes";
+import { homeCity } from "../../../shared/cities";
 import { PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
 import { KICK_CODE, KICK_TEXT, LOGOUT_CODE, LOGOUT_COMBAT_MS, RECONNECT_SEC } from "../../../shared/accounts";
 import { freshChars, sessionOf } from "../accounts";
@@ -114,11 +115,13 @@ export class WorldRoom extends Room<WorldState> {
   }
 
   override onJoin(client: Client, _options: JoinOptions, auth: AuthResult) {
-    // позиция из сохранения другой версии карты или в стене/воде — к фонтану
+    // позиция из сохранения другой версии карты или в стене/воде — в столицу своей фракции
     const s = auth.save, map = this.world.map;
     if (s.mapVer !== MAP_VERSION || !walkable(map, s.x, s.y, PLAYER_RADIUS)) {
-      s.x = map.playerSpawn.x;
-      s.y = map.playerSpawn.y;
+      const home = homeCity(s.faction ?? classFaction(s.cls));
+      const sp = home.capital ? home.spawn : map.playerSpawn;
+      s.x = sp.x;
+      s.y = sp.y;
     }
     s.mapVer = MAP_VERSION;
     const id = client.sessionId;

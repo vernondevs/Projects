@@ -4,9 +4,11 @@ import { BOSS_SPAWNS, generateMap } from "../shared/map";
 import { MOBS } from "../shared/mobs";
 import { BESTIARY } from "../shared/bestiary";
 import { MAP_SEED } from "../shared/constants";
+import { homeCity } from "../shared/cities";
 
 const MAP = generateMap(MAP_SEED);
-const town = MAP.playerSpawn;
+/** Боты-воины — Сольгард: появляются и возрождаются в Аурелионе, рядом — слабые мобы Золотых нив. */
+const town = homeCity("solgard").spawn;
 /** Ближайшая к городу точка появления моба заданного типа. */
 function spawnOf(mob: string) {
   return MAP.spawns.filter((s) => s.mob === mob).sort((a, b) => Math.hypot(a.x - town.x, a.y - town.y) - Math.hypot(b.x - town.x, b.y - town.y))[0];

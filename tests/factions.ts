@@ -63,6 +63,8 @@ async function main() {
 
   await check("все умения Умбрата срабатывают без ошибок (симуляция мира)", () => {
     const w = new World(new WorldState(), () => {});
+    // мобы спорной зоны теперь 38+ уровня: убираем их, проверяем только умения
+    for (const m of [...w.mobs.values()]) w.removeMob(m);
     const p0 = pvpSpot()!;
     for (const cls of FACTIONS.umbrath.classes) {
       const save = newSave(cls, p0);

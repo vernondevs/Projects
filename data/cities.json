@@ -25,5 +25,35 @@
     "merchant": { "id": "snow_merchant", "name": "Торговец Бьорн", "sprite": "merchant", "tint": "0xc8dcff", "color": "#b8d4ff" },
     "cook": { "id": "snow_cook", "name": "Повар Олаф", "sprite": "merchant", "tint": "0xc0e8e0", "color": "#a8e0d0", "greeting": "«Горячая похлёбка согреет и мёртвого. Бери, пока не остыла!»" },
     "quest": { "id": "snow_hunter", "name": "Охотник Свен", "sprite": "warrior", "tint": "0xc0d8ff", "color": "#c8e0ff", "greeting": "«Зима голодная, а волки — наглые. Помоги, и я в долгу не останусь.»" }
+  },
+  "aurelion": {
+    "name": "Аурелион",
+    "capital": "solgard",
+    "feature": "Столица Сольгарда: белый камень, золотые купола, знамёна с восходящим солнцем. Храм Солнца у южных ворот, статуя Первого Короля на площади.",
+    "guard": { "name": "Солнечный страж", "sprite": "guard", "lines": ["Во имя Солнца — стой!", "Аурелион не падёт!", "Свет хранит эти стены.", "Мёртвым здесь не место!"] },
+    "people": [
+      { "name": "Жрица Элинор", "sprite": "citizen1" },
+      { "name": "Каменщик Гордей", "sprite": "citizen2" },
+      { "name": "Летописец Аврелий", "sprite": "citizen4" },
+      { "name": "Знаменосица Мирра", "sprite": "citizen3" }
+    ],
+    "merchant": { "id": "aurelion_merchant", "name": "Казначей Лукиан", "sprite": "merchant", "tint": "0xfff0b0", "color": "#ffe27a" },
+    "cook": { "id": "aurelion_cook", "name": "Пекарь Бенедикт", "sprite": "merchant", "tint": "0xffe8c8", "color": "#ffd8a0", "greeting": "«Солнечный хлеб и медовые лепёшки! Свет светом, а голодным в бой не ходят.»" },
+    "quest": { "id": "aurelion_captain", "name": "Капитан Ровена", "sprite": "warrior", "tint": "0xfff0c0", "color": "#ffe8a0", "greeting": "«Новобранец? Отлично. Нивы кишат тварями — докажи, что достоин знамени Солнца.»" }
+  },
+  "morthaim": {
+    "name": "Мортхейм",
+    "capital": "umbrath",
+    "feature": "Столица Умбрата: тёмный камень, шпили, кости и цепи, пурпурные огни душ и вечный туман. Костяные крипты вдоль стен, чёрный обелиск Мёртвой Короны.",
+    "guard": { "name": "Стражник Короны", "sprite": "skeleton_knight", "lines": ["Живым здесь не рады.", "Корона видит всё.", "Смерть — лишь начало.", "Ещё один тёплый… Прочь!"] },
+    "people": [
+      { "name": "Плакальщица Морвен", "sprite": "citizen3" },
+      { "name": "Могильщик Груль", "sprite": "citizen2" },
+      { "name": "Костяной писарь Эзра", "sprite": "citizen4" },
+      { "name": "Шептунья Лиара", "sprite": "citizen1" }
+    ],
+    "merchant": { "id": "morthaim_merchant", "name": "Скупщик Вальдер", "sprite": "merchant", "tint": "0xc8a0ff", "color": "#c890ff" },
+    "cook": { "id": "morthaim_cook", "name": "Варщица Ирма", "sprite": "merchant", "tint": "0xa0d8a0", "color": "#a0f090", "greeting": "«Мёртвым еда не нужна? Чепуха. Похлёбка из болотных грибов держит кости вместе.»" },
+    "quest": { "id": "morthaim_warden", "name": "Смотритель Кроу", "sprite": "darkranger", "tint": "0xd0b0ff", "color": "#d8b8ff", "greeting": "«Восставший, Корона ждёт службы. Курганы полны тех, кто не желает подчиняться.»" }
   }
 }

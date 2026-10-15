@@ -5,7 +5,9 @@
  */
 import Phaser from "phaser";
 import { TILE } from "../../../shared/constants";
-import { CELL_WALL, TERRAIN_COUNT, Zone, type MapObject, type WorldMap } from "../../../shared/map";
+import { CELL_WALL, GROUND_OBJECTS, TERRAIN_COUNT, Zone, zoneStyle, type MapObject, type WorldMap } from "../../../shared/map";
+/** Шрифт надписей (как у юнитов; без импорта из UnitView, чтобы не было цикла). */
+const FONT = '"Rubik", "Trebuchet MS", sans-serif';
 
 const COLS = 18;
 export const DEPTH = { water: -1000, terrain: -900, walls: -800, overlay: -700, ground: -600, top: 1e6 };
@@ -24,8 +26,6 @@ export interface WorldView {
   drift: { x: number; y: number };
   dark: Phaser.GameObjects.Rectangle;
   macro: Phaser.GameObjects.TileSprite;
-  /** Подводные блики: накладываются на экран, пока герой в бухте. */
-  caustics: Phaser.GameObjects.TileSprite;
   /** Узел добычи появился (true) или исчерпан (false). */
   setNode(id: number, up: boolean): void;
   /** Подгрузка и выгрузка кусков мира вокруг камеры (каждый кадр, дёшево). */
@@ -58,30 +58,6 @@ function macroNoise(scene: Phaser.Scene) {
     const dark = n < 0.5;
     img.data[i] = dark ? 0 : 255; img.data[i + 1] = dark ? 0 : 250; img.data[i + 2] = dark ? 10 : 200;
     img.data[i + 3] = Math.round(Math.abs(n - 0.5) * 2 * 60);
-  }
-  ctx.putImageData(img, 0, 0);
-  tex.refresh();
-}
-
-/** Бесшовные блики воды (каустика) для подводной зоны. */
-function causticTex(scene: Phaser.Scene) {
-  const S = 128;
-  if (scene.textures.exists("caustics")) return;
-  const tex = scene.textures.createCanvas("caustics", S, S)!;
-  const ctx = tex.getContext();
-  const img = ctx.createImageData(S, S);
-  const g = (x: number, y: number, c: number, s: number) => cellHash(((x % c) + c) % c + s * 131, ((y % c) + c) % c);
-  const vn = (x: number, y: number, cell: number, s: number) => {
-    const n = S / cell, fx = x / cell, fy = y / cell, x0 = Math.floor(fx), y0 = Math.floor(fy);
-    const tx = fx - x0, ty = fy - y0, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
-    const a = g(x0, y0, n, s), b = g(x0 + 1, y0, n, s), c = g(x0, y0 + 1, n, s), d = g(x0 + 1, y0 + 1, n, s);
-    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
-  };
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const d = Math.abs(vn(x, y, 32, 1) - vn(x, y, 32, 2));
-    const v = Math.max(0, 1 - d * 14);
-    const i = (y * S + x) * 4;
-    img.data[i] = 150; img.data[i + 1] = 235; img.data[i + 2] = 255; img.data[i + 3] = Math.round(v * v * 255);
   }
   ctx.putImageData(img, 0, 0);
   tex.refresh();
@@ -140,8 +116,6 @@ export function buildWorld(scene: Phaser.Scene, m: WorldMap): WorldView {
     objs.push(g);
     if (flicker) scene.tweens.add({ targets: g, alpha: { from: alpha * 0.7, to: alpha * 1.1 }, scale: { from: scale * 0.92, to: scale * 1.05 }, duration: 160 + Math.random() * 220, yoyo: true, repeat: -1 });
   };
-  causticTex(scene);
-  const caustics = scene.add.tileSprite(0, 0, 10, 10, "caustics").setOrigin(0).setScrollFactor(0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(DEPTH.top - 25);
   // узлы добычи: картинка и свечение прячутся, пока ресурс исчерпан
   const nodeOf = new Map<MapObject, number>(m.nodes.map((n) => [m.objects[n.id], n.id]));
   const nodeObjs = new Map<number, Phaser.GameObjects.GameObject[]>();
@@ -150,7 +124,7 @@ export function buildWorld(scene: Phaser.Scene, m: WorldMap): WorldView {
   const makeObject = (o: MapObject, objs: Phaser.GameObjects.GameObject[]) => {
     const img = scene.add.image(o.x, o.y, `o_${o.kind}`).setOrigin(0.5, 1);
     objs.push(img);
-    if (o.kind === "lilypad") img.setDepth(DEPTH.ground);
+    if (o.kind === "lilypad" || GROUND_OBJECTS.has(o.kind)) img.setDepth(DEPTH.ground - (GROUND_OBJECTS.has(o.kind) ? 1 : 0));
     else if (o.kind === "flowers" || o.kind === "tallgrass" || o.kind === "bones" || o.kind === "ember_vent") img.setDepth(o.y - 20);
     else img.setDepth(o.y);
     if (o.kind === "oak" || o.kind === "pine") {
@@ -168,11 +142,16 @@ export function buildWorld(scene: Phaser.Scene, m: WorldMap): WorldView {
       nodeObjs.set(nid, mine);
       if (depleted.has(nid)) for (const g of mine) (g as Phaser.GameObjects.Image).setVisible(false);
     }
-    if (o.kind === "air_vent") {
-      const e = scene.add.particles(o.x, o.y - 12, "fx_bubble", { frequency: 240, lifespan: 2200, speedY: { min: -55, max: -35 }, speedX: { min: -6, max: 6 }, scale: { start: 0.9, end: 1.5 }, alpha: { start: 0.9, end: 0 } });
-      e.setDepth(DEPTH.top - 12);
-      objs.push(e);
-    }
+    // указатель: надпись с направлениями над столбом
+    if (o.label) objs.push(scene.add.text(o.x, o.y - 50, o.label, { fontFamily: FONT, fontSize: "8px", color: "#ffe8b0", stroke: "#1a0e08", strokeThickness: 3, resolution: 3, align: "center", wordWrap: { width: 190 } }).setOrigin(0.5, 1).setDepth(o.y + 1));
+    if (o.kind === "soul_brazier") glow(objs, o.x, o.y - 26, 0xb46aff, 2.6, 0.6, true);
+    if (o.kind === "campfire") glow(objs, o.x, o.y - 12, 0xff9a3a, 2.4, 0.6, true);
+    if (o.kind === "dark_obelisk") glow(objs, o.x, o.y - 50, 0x9a4aff, 1.8, 0.45, true);
+    if (o.kind === "sun_statue") glow(objs, o.x, o.y - 60, 0xffe08a, 1.8, 0.4);
+    if (o.kind === "sol_temple") glow(objs, o.x, o.y - 96, 0xffd860, 2.2, 0.35);
+    if (o.kind === "umb_tower") glow(objs, o.x, o.y - 70, 0xb46aff, 1.4, 0.45, true);
+    if (o.kind === "umb_house" || o.kind === "umb_crypt") for (const dx of [-36, 38]) glow(objs, o.x + dx, o.y - 30, 0xb46aff, 1.1, 0.35);
+    if (o.kind === "sol_house") for (const dx of [-36, 38]) glow(objs, o.x + dx, o.y - 30, 0xffd27a, 1.2, 0.35);
     if (o.kind === "torch") glow(objs, o.x, o.y - 22, 0xff9a3a, 2.4, 0.55, true);
     if (o.kind === "brazier") glow(objs, o.x, o.y - 26, 0xff8a2a, 2.6, 0.6, true);
     if (o.kind === "teleport_stone") glow(objs, o.x, o.y - 34, 0x7ac0ff, 2.2, 0.5, true);
@@ -263,11 +242,23 @@ export function buildWorld(scene: Phaser.Scene, m: WorldMap): WorldView {
     else depleted.add(id);
     for (const g of nodeObjs.get(id) ?? []) (g as Phaser.GameObjects.Image).setVisible(up);
   };
-  return { water, drift, dark, macro, caustics, setNode, update };
+  return { water, drift, dark, macro, setNode, update };
 }
 
 /** Затемнение и цвет подложки зоны (над миром, под интерфейсом). */
-export function zoneTint(z: Zone): { dark: number; color: number } {
+export function zoneTint(zone: Zone): { dark: number; color: number } {
+  // земли Умбрата: пурпурный сумрак
+  switch (zone) {
+    case Zone.UmbrathCity: return { dark: 0.22, color: 0x1a0828 };
+    case Zone.Barrows: return { dark: 0.2, color: 0x140a20 };
+    case Zone.MistWood: return { dark: 0.16, color: 0x10141a };
+    case Zone.PlagueMarsh: return { dark: 0.22, color: 0x0c1408 };
+    case Zone.BoneRidge: return { dark: 0.2, color: 0x140a18 };
+    case Zone.SolgardCity:
+    case Zone.SunFields: return { dark: 0, color: 0x2a1a06 };
+    case Zone.StormPeaks: return { dark: 0.18, color: 0x0a1a3a };
+  }
+  const z = zoneStyle(zone);
   switch (z) {
     case Zone.Dungeon: return { dark: 0.5, color: 0x0a0614 };
     case Zone.Swamp: return { dark: 0.18, color: 0x0a1410 };
@@ -279,7 +270,6 @@ export function zoneTint(z: Zone): { dark: number; color: number } {
     case Zone.SnowCity:
     case Zone.Snow: return { dark: 0.12, color: 0x9ac8ff };
     case Zone.Volcano: return { dark: 0.22, color: 0x2a0806 };
-    case Zone.Underwater: return { dark: 0.38, color: 0x0a4c8c };
     default: return { dark: 0, color: 0x0a0614 };
   }
 }

@@ -1,5 +1,5 @@
 /** Города на сервере: открытие телепортов, телепорт-кастинг (3 с) и задания. Всё проверяется здесь, клиент шлёт намерения. */
-import { cityAtTile, cityById, stoneNear, teleportPrice, TELEPORT_CAST_MS } from "../../../shared/cities";
+import { cityAtTile, cityById, cityKnown, homeCity, isEnemyCapital, stoneNear, teleportPrice, TELEPORT_CAST_MS } from "../../../shared/cities";
 import { TILE } from "../../../shared/constants";
 import { makeItem, Rarity } from "../../../shared/items";
 import { QUESTS, QUEST_GIVERS, QUEST_MAX_ACTIVE } from "../../../shared/quests";
@@ -12,22 +12,22 @@ import type { World } from "./World";
 
 const err = (p: Player, text: string) => p.send("toast", { text, kind: "error" });
 
-/** Каждый тик: открытие города при входе в его зону и ход каста телепорта. */
+/** Каждый тик: открытие города при первом визите пешком (своя столица известна сразу, чужая не открывается) и ход каста телепорта. */
 export function tickCities(w: World) {
   if (w.opts.mobs === false) return;
   for (const p of w.players.values()) {
     if (p.dead || p.team !== 0) continue;
+    const found = (p.save.cities ??= []);
+    const home = homeCity(p.faction);
+    if (!found.includes(home.id)) {
+      found.push(home.id);
+      p.selfDirty = true;
+    }
     const c = cityAtTile(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
-    if (c) {
-      const found = (p.save.cities ??= []);
-      if (c.id !== "ember" && !found.includes(c.id)) {
-        found.push(c.id);
-        p.selfDirty = true;
-        p.send("toast", { text: `Открыт телепорт: ${c.name}`, kind: "level" });
-      } else if (c.id === "ember" && !found.includes("ember")) {
-        found.push("ember");
-        p.selfDirty = true;
-      }
+    if (c && !found.includes(c.id) && !isEnemyCapital(c, p.faction)) {
+      found.push(c.id);
+      p.selfDirty = true;
+      p.send("toast", { text: `Открыт телепорт: ${c.name}`, kind: "level" });
     }
     const t = p.tele;
     if (!t) continue;
@@ -58,7 +58,8 @@ export function startTeleport(w: World, p: Player, id: unknown) {
   if (!from) return err(p, "Подойдите к камню телепорта");
   const to = cityById(id);
   const found = p.save.cities ?? [];
-  if (!to || to.id === from.id || (to.id !== "ember" && !found.includes(to.id))) return err(p, "Этот телепорт не открыт");
+  if (isEnemyCapital(from, p.faction)) return err(p, "Камень врага вам не подчиняется");
+  if (!to || to.id === from.id || !cityKnown(to, found, p.faction)) return err(p, "Этот телепорт не открыт");
   if (p.tele) return;
   if (p.inCombat(w.time)) return err(p, "Нельзя телепортироваться в бою");
   if (p.stunUntil > w.time || p.mountCast) return;

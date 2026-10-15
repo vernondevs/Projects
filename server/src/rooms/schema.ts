@@ -1,5 +1,8 @@
 /** Публичное состояние мира, которое Colyseus синхронизирует со всеми клиентами. */
-import { MapSchema, Schema, type } from "@colyseus/schema";
+import { Encoder, MapSchema, Schema, type } from "@colyseus/schema";
+
+/** Большая карта: ~1100 мобов в полном состоянии при входе не помещаются в буфер по умолчанию (8 КБ → 1 МБ). */
+Encoder.BUFFER_SIZE = 1024 * 1024;
 
 export class Unit extends Schema {
   @type("uint8") kind = 0;

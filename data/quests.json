@@ -8,11 +8,23 @@
     "oasis_cactus": { "giver": "oasis_scout", "name": "Колючий урожай", "kind": "gather", "target": "cactus_juice", "n": 6, "level": 18,
       "text": "Нашему повару нужен кактусовый сок. Добудь шесть порций у кактусовых зарослей.", "done": "Касим будет в восторге. Вот тебе за труды.",
       "reward": { "gold": 180, "xp": 600, "item": { "base": "hp_potion", "qty": 5 } } },
-    "snow_wolves": { "giver": "snow_hunter", "name": "Волчья стая", "kind": "kill", "target": "frost_wolf", "n": 8, "level": 20,
+    "snow_wolves": { "giver": "snow_hunter", "name": "Волчья стая", "kind": "kill", "target": "frost_wolf", "n": 8, "level": 30,
       "text": "Ледяные волки режут скот. Убей восьмерых, и стада вздохнут.", "done": "Тише стало в долине. Спасибо!",
       "reward": { "gold": 260, "xp": 900 } },
-    "snow_ice": { "giver": "snow_hunter", "name": "Лёд для коптильни", "kind": "gather", "target": "ice_crystal", "n": 6, "level": 20,
+    "snow_ice": { "giver": "snow_hunter", "name": "Лёд для коптильни", "kind": "gather", "target": "ice_crystal", "n": 6, "level": 30,
       "text": "Для ледника нужны ледяные кристаллы. Принеси шесть, добыв их из ледяных глыб.", "done": "Мясо до весны сохранится. Держи.",
-      "reward": { "gold": 220, "xp": 800, "item": { "base": "mp_potion", "qty": 5 } } }
+      "reward": { "gold": 220, "xp": 800, "item": { "base": "mp_potion", "qty": 5 } } },
+    "aurelion_slimes": { "giver": "aurelion_captain", "name": "Слизь на нивах", "kind": "kill", "target": "slime", "n": 6, "level": 1,
+      "text": "Слизни портят урожай у самых стен Аурелиона. Убей шестерых — и знамя Солнца примет тебя.", "done": "Неплохо для новобранца. Свет с тобой.",
+      "reward": { "gold": 40, "xp": 120, "item": { "base": "hp_potion", "qty": 3 } } },
+    "aurelion_goblins": { "giver": "aurelion_captain", "name": "Гоблинский лагерь", "kind": "kill", "target": "goblin", "n": 8, "level": 4,
+      "text": "К северу от города гоблины разбили лагерь и грабят обозы. Разгони их: убей восьмерых.", "done": "Дорога на север снова свободна. Держи жалованье.",
+      "reward": { "gold": 90, "xp": 300 } },
+    "morthaim_skeletons": { "giver": "morthaim_warden", "name": "Непокорные кости", "kind": "kill", "target": "skeleton", "n": 6, "level": 1,
+      "text": "В курганах встают скелеты, что не признают Корону. Упокой шестерых.", "done": "Корона довольна. Ты служишь как должно.",
+      "reward": { "gold": 40, "xp": 120, "item": { "base": "hp_potion", "qty": 3 } } },
+    "morthaim_drowned": { "giver": "morthaim_warden", "name": "Трупоеды у стоянки", "kind": "kill", "target": "drowned", "n": 8, "level": 4,
+      "text": "Утопленники с болот сбились в стаю у старой стоянки к северу. Перебей восьмерых.", "done": "Тише стало в курганах. Вот твоя доля.",
+      "reward": { "gold": 90, "xp": 300 } }
   }
 }

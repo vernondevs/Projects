@@ -113,6 +113,29 @@ async function main() {
       await dbg(at(0, -15));
       await sleep(2500);
       await page.screenshot({ path: path.join(OUT, "shot-town-night.png") });
+    } else if (scenario === "world") {
+      // новая карта (задача 47): столицы фракций, мост, деревня, лагерь, руины, указатель, карта мира
+      const { CITIES } = await import("../shared/cities");
+      const { PLACES } = await import("../shared/map");
+      const { generateMap } = await import("../shared/map");
+      const { MAP_SEED } = await import("../shared/constants");
+      const map = generateMap(MAP_SEED);
+      await dbg({ op: "god" });
+      const sol = CITIES.find((c) => c.capital === "solgard")!, umb = CITIES.find((c) => c.capital === "umbrath")!;
+      const bridge = map.objects.find((o) => o.kind === "bridge_h")!, sign = map.objects.find((o) => o.kind === "signpost")!;
+      const spots: [string, number, number][] = [
+        ["aurelion", sol.x * 32 + 16, (sol.y - 3) * 32], ["morthaim", umb.x * 32 + 16, (umb.y - 3) * 32],
+        ["bridge", bridge.x, bridge.y - 48], ["sign", sign.x, sign.y + 40],
+        ...PLACES.filter((p) => ["clear_dale", "goblin_camp", "old_sun_ruins", "sorrow_yard"].includes(p.id)).map((p) => [p.id, p.x * 32 + 16, p.y * 32 + 16] as [string, number, number]),
+      ];
+      for (const [name, x, y] of spots) {
+        await dbg({ op: "tp", x, y });
+        await sleep(1800);
+        await page.screenshot({ path: path.join(OUT, `shot-world-${name}.png`) });
+      }
+      await page.keyboard.press("m");
+      await sleep(800);
+      await page.screenshot({ path: path.join(OUT, "shot-world-map.png") });
     } else if (scenario === "teleport") {
       // телепорт: руны, спираль, нить, вспышка, прибытие
       const { CITIES } = await import("../shared/cities");

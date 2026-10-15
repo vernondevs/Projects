@@ -5,6 +5,7 @@ import { P } from "./palette";
 import { FOOD } from "../../shared/food";
 import { TOWN_ART } from "./town";
 import { CITY_ART } from "./cities";
+import { FACTION_ART } from "./factions";
 import { BIOME_ART, resourceIcon } from "./biomes";
 import { RESOURCE_IDS } from "../../shared/biomes";
 
@@ -294,6 +295,7 @@ export const OBJECT_ART: Record<string, Art> = {
   bag: bag(false), bag_boss: bag(true),
   ...TOWN_ART,
   ...CITY_ART,
+  ...FACTION_ART,
   ...BIOME_ART,
 };
 

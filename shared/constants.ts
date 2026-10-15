@@ -2,8 +2,10 @@ export const GAME_TITLE = "Пепельный Предел";
 
 /** Размер тайла и базовая сетка пиксель-арта. */
 export const TILE = 32;
-export const MAP_W = 320;
-export const MAP_H = 240;
+/** Весь мир: запад — земли Сольгарда, восток — Умбрата, середина 320×240 — старый мир Эмберхолла (сдвиг MID). */
+export const MAP_W = 1100;
+export const MAP_H = 360;
+export const MID = { x: 400, y: 60, w: 320, h: 240 };
 export const MAP_SEED = 20261014;
 
 /** Сервер: частота симуляции и рассылки патчей. */

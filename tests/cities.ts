@@ -14,7 +14,7 @@ const ok = (px: number, py: number) => walkable(m, px, py, R);
 function flood(sx: number, sy: number) {
   const seen = new Set<number>();
   const q: [number, number][] = [[Math.floor(sx / TILE), Math.floor(sy / TILE)]];
-  const key = (x: number, y: number) => y * 1000 + x;
+  const key = (x: number, y: number) => y * 4096 + x;
   seen.add(key(q[0][0], q[0][1]));
   while (q.length) {
     const [x, y] = q.pop()!;
@@ -30,7 +30,7 @@ function flood(sx: number, sy: number) {
   return seen;
 }
 const reach = flood(m.playerSpawn.x, m.playerSpawn.y);
-const can = (px: number, py: number) => reach.has(Math.floor(py / TILE) * 1000 + Math.floor(px / TILE));
+const can = (px: number, py: number) => reach.has(Math.floor(py / TILE) * 4096 + Math.floor(px / TILE));
 const tile = (cx: number, cy: number, dx: number, dy: number) => ({ x: (cx + dx) * TILE + 16, y: (cy + dy) * TILE + 16 });
 const pt = (cx: number, cy: number, dx: number, dy: number) => ({ x: (cx + dx) * TILE, y: (cy + dy) * TILE });
 
@@ -66,5 +66,25 @@ const [e, o, s] = CITIES;
 console.log("цены:", teleportPrice(e, o), teleportPrice(e, s), teleportPrice(o, s));
 if (nearestCity(["snow_valley"], s.spawn.x, s.spawn.y).id !== "snow_valley") fail("ближайший открытый город");
 if (nearestCity([], s.spawn.x, s.spawn.y).id !== "ember") fail("по умолчанию Эмберхолл");
+// столицы: своя открыта всегда, чужая — никогда
+const sol = CITIES.find((c) => c.capital === "solgard")!, umb = CITIES.find((c) => c.capital === "umbrath")!;
+if (!sol || !umb || sol.x > umb.x) fail("столицы на западе и востоке");
+if (nearestCity([], s.spawn.x, s.spawn.y, "umbrath").id !== umb.id) fail("Умбрат: по умолчанию Мортхейм");
+if (nearestCity([umb.id], umb.spawn.x, umb.spawn.y, "solgard").id === umb.id) fail("возрождение во вражеской столице");
+if (zoneAtPx(m, sol.spawn.x, sol.spawn.y) !== Zone.SolgardCity || zoneAtPx(m, umb.spawn.x, umb.spawn.y) !== Zone.UmbrathCity) fail("зоны столиц");
+// путь от столицы до столицы — несколько минут пешком (150 px/с)
+const minutes = Math.hypot(umb.x - sol.x, umb.y - sol.y) * TILE / 150 / 60;
+console.log(`от столицы до столицы по прямой: ${minutes.toFixed(1)} мин`);
+if (minutes < 3) fail("столицы слишком близко");
+// мосты и указатели
+const bridges = m.objects.filter((o) => o.kind.startsWith("bridge")), signs = m.objects.filter((o) => o.kind === "signpost" && o.label);
+if (bridges.length < 4) fail("мостов меньше 4: " + bridges.length);
+for (const b of bridges) check("мост", { x: b.x, y: b.y - 40 });
+if (signs.length < 6) fail("указателей меньше 6: " + signs.length);
+// слабые мобы у столиц: стартовые зоны 1–10
+for (const c of [sol, umb]) {
+  const near = m.spawns.filter((sp) => Math.hypot(sp.x - c.spawn.x, sp.y - c.spawn.y) < 60 * TILE);
+  if (!near.length || Math.max(...near.map((sp) => sp.level)) > 10) fail(`${c.id}: у столицы нет слабых мобов`);
+}
 console.log(bad ? `ПРОБЛЕМ: ${bad}` : "города: ок");
 process.exit(bad ? 1 : 0);

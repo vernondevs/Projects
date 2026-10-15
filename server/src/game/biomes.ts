@@ -1,7 +1,7 @@
-/** Биомы на сервере: жар вулкана, лава, воздух под водой и добыча ресурсов (узлы на карте). */
+/** Биомы на сервере: жар вулкана, лава и добыча ресурсов (узлы на карте). Подводных локаций нет. */
 import { questProgress } from "./cities";
 import { ENV, RESOURCES } from "../../../shared/biomes";
-import { breathable, nearLava, zoneAtPx, Zone } from "../../../shared/map";
+import { nearLava, zoneAtPx, zoneStyle, Zone } from "../../../shared/map";
 import { makeItem, Rarity } from "../../../shared/items";
 import { FOOD } from "../../../shared/food";
 import { addItem } from "./inventory";
@@ -9,12 +9,8 @@ import type { Player } from "./Player";
 import type { World } from "./World";
 import type { On } from "../rooms/common";
 
-const AIR_MAX = ENV.airSeconds * 1000;
 interface PState {
-  air: number;
   acc: number;
-  airSentAt: number;
-  airShown: boolean;
   warnAt: number;
   cast: { node: number; until: number; x: number; y: number } | null;
 }
@@ -35,7 +31,7 @@ function ws(w: World): WState {
 }
 function ps(s: WState, p: Player): PState {
   let st = s.players.get(p);
-  if (!st) s.players.set(p, (st = { air: AIR_MAX, acc: 0, airSentAt: 0, airShown: false, warnAt: 0, cast: null }));
+  if (!st) s.players.set(p, (st = { acc: 0, warnAt: 0, cast: null }));
   return st;
 }
 
@@ -61,39 +57,22 @@ export function tickBiomes(w: World, dt: number) {
   for (const p of w.players.values()) {
     const st = ps(s, p);
     if (p.dead || p.team !== 0) {
-      st.air = AIR_MAX;
       st.cast = null;
       continue;
     }
     const u = p.unit;
-    const z = zoneAtPx(w.map, u.x, u.y);
+    // зоны рисуются биомом: жар — во всех «вулканических», лава — и в пепельных
+    const z = zoneStyle(zoneAtPx(w.map, u.x, u.y));
     // добыча
     if (st.cast) {
       const c = st.cast;
       if (Math.hypot(u.x - c.x, u.y - c.y) > 8 || p.stunUntil > w.time || p.input.mx || p.input.my) cancelGather(p, st);
       else if (w.time >= c.until) finishGather(w, s, p, st);
     }
-    // воздух
-    const swim = z === Zone.Underwater && !breathable(w.map, u.x, u.y);
-    if (swim) st.air = Math.max(0, st.air - dt * 1000);
-    else st.air = Math.min(AIR_MAX, st.air + dt * 1000 * (z === Zone.Underwater ? 6 : 10));
-    const show = z === Zone.Underwater || st.air < AIR_MAX;
-    if (show && w.time - st.airSentAt >= 400) {
-      st.airSentAt = w.time;
-      st.airShown = true;
-      p.send("air", { air: Math.round(st.air), max: AIR_MAX });
-    } else if (!show && st.airShown) {
-      st.airShown = false;
-      p.send("air", { air: -1, max: AIR_MAX });
-    }
-    // раз в секунду: удушье, лава, жар
+    // раз в секунду: лава, жар
     st.acc += dt * 1000;
     if (st.acc < 1000) continue;
     st.acc -= 1000;
-    if (swim && st.air <= 0) {
-      hurt(w, p, ENV.drownPctPerSec, "frost");
-      if (w.time - st.warnAt > 8000) { st.warnAt = w.time; p.send("toast", { text: "Вы тонете! Плывите к воздушным пузырям или к берегу", kind: "error" }); }
-    }
     if (z === Zone.Volcano || z === Zone.Ashlands) {
       const resist = heatResist(p);
       if (nearLava(w.map, u.x, u.y)) hurt(w, p, ENV.lavaBurnPctPerSec * (resist ? 0.5 : 1), "fire");

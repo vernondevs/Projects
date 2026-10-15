@@ -388,6 +388,110 @@
    "w": 48,
    "h": 80
   },
+  "sol_wall_h": {
+   "w": 32,
+   "h": 56
+  },
+  "sol_wall_v": {
+   "w": 32,
+   "h": 56
+  },
+  "sol_tower": {
+   "w": 64,
+   "h": 136
+  },
+  "sol_gate": {
+   "w": 96,
+   "h": 92
+  },
+  "sol_house": {
+   "w": 128,
+   "h": 128
+  },
+  "sol_temple": {
+   "w": 128,
+   "h": 128
+  },
+  "stall_gold": {
+   "w": 64,
+   "h": 72
+  },
+  "sun_banner": {
+   "w": 32,
+   "h": 96
+  },
+  "sun_statue": {
+   "w": 32,
+   "h": 96
+  },
+  "umb_wall_h": {
+   "w": 32,
+   "h": 56
+  },
+  "umb_wall_v": {
+   "w": 32,
+   "h": 56
+  },
+  "umb_tower": {
+   "w": 64,
+   "h": 136
+  },
+  "umb_gate": {
+   "w": 96,
+   "h": 92
+  },
+  "umb_house": {
+   "w": 128,
+   "h": 128
+  },
+  "umb_crypt": {
+   "w": 128,
+   "h": 128
+  },
+  "stall_purple": {
+   "w": 64,
+   "h": 72
+  },
+  "soul_brazier": {
+   "w": 32,
+   "h": 48
+  },
+  "crown_banner": {
+   "w": 32,
+   "h": 96
+  },
+  "bone_pile": {
+   "w": 32,
+   "h": 32
+  },
+  "dark_obelisk": {
+   "w": 32,
+   "h": 96
+  },
+  "signpost": {
+   "w": 32,
+   "h": 64
+  },
+  "bridge_h": {
+   "w": 192,
+   "h": 96
+  },
+  "bridge_v": {
+   "w": 96,
+   "h": 192
+  },
+  "ruin_pillar": {
+   "w": 32,
+   "h": 64
+  },
+  "ruin_wall": {
+   "w": 64,
+   "h": 48
+  },
+  "campfire": {
+   "w": 32,
+   "h": 32
+  },
   "cactus": {
    "w": 32,
    "h": 44

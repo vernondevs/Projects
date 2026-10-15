@@ -9,7 +9,7 @@ import { nearestCity } from "../../../shared/cities";
 import { ELITE } from "../../../shared/elites";
 import { SKILLS } from "../../../shared/skills";
 import { CLASSES } from "../../../shared/classes";
-import { factionsHostile, OUTLAW, pvpPlace, scramble } from "../../../shared/factions";
+import { factionsHostile, inEnemyCapital, OUTLAW, pvpPlace, scramble } from "../../../shared/factions";
 import { MOBS } from "../../../shared/mobs";
 import { MOUNTS, MOUNT_CAST_MS } from "../../../shared/mounts";
 import {
@@ -212,12 +212,33 @@ export class World {
     for (const p of this.players.values()) this.updatePlayer(p, dt);
     tickBiomes(this, dt);
     tickCities(this);
-    for (const m of this.mobs.values()) this.updateMob(m, dt);
+    this.markAwake();
+    for (const m of this.mobs.values()) if (this.awake(m)) this.updateMob(m, dt);
     for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
     this.town?.update(dt);
     this.updateHazards();
     if (this.opts.mobs !== false) tickEncounters(this);
     this.flush();
+  }
+
+  // ---------- сон мобов ----------
+  /** Куски мира (AWAKE_CHUNK px), рядом с которыми есть герои: мобы там думают, остальные спят (не тратят такт и трафик). */
+  private awakeChunks = new Set<number>();
+  private static AWAKE_CHUNK = 512;
+  private static AWAKE_R = 3;
+  private markAwake() {
+    const C = World.AWAKE_CHUNK, R = World.AWAKE_R;
+    this.awakeChunks.clear();
+    for (const p of this.players.values()) {
+      const cx = Math.floor(p.x / C), cy = Math.floor(p.y / C);
+      for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) this.awakeChunks.add((cy + j) * 4096 + cx + i);
+    }
+  }
+  /** Спит ли моб: обычный, без цели и угрозы, вдали от героев. Боссы, призванные и вернувшиеся домой не спят. */
+  private awake(m: Mob): boolean {
+    if (m.def.boss || m.summoned || m.state !== "idle" || m.threat.size) return true;
+    const C = World.AWAKE_CHUNK;
+    return this.awakeChunks.has(Math.floor(m.home.y / C) * 4096 + Math.floor(m.home.x / C));
   }
 
   private runTimers() {
@@ -470,8 +491,8 @@ export class World {
     const lost = Math.floor(p.save.gold * 0.1);
     p.save.gold -= lost;
     p.dead = false;
-    // возрождение в ближайшем открытом городе (на арене и в старых сохранениях — у фонтана)
-    const sp = this.opts.mobs === false ? this.map.playerSpawn : nearestCity(p.save.cities, p.x, p.y).spawn;
+    // возрождение в ближайшем открытом городе своей фракции: своя столица всегда, чужая — никогда (на арене — у фонтана)
+    const sp = this.opts.mobs === false ? this.map.playerSpawn : nearestCity(p.save.cities, p.x, p.y, p.faction).spawn;
     p.unit.x = sp.x;
     p.unit.y = sp.y;
     p.unit.hp = p.unit.maxHp;
@@ -561,9 +582,23 @@ export class World {
     if (p.curseUntil > t) b |= BUFF_CURSE;
     if (p.bleedUntil > t) b |= BUFF_BLEED;
     u.buffs = b;
+    // чужак во вражеской столице: стража бьёт, пока он там (метка нарушителя видна всем)
+    const intruder = this.opts.mobs !== false && p.team === 0 && !p.dead && inEnemyCapital(p.faction, u.x, u.y);
+    if (intruder !== p.intruder) {
+      p.intruder = intruder;
+      if (intruder) {
+        p.guardHitAt = t + 600;
+        p.send("toast", { text: "Вы во вражеской столице! Стража атакует чужака", kind: "error" });
+      }
+      u.outlaw = intruder || p.outlawUntil > t ? 1 : 0;
+    }
+    if (intruder && t >= p.guardHitAt) {
+      p.guardHitAt = t + OUTLAW.hitMs;
+      this.town?.punish(p, Math.max(1, Math.round(u.maxHp * OUTLAW.pctMaxHp)));
+    }
     // нарушитель мира: стража бьёт, пока он в нейтральном городе
     if (p.outlawUntil > 0) {
-      if (p.outlawUntil <= t) { p.outlawUntil = 0; u.outlaw = 0; }
+      if (p.outlawUntil <= t) { p.outlawUntil = 0; u.outlaw = intruder ? 1 : 0; }
       else if (t >= p.guardHitAt && this.inNeutral(u.x, u.y)) {
         p.guardHitAt = t + OUTLAW.hitMs;
         this.town?.punish(p, Math.max(1, Math.round(u.maxHp * OUTLAW.pctMaxHp)));

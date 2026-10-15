@@ -1,7 +1,8 @@
 /** Игровое меню по Esc, окно помощи и большая карта мира. */
-import { CITIES } from "../../../shared/cities";
+import { CITIES, cityKnown } from "../../../shared/cities";
+import { factionColor } from "../../../shared/factions";
 import { TILE } from "../../../shared/constants";
-import type { WorldMap } from "../../../shared/map";
+import { PLACES, type WorldMap } from "../../../shared/map";
 import type { LogoutMode, Net } from "../net";
 
 export const HOTKEYS: [string, string][] = [["WASD / клик", "движение"], ["1–4", "умения"], ["Q / E", "зелья здоровья и маны"], ["Tab", "следующая цель"], ["Пробел", "подобрать предмет"], ["F", "поговорить с NPC"], ["X / Shift+X", "ездовое животное"], ["C / I / K", "герой / сумка / умения"], ["P / B / M", "арена / бестиарий / карта"], ["Enter", "чат"], ["Esc", "закрыть окно, снять цель, меню"]];
@@ -18,8 +19,8 @@ export function fillHelp(body: Element) {
     <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Советы</h3><ul style="margin:0;padding-left:20px;line-height:1.5">${TIPS.map((t) => `<li>${t}</li>`).join("")}</ul>`;
 }
 
-/** Большая карта: базовый холст мини-карты, маркер героя и города (неоткрытые — серым «???»). */
-export function drawWorldMap(cv: HTMLCanvasElement, map: WorldMap, base: HTMLCanvasElement | null, pos: { x: number; y: number }, known?: string[]) {
+/** Большая карта: базовый холст мини-карты, маркер героя, поселения и города (неоткрытые — серым «???», столицы — цветом фракции). */
+export function drawWorldMap(cv: HTMLCanvasElement, map: WorldMap, base: HTMLCanvasElement | null, pos: { x: number; y: number }, known?: string[], faction?: string) {
   const g = cv.getContext("2d")!;
   g.imageSmoothingEnabled = false;
   g.fillStyle = "#0e0b10";
@@ -29,11 +30,24 @@ export function drawWorldMap(cv: HTMLCanvasElement, map: WorldMap, base: HTMLCan
   if (base) g.drawImage(base, ox, oy, map.w * k, map.h * k);
   g.font = "600 13px Rubik, sans-serif";
   g.textAlign = "center";
+  if (map.w > 200) {
+    g.font = "500 10px Rubik, sans-serif";
+    for (const p of PLACES) {
+      const x = ox + p.x * k, y = oy + p.y * k;
+      g.fillStyle = "#c8bca8";
+      g.fillRect(x - 1.5, y - 1.5, 3, 3);
+      g.lineWidth = 3;
+      g.strokeStyle = "#120a10";
+      g.strokeText(p.name, x, y - 5);
+      g.fillText(p.name, x, y - 5);
+    }
+    g.font = "600 13px Rubik, sans-serif";
+  }
   if (map.w > 200) for (const c of CITIES) {
     const x = ox + c.x * k, y = oy + c.y * k;
-    const open = !known || known.includes(c.id);
-    const label = open ? c.name : "???";
-    g.fillStyle = open ? "#f0c050" : "#8a8290";
+    const open = !known || cityKnown(c, known, faction);
+    const label = open || c.capital ? c.name : "???";
+    g.fillStyle = c.capital ? factionColor(c.capital) : open ? "#f0c050" : "#8a8290";
     g.fillRect(x - 3, y - 3, 6, 6);
     g.lineWidth = 3;
     g.strokeStyle = "#120a10";

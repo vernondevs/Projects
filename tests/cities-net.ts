@@ -3,6 +3,7 @@ import { CITIES, teleportPrice } from "../shared/cities";
 import { Bot, assert, check, passedCount, sleep, startServer, stopServer } from "./harness";
 
 const [ember, oasis, snow] = CITIES;
+const home = CITIES.find((c) => c.capital === "solgard")!, enemy = CITIES.find((c) => c.capital === "umbrath")!;
 const at = (b: Bot, c: { x: number; y: number }) => Math.hypot(b.me().x - c.x, b.me().y - c.y);
 
 async function main() {
@@ -10,9 +11,18 @@ async function main() {
   try {
     const b = await Bot.join("Путник", "secret", "warrior");
     b.send("dbg", { op: "god" });
-    await check("новый герой знает Эмберхолл; оазис не открыт", async () => {
-      await b.until(() => (b.self!.cities ?? []).includes("ember"), 2000, "ember открыт");
-      assert(!(b.self!.cities ?? []).includes("oasis"), "оазис открыт раньше времени");
+    await check("новый герой в своей столице и знает её; оазис и Эмберхолл не открыты", async () => {
+      assert(at(b, home.spawn) < 80, "появился не в Аурелионе");
+      await b.until(() => (b.self!.cities ?? []).includes(home.id), 2000, "столица открыта");
+      assert(!(b.self!.cities ?? []).includes("oasis") && !(b.self!.cities ?? []).includes("ember"), "открыто раньше времени");
+    });
+    await check("вражеская столица: телепорт не открывается, стража бьёт чужака", async () => {
+      b.send("dbg", { op: "tp", x: enemy.spawn.x, y: enemy.spawn.y });
+      await b.until(() => b.me().outlaw === 1, 2000, "метка чужака");
+      await sleep(300);
+      assert(!(b.self!.cities ?? []).includes(enemy.id), "открыт телепорт врага");
+      b.send("dbg", { op: "tp", x: ember.spawn.x, y: ember.spawn.y });
+      await b.until(() => (b.self!.cities ?? []).includes("ember"), 2000, "Эмберхолл открыт визитом");
     });
     await check("вход в зону города открывает телепорт", async () => {
       b.send("dbg", { op: "tp", x: oasis.spawn.x, y: oasis.spawn.y });

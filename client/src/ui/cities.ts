@@ -1,6 +1,6 @@
 /** Города: диалог заданий, трекер под рамкой героя и окно камня телепорта. */
 import { gold } from "./gold";
-import { CITIES, cityById, stoneNear, teleportPrice } from "../../../shared/cities";
+import { CITIES, cityById, cityKnown, isEnemyCapital, stoneNear, teleportPrice } from "../../../shared/cities";
 import type { SelfState } from "../../../shared/protocol";
 import { QUESTS, QUEST_GIVERS, questsOf } from "../../../shared/quests";
 import { RESOURCES } from "../../../shared/biomes";
@@ -129,7 +129,7 @@ export class TeleportUI {
     this.pos = pos ?? this.pos;
     if (!this.opened) return;
     const here = this.pos ? stoneNear(this.pos.x, this.pos.y) : null;
-    const found = new Set(["ember", ...(s.cities ?? [])]);
+    const known = (c: (typeof CITIES)[number]) => cityKnown(c, s.cities, s.faction);
     this.win.innerHTML = `<h2><span>Камень телепорта</span><button class="x" aria-label="Закрыть">×</button></h2>
       <p class="muted">Вы здесь: <b>${esc(here?.name ?? "—")}</b>. Каст 3 секунды: движение, урон и бой прерывают переход.</p><div class="tp-list"></div>
       <p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
@@ -138,8 +138,8 @@ export class TeleportUI {
     for (const c of CITIES) {
       const row = document.createElement("div");
       row.className = "shoprow";
-      const ok = found.has(c.id);
-      row.innerHTML = `<div>${esc(ok ? c.name : "???")}${ok ? "" : `<br><span class="muted">Не открыт — посетите город</span>`}</div>`;
+      const ok = known(c), enemy = isEnemyCapital(c, s.faction);
+      row.innerHTML = `<div>${esc(ok || enemy ? c.name : "???")}${ok ? "" : `<br><span class="muted">${enemy ? "Вражеская столица — телепорт закрыт" : "Не открыт — посетите город"}</span>`}</div>`;
       if (ok && here && here.id !== c.id) {
         const price = teleportPrice(here, cityById(c.id)!);
         const b = document.createElement("button");

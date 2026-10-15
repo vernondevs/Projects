@@ -1,3 +1,5 @@
+import world from "../data/world.json";
+
 export interface MobDef {
   id: string;
   name: string;
@@ -65,3 +67,9 @@ export const MOBS: Record<string, MobDef> = {
     uniques: ["ashbringer", "cinder_staff", "phoenix_bow", "ashen_crown"],
   },
 };
+
+// уровни боссов — из data/world.json (пересчитываются вместе с уровнями зон)
+{
+  const scale = world.levels.levelCap / world.levels.designCap;
+  for (const [id, lv] of Object.entries(world.bosses)) if (MOBS[id]) MOBS[id].level = Math.max(1, Math.round(lv * scale));
+}
