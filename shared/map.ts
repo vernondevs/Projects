@@ -771,10 +771,14 @@ export function moveWithCollision(m: WorldMap, x: number, y: number, dx: number,
 /** Есть ли прямая видимость (для снарядов и рывков): проверка шагами по полтайла, стены блокируют, вода нет. */
 export function lineClear(m: WorldMap, x0: number, y0: number, x1: number, y1: number): boolean {
   const d = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2);
-  const steps = Math.ceil(d / (TILE / 2));
+  const steps = Math.ceil(d / (TILE / 4));
   for (let s = 1; s < steps; s++) {
     const t = s / steps;
-    if (cellAt(m, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) & CELL_WALL) return false;
+    const px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t;
+    if (cellAt(m, px, py) & CELL_WALL) return false;
+    // диагональная щель между двумя стенами тоже непрозрачна
+    if (cellAt(m, px - 3, py - 3) & CELL_WALL && cellAt(m, px + 3, py + 3) & CELL_WALL) return false;
+    if (cellAt(m, px - 3, py + 3) & CELL_WALL && cellAt(m, px + 3, py - 3) & CELL_WALL) return false;
   }
   return true;
 }

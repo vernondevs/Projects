@@ -339,7 +339,7 @@ export function updatePet(w: World, pet: Pet, dt: number) {
     const d = w.dist(u, target);
     u.target = target.id;
     const reach = pet.def.range + target.def.radius;
-    const clear = !pet.def.projectile || lineClear(w.map, u.x, u.y, target.x, target.y);
+    const clear = lineClear(w.map, u.x, u.y, target.x, target.y);
     if (t >= pet.attackAt && useSkill(w, pet, target, d)) {
       u.dir = World.dirTo(target.x - u.x, target.y - u.y);
     } else if (d > reach || !clear) moving = step(w, pet, target.x, target.y, dt, pet.def.speed * 1.1, pet.def.projectile ? reach * 0.7 : reach - 6);

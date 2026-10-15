@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from "../../../shared/constants";
-import { generateMap, moveWithCollision, terrainSpeedMul, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
+import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
 import { ENV } from "../../../shared/biomes";
 import * as sfx from "./sfx";
 import { nightLevel } from "../../../shared/daynight";
@@ -415,7 +415,7 @@ export class GameScene extends Phaser.Scene {
 
   cycleTarget() {
     const list = [...this.units.entries()]
-      .filter(([, v]) => this.isEnemy(v) && !v.dead && Math.hypot(v.x - this.pos.x, v.y - this.pos.y) < (net.kind === "arena" ? 1400 : 420))
+      .filter(([, v]) => this.isEnemy(v) && !v.dead && Math.hypot(v.x - this.pos.x, v.y - this.pos.y) < (net.kind === "arena" ? 1400 : 420) && lineClear(this.map, this.pos.x, this.pos.y, v.x, v.y))
       .sort((a, b) => Math.hypot(a[1].x - this.pos.x, a[1].y - this.pos.y) - Math.hypot(b[1].x - this.pos.x, b[1].y - this.pos.y));
     if (!list.length) return;
     const i = list.findIndex(([id]) => id === this.targetId);

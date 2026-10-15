@@ -147,7 +147,8 @@ export class World {
   enemiesInCircle(src: Actor, x: number, y: number, r: number): Actor[] {
     const out: Actor[] = this.mobsInCircle(x, y, r);
     if (this.pvpActive) for (const p of this.playersInCircle(x, y, r)) if (this.hostile(src, p)) out.push(p);
-    return out;
+    // урон по площади не проходит сквозь стены
+    return out.filter((a) => lineClear(this.map, x, y, (a as { x: number }).x, (a as { y: number }).y));
   }
 
   // ---------- мобы ----------
@@ -628,7 +629,7 @@ export class World {
     for (const p of this.players.values()) {
       if (p.dead || unseen(p) || this.inTown(p.x, p.y)) continue;
       const d = this.dist(p, m);
-      if (d < bd) { bd = d; best = p; }
+      if (d < bd && lineClear(this.map, m.x, m.y, p.x, p.y)) { bd = d; best = p; }
     }
     return best;
   }
@@ -696,7 +697,7 @@ export class World {
           m.threat.clear();
         } else {
           const reach = m.def.range + pet.def.radius;
-          const clear = !m.def.projectile || lineClear(this.map, u.x, u.y, pet.x, pet.y);
+          const clear = lineClear(this.map, u.x, u.y, pet.x, pet.y);
           const d = this.dist(u, pet);
           if ((d > reach || !clear) && canMove) moving = this.moveMob(m, pet.x, pet.y, dt, this.mobSpeed(m), m.def.projectile ? reach * 0.8 : reach - 6);
           else if (d <= reach + 4 && clear && t >= m.attackAt) mobAttackPet(this, m, pet);
@@ -714,7 +715,7 @@ export class World {
         } else {
           const d = this.dist(u, target);
           const reach = m.def.range + PLAYER_RADIUS;
-          const clear = !m.def.projectile || lineClear(this.map, u.x, u.y, target.x, target.y);
+          const clear = lineClear(this.map, u.x, u.y, target.x, target.y);
           if ((d > reach || !clear) && canMove) moving = this.moveMob(m, target.x, target.y, dt, this.mobSpeed(m), m.def.projectile ? reach * 0.8 : reach - 6);
           else if (d <= reach + 4 && clear && t >= m.attackAt) this.mobAttack(m, target);
           if (!moving && d > reach && m.def.projectile && canMove) moving = this.moveMob(m, target.x, target.y, dt, this.mobSpeed(m), 20);
@@ -750,14 +751,14 @@ export class World {
       this.emit({ t: "proj", k: m.def.projectile, from: m.id, to: target.id, tx: target.x, ty: target.y, ms });
       const kind: FxKind = m.def.projectile === "poison" ? "poison" : m.def.projectile === "fire" ? "fire" : "shadow";
       this.later(ms, () => {
-        if (m.dead || target.dead) return;
+        if (m.dead || target.dead || !lineClear(this.map, m.x, m.y, target.x, target.y)) return;
         this.hit(m, target, { kind, mult });
         if (kind === "poison") target.poisonUntil = this.time + 2000;
         if (kind === "fire") target.burnUntil = this.time + 1500;
       });
     } else {
       this.later(220, () => {
-        if (m.dead || target.dead || this.dist(m, target) > m.def.range + PLAYER_RADIUS + 24) return;
+        if (m.dead || target.dead || this.dist(m, target) > m.def.range + PLAYER_RADIUS + 24 || !lineClear(this.map, m.x, m.y, target.x, target.y)) return;
         this.hit(m, target, { kind: "phys", mult });
       });
     }
@@ -799,7 +800,7 @@ export class World {
           while (da < -Math.PI) da += Math.PI * 2;
           inside = d <= r && Math.abs(da) <= (extra.w ?? 1) / 2;
         }
-        if (inside) onHit(p);
+        if (inside && lineClear(this.map, x, y, p.x, p.y)) onHit(p);
       }
     });
   }
