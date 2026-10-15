@@ -8,6 +8,11 @@ export const MAX_CHARS = 6;
 export const LOGOUT_COMBAT_MS = 10_000;
 /** Код закрытия соединения после разрешённого выхода. */
 export const LOGOUT_CODE = 4010;
+/** Код закрытия старой сессии, когда тем же героем (или другим героем аккаунта) вошли с другой вкладки. */
+export const KICK_CODE = 4011;
+export const KICK_TEXT = "Вы вошли с другого устройства";
+/** Сколько секунд герой ждёт в мире после обрыва связи (переподключение без потерь). */
+export const RECONNECT_SEC = 30;
 
 /** Внешность: акцентный оттенок спрайта (индекс в LOOKS). */
 export const LOOKS: { name: string; rgb: number }[] = [

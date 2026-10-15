@@ -96,9 +96,11 @@ async function main() {
     await check("внешность доходит до Schema, на аккаунте играет один герой", async () => {
       const a = await enter(tok, "Герой5");
       assert(a.me().look !== 0, "оттенок спрайта");
-      assert((await msg(Bot.enter(tok, "Герой2"))).includes("другой герой"), "второй герой аккаунта");
       assert((await msg(api("/chars/delete", { name: "Герой5", confirm: "Герой5" }, tok))).includes("в игре"), "удаление героя в игре");
-      await a.leave();
+      // второй герой аккаунта вытесняет первого (один герой на аккаунт)
+      const b2 = await enter(tok, "Герой2");
+      await a.until(() => a.closeCode === 4011, 2000, "первый герой вытеснен");
+      await b2.leave();
     });
     await check("удаление: подтверждение именем", async () => {
       assert((await msg(api("/chars/delete", { name: "Герой6", confirm: "нет" }, tok))).includes("введите имя"), "без подтверждения");

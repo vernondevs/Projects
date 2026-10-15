@@ -54,6 +54,7 @@ export class TradeManager {
   /** Почему эти двое не могут торговать (или null). */
   private why(p: Player, q: Player): string | null {
     const w = this.world();
+    if (p.offline || q.offline) return "Игрок не в сети";
     if (p.dead || q.dead) return "Мёртвые не торгуют";
     if (w.dist(p, q) > TRADE_RANGE_TILES * TILE) return "Слишком далеко для обмена (до 5 шагов)";
     if (p.inCombat(w.time) || q.inCombat(w.time)) return "Нельзя торговать в бою";

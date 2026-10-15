@@ -11,6 +11,7 @@ import {
 import type { ClassId } from "../../../shared/classes";
 import { PATCH_MS, TICK_MS } from "../../../shared/constants";
 import { ROOM_NAME } from "../../../shared/protocol";
+import { RECONNECT_SEC } from "../../../shared/accounts";
 import { activeSkills } from "../../../shared/skills";
 import type { PlayerSave } from "../db";
 import { Player } from "../game/Player";
@@ -99,6 +100,7 @@ export class ArenaRoom extends Room<ArenaState> {
     };
     const on = makeOn(this, () => this.world);
     registerCombat(on, () => this.world);
+    this.onMessage("ping", (c) => c.send("pong", 0)); // сторож связи клиента
     this.onMessage("arena:leave", (client) => void this.sendHome(client));
     this.parts.forEach((x, i) => {
       if (!x.bot) return;
@@ -118,8 +120,13 @@ export class ArenaRoom extends Room<ArenaState> {
     const key = auth.name.toLowerCase();
     const part = this.parts.find((x) => x.nameKey === key);
     if (!part || this.byKey.has(key) || this.phase === "end") throw new ServerError(403, "Вы не участник этого матча");
-    const p = new Player(client.sessionId, auth.name, auth.save, (type, msg) => client.send(type, msg));
+    const id = client.sessionId; // после переподключения объект клиента другой — ищем актуальный
+    const p = new Player(id, auth.name, auth.save, (type, msg) => this.clients.find((c) => c.sessionId === id)?.send(type, msg));
     this.place(p, part);
+    this.welcome(client, part);
+  }
+
+  private welcome(client: Client, part: Participant) {
     client.send("welcome", {
       id: client.sessionId,
       arena: true,
@@ -141,10 +148,27 @@ export class ArenaRoom extends Room<ArenaState> {
     this.byKey.set(part.nameKey, p);
   }
 
-  override onLeave(client: Client) {
+  override async onLeave(client: Client, consented: boolean) {
     const p = this.world.players.get(client.sessionId);
     if (!p) return;
     const key = p.name.toLowerCase();
+    // обрыв связи во время матча: герой ждёт RECONNECT_SEC, бой идёт; не вернулся — поражение
+    if (!consented && this.phase !== "end") {
+      p.input = { mx: 0, my: 0 };
+      p.moveTo = null;
+      p.targetId = null;
+      try {
+        const fresh = await this.allowReconnection(client, Number(process.env.RECONNECT_SEC) || RECONNECT_SEC);
+        const part = this.parts.find((x) => x.nameKey === key);
+        if (part && this.world.players.get(client.sessionId) === p) {
+          this.welcome(fresh, part);
+          p.selfDirty = true;
+          if (this.result) fresh.send("arena:result", this.result);
+          return;
+        }
+      } catch {}
+      if (this.world.players.get(client.sessionId) !== p) return;
+    }
     if (this.phase !== "end") {
       // выход или обрыв связи до конца матча — поражение
       this.stats.get(key)!.left = true;

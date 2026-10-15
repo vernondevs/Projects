@@ -7,9 +7,23 @@ import type { TradeView } from "../../shared/trade";
 import type { BankView } from "../../shared/bank";
 import type { ChatLine, CooldownMsg, Fx, JoinOptions, LootBag, SelfState, ToastMsg } from "../../shared/protocol";
 import { ROOM_NAME } from "../../shared/protocol";
-import { LOGOUT_CODE } from "../../shared/accounts";
+import { KICK_CODE, KICK_TEXT, LOGOUT_CODE, RECONNECT_SEC } from "../../shared/accounts";
 
 export type LogoutMode = "char" | "account";
+
+/** Код согласованного закрытия Colyseus (сервер закрыл комнату, например арену после боя). */
+const CONSENTED = 4000;
+/** Сторож связи: ping раз в PING_MS, нет pong за DEAD_MS — связь считается потерянной. */
+const PING_MS = 3000;
+const DEAD_MS = 10_000;
+const STEP_MS = 8000;
+
+function timeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((res, rej) => {
+    const t = setTimeout(() => rej(new Error(`таймаут: ${what}`)), ms);
+    p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); });
+  });
+}
 
 type Events = {
   self: SelfState;
@@ -28,6 +42,14 @@ type Events = {
   logout: LogoutMode;
   "logout:wait": { ms: number };
   "logout:cancel": { reason: string };
+  /** Связь потеряна, идёт переподключение: попытка, когда следующая (performance.now), когда началось. */
+  reconnecting: { attempt: number; nextAt: number; since: number };
+  /** Связь восстановлена (следом придёт switch — сцена перестраивается). */
+  reconnected: number;
+  /** Вход тем же героем с другой вкладки: эта сессия закрыта. */
+  kicked: string;
+  /** Переподключиться нельзя (сессия истекла, герой недоступен): назад к входу. */
+  lost: string;
   switch: "world" | "arena";
   "arena:info": ArenaInfo;
   "arena:found": MatchFoundMsg;
@@ -126,21 +148,159 @@ export class Net {
     for (const fn of [...(this.handlers[ev] ?? [])]) fn(v);
   }
 
-  async connect(opts: JoinOptions): Promise<void> {
+  /** Параметры входа (токен и герой) — для переподключения. */
+  private joinOpts: JoinOptions | null = null;
+  /** Идёт восстановление связи (автоматическое или по кнопке). */
+  recovering = false;
+  private recoverGen = 0;
+  private wake: (() => void) | null = null;
+  private pingAt = 0;
+  private pingTimer = 0;
+  private kickText = "";
+  /** Соединение закрыто намеренно (выход, вытеснение): сторож и переподключение молчат. */
+  private closed = false;
+
+  /** Связь в порядке: есть комната и не идёт переподключение. */
+  get online() {
+    return !!this.room && !this.closed && !this.recovering;
+  }
+
+  private resetPersonal() {
     this.self = null;
     this.bags = [];
     this.arenaInfo = null;
     this.party = null;
     this.cooldowns.clear();
     this.logoutMode = null;
+  }
+
+  async connect(opts: JoinOptions): Promise<void> {
+    this.stopRecover();
+    this.resetPersonal();
+    this.joinOpts = opts;
     this.client = new Client(serverUrl());
     await this.attach(await this.client.joinOrCreate(ROOM_NAME, opts));
+    this.startWatchdog();
+  }
+
+  /** Сторож: ping раз в 3 с; нет ответа 10 с после ping — связь потеряна (сеть пропала без закрытия сокета). */
+  private startWatchdog() {
+    if (this.pingTimer) return;
+    this.pingTimer = window.setInterval(() => {
+      if (!this.room || this.closed || this.recovering || this.switching) return;
+      const now = performance.now();
+      if (this.pingAt && now - this.pingAt > DEAD_MS) return this.dropped(this.room, 0);
+      if (!this.pingAt) {
+        this.pingAt = now;
+        this.send("ping", {});
+      }
+    }, PING_MS);
+  }
+
+  /** Неожиданное закрытие комнаты: выход, вытеснение или обрыв — тогда переподключение. */
+  private dropped(room: Room<any>, code: number) {
+    if (this.room !== room || this.closed || this.switching || this.recovering) return;
+    if (code === LOGOUT_CODE) {
+      this.closed = true;
+      const mode = this.logoutMode ?? "char";
+      this.logoutMode = null;
+      this.emit("logout", mode);
+    } else if (code === KICK_CODE) {
+      this.close();
+      console.info("[net] вытеснение другой вкладкой");
+      this.emit("kicked", this.kickText || KICK_TEXT);
+    } else void this.recover(code !== CONSENTED, false);
+  }
+
+  /**
+   * Восстановление связи без перезагрузки страницы. resume — сначала вернуться в ту же сессию
+   * (сервер держит героя RECONNECT_SEC), иначе обычный вход тем же героем. leave — сначала
+   * согласованно выйти (кнопка «Переподключиться»: полная загрузка состояния заново).
+   * Повторы: 1, 2, 4, 8… до 15 с.
+   */
+  async recover(resume: boolean, leave: boolean) {
+    const gen = ++this.recoverGen;
+    this.recovering = true;
+    const old = this.room as Room<any> | undefined;
+    let token = resume ? old?.reconnectionToken ?? "" : "";
+    try { old?.removeAllListeners(); } catch {}
+    if (leave && old) await timeout(old.leave(true), 3000, "выход").catch(() => 0);
+    else try { old?.connection?.close(); } catch {}
+    const since = performance.now();
+    this.emit("reconnecting", { attempt: 0, nextAt: since, since });
+    for (let attempt = 1; gen === this.recoverGen; attempt++) {
+      try {
+        let room: Room<any> | null = null;
+        if (token && performance.now() - since < RECONNECT_SEC * 1000) {
+          try {
+            room = await timeout(this.client.reconnect(token), STEP_MS, "переподключение");
+          } catch (e) {
+            if (typeof (e as { code?: unknown })?.code !== "number") throw e; // сервер недоступен — повтор
+            token = ""; // сессия на сервере уже закрыта — обычный вход
+          }
+        }
+        if (!room) {
+          if (!this.joinOpts) throw Object.assign(new Error("Нет данных входа"), { code: 401 });
+          room = await timeout(this.client.joinOrCreate(ROOM_NAME, this.joinOpts), STEP_MS, "вход");
+        }
+        if (gen !== this.recoverGen) {
+          void room.leave(true).catch(() => 0);
+          return;
+        }
+        this.bags = [];
+        this.cooldowns.clear();
+        await timeout(this.attach(room), STEP_MS, "welcome");
+        this.recovering = false;
+        this.emit("reconnected", attempt);
+        this.emit("switch", this.kind);
+        return;
+      } catch (e) {
+        if (gen !== this.recoverGen) return;
+        const code = (e as { code?: unknown })?.code;
+        if (code === 401 || code === 403 || code === 404) {
+          this.recovering = false;
+          this.emit("lost", (e as Error).message || "Сессия истекла, войдите снова");
+          return;
+        }
+        console.warn("[net] переподключение:", (e as Error)?.message ?? e);
+        const delay = Math.min(15_000, 1000 * 2 ** Math.min(attempt - 1, 4));
+        this.emit("reconnecting", { attempt, nextAt: performance.now() + delay, since });
+        await new Promise<void>((r) => {
+          const t = setTimeout(r, delay);
+          this.wake = () => { clearTimeout(t); r(); };
+        });
+        this.wake = null;
+      }
+    }
+  }
+  /** «Повторить сейчас» в окне переподключения. */
+  retryNow() {
+    this.wake?.();
+  }
+  private stopRecover() {
+    this.recoverGen++;
+    this.recovering = false;
+    this.wake?.();
+  }
+
+  /** Тихо закрыть соединение (выход к экрану входа работает, даже если связь сломана). */
+  close() {
+    this.stopRecover();
+    this.closed = true;
+    const room = this.room as Room<any> | undefined;
+    if (!room) return;
+    try { room.removeAllListeners(); } catch {}
+    try { void timeout(room.leave(true), 3000, "выход").catch(() => { try { room.connection?.close(); } catch {} }); } catch {}
   }
 
   /** Подписки на сообщения комнаты; ждём welcome, чтобы знать, мир это или арена. */
   private attach(room: Room<any>): Promise<void> {
     this.room = room;
     this.id = room.sessionId;
+    this.closed = false;
+    this.pingAt = 0;
+    room.onMessage("pong", () => (this.pingAt = 0));
+    room.onMessage("kicked", (m: { text?: string }) => (this.kickText = m?.text ?? ""));
     const welcome = new Promise<void>((resolve) => {
       room.onMessage("welcome", (w: { seed?: number; arena?: boolean } & Partial<ArenaWelcome>) => {
         if (w.arena) {
@@ -190,14 +350,8 @@ export class Net {
       this.emit("logout:cancel", m);
     });
     room.onMessage("logout:ok", () => {});
-    room.onLeave((code) => {
-      if (this.room !== room || this.switching) return;
-      if (code === LOGOUT_CODE) {
-        const mode = this.logoutMode ?? "char";
-        this.logoutMode = null;
-        this.emit("logout", mode);
-      } else this.emit("leave", code);
-    });
+    room.onLeave((code) => this.dropped(room, code));
+    room.onError((code, message) => console.warn("[net] ошибка комнаты:", code, message));
     return welcome;
   }
 
@@ -213,7 +367,8 @@ export class Net {
     } catch (e) {
       this.switching = false;
       console.error(e);
-      this.emit("toast", { text: "Не удалось перейти: обновите страницу и войдите снова", kind: "error" });
+      // переход не удался — обычный вход тем же героем (мир примет, когда арена отпустит героя)
+      void this.recover(false, false);
       return;
     }
     this.switching = false;
@@ -245,7 +400,8 @@ export class Net {
     coll.onRemove((_u: UnitState, id: string) => remove(id));
   }
   unit(id: string): UnitState | undefined {
-    return this.room.state.players.get(id) ?? this.room.state.mobs.get(id);
+    const st = this.room?.state; // во время переподключения состояние новой комнаты может быть ещё пустым
+    return st?.players?.get(id) ?? st?.mobs?.get(id);
   }
 }
 

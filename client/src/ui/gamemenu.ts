@@ -99,6 +99,7 @@ export class GameMenu {
       ["Карта", "M", () => a.openMap()],
       ["Настройки", "", () => a.toggle("settings")],
       ["Помощь", "", () => a.openHelp()],
+      ["Переподключиться", "", () => void window.dispatchEvent(new CustomEvent("emberfall:reconnect"))],
       ["Сменить персонажа", "", a.net().kind === "arena" ? null : () => this.confirmLogout("char")],
       ["Выйти из аккаунта", "", a.net().kind === "arena" ? null : () => this.confirmLogout("account")],
     ];
@@ -143,6 +144,8 @@ export class GameMenu {
         net.on("logout", () => { this.stopWaiting(); this.close(); }),
       ];
       this.waiting = () => offs.forEach((f) => f());
+      // связь сломана — выход без сервера (сервер сохранит героя при обрыве)
+      if (!net.online) return void window.dispatchEvent(new CustomEvent("emberfall:exit", { detail: mode }));
       net.requestLogout(mode);
     };
     p.append(yes, no);

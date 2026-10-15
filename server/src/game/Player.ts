@@ -110,6 +110,10 @@ export class Player {
   frozenUntil = 0;
   goingToArena = false;
   goingHome = false;
+  /** Связь оборвана: герой ждёт переподключения (RECONNECT_SEC). */
+  offline = false;
+  /** Выход окончательный (выход из игры, вытеснение): без ожидания переподключения. */
+  noReconnect = false;
   /** Флаг администратора из БД (загружается при входе; сервер перепроверяет по БД на каждое действие). */
   admin = false;
   lastSave = 0;

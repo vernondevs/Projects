@@ -84,9 +84,16 @@ export class GameScene extends Phaser.Scene {
     this.hoverId = null;
     this.zone = -1 as Zone;
     this.lastInput = { mx: 0, my: 0, at: 0 };
-    this.events.once("shutdown", () => {
-      for (const fn of this.cleanup.splice(0)) fn();
-    });
+    // shutdown — перезапуск/остановка сцены, destroy — пересоздание игры после ошибки: подписки снимаются в обоих случаях
+    const done = () => {
+      this.events.off("shutdown", done);
+      this.events.off("destroy", done);
+      for (const fn of this.cleanup.splice(0)) {
+        try { fn(); } catch {}
+      }
+    };
+    this.events.once("shutdown", done);
+    this.events.once("destroy", done);
 
     this.hud = this.registry.get("hud") as Hud;
     this.map = net.kind === "arena" ? generateArenaMap() : generateMap(net.seed);

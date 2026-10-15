@@ -14,10 +14,12 @@
     "build": "npm run assets && vite build",
     "start": "npm run build && tsx server/src/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "tsx tests/cities.ts && tsx tests/accounts.ts && tsx tests/bots.ts && tsx tests/cities-net.ts && tsx tests/arena.ts && tsx tests/trade.ts && tsx tests/admin.ts",
+    "test": "tsx tests/cities.ts && tsx tests/accounts.ts && tsx tests/bots.ts && tsx tests/cities-net.ts && tsx tests/arena.ts && tsx tests/trade.ts && tsx tests/admin.ts && tsx tests/reconnect.ts",
     "test:trade": "tsx tests/trade.ts && tsx tests/admin.ts",
     "test:cities": "tsx tests/cities.ts && tsx tests/cities-net.ts",
     "test:arena": "tsx tests/arena.ts",
+    "test:reconnect": "tsx tests/reconnect.ts",
+    "screenshot:reconnect": "tsx tests/reconnect-screens.ts",
     "screenshot": "tsx tests/screenshot.ts",
     "screenshot:arena": "tsx tests/arena-screens.ts",
     "db": "tsx tools/db.ts"

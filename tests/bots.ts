@@ -84,14 +84,13 @@ async function main() {
       a.send("chat", { text: "Привет, мир!" });
       await b.until(() => b.chat.some((l) => l.from === "Алиса" && l.text === "Привет, мир!"), 2000, "сообщение");
     });
-    await check("повторный вход тем же персонажем отклонён", async () => {
-      let err = "";
-      try {
-        await Bot.join("алиса", "pass1");
-      } catch (e) {
-        err = String((e as Error).message);
-      }
-      assert(err.includes("уже в игре"), "ожидали отказ, получили: " + err);
+    await check("повторный вход тем же персонажем вытесняет старую сессию", async () => {
+      const old = a;
+      a = await Bot.join("алиса", "pass1");
+      await old.until(() => old.closeCode === 4011, 2000, "старая сессия закрыта");
+      let n = 0;
+      b.room.state.players.forEach((u: any) => { if (u.name === "Алиса") n++; });
+      assert(n === 1, "героев Алиса в мире: " + n);
     });
     await check("сохранение позиции и неверный пароль", async () => {
       const x = a.me().x;

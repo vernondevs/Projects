@@ -192,6 +192,18 @@ export function accountRouter(d: AccountDeps): express.Router {
     res.json(view(a.token, a.s));
   });
 
+  // ошибки клиента (глобальный перехватчик): в лог сервера, не больше 10 в минуту с адреса
+  const clientErr = new Limiter(10, 60_000);
+  r.post("/client-error", (req, res) => {
+    const ip = ipOf(req);
+    if (clientErr.blocked(ip)) return void res.status(429).json({ ok: false });
+    clientErr.hit(ip);
+    const s = (v: unknown, n: number) => (typeof v === "string" ? v : "").slice(0, n).replace(/[\r\n]+/g, " | ");
+    const b = req.body ?? {};
+    console.warn(`[client-error] ${ip} ${s(b.who, 40)} ${s(b.kind, 20)}: ${s(b.message, 300)} @ ${s(b.where, 200)} ${s(b.stack, 1200)}`);
+    res.json({ ok: true });
+  });
+
   r.post("/logout", (req, res) => {
     const token = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "");
     sessions.delete(token);

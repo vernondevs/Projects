@@ -2,7 +2,7 @@ import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
 import { ARENA_MODES, MODE_NAMES, rankOf, TEAM_SIZE, type ArenaInfo, type ArenaMode, type ModeRating } from "../../../shared/arena";
 import { STAT_NAMES, type StatKey } from "../../../shared/classes";
 import { PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
-import { LOGOUT_CODE, LOGOUT_COMBAT_MS } from "../../../shared/accounts";
+import { KICK_CODE, KICK_TEXT, LOGOUT_CODE, LOGOUT_COMBAT_MS, RECONNECT_SEC } from "../../../shared/accounts";
 import { freshChars, sessionOf } from "../accounts";
 import { xpToNext } from "../../../shared/formulas";
 import { MOUNTS } from "../../../shared/mounts";
@@ -73,6 +73,7 @@ export class WorldRoom extends Room<WorldState> {
     this.bank = new BankService(() => this.world, () => WorldRoom.db, () => this.world.map.playerSpawn, (p) => p.goingToArena || inArena.has(p.name.toLowerCase()), (p, i) => this.trade.locked(p, i));
     const on = makeOn(this, () => this.world);
     registerCombat(on, () => this.world);
+    this.onMessage("ping", (c) => c.send("pong", 0)); // сторож связи клиента
     this.registerMessages(on);
     this.registerArena(on);
     registerAdmin(this, on);
@@ -96,15 +97,17 @@ export class WorldRoom extends Room<WorldState> {
     if (!want || db.ownerOf(want) !== sess.accountId) throw new ServerError(403, "Этот герой не принадлежит аккаунту");
     const name = db.find(want)!.name;
     const key = GameDB.key(name);
-    if (this.world.findByName(key)) throw new ServerError(409, "Этот герой уже в игре");
     if (inArena.has(key)) throw new ServerError(409, "Этот герой сейчас на арене");
-    // на аккаунте одновременно играет один герой
-    for (const c of db.charsOf(sess.accountId)) {
-      const k = GameDB.key(c.name);
-      if (this.world.findByName(k) || inArena.has(k)) throw new ServerError(409, `На аккаунте уже в игре другой герой: ${c.name}`);
-    }
+    const chars = db.charsOf(sess.accountId).map((c) => GameDB.key(c.name));
+    // на аккаунте одновременно играет один герой; герой аккаунта на арене — ждём конца матча
+    for (const k of chars) if (inArena.has(k)) throw new ServerError(409, "На аккаунте другой герой сейчас на арене");
     const ban = db.banOf(name);
     if (ban) throw new ServerError(403, `Герой заблокирован ${ban.until > 4e12 ? "навсегда" : "до " + new Date(ban.until).toLocaleString("ru-RU")}${ban.reason ? ": " + ban.reason : ""}`);
+    // вход с другой вкладки: старая сессия (этого или другого героя аккаунта) закрывается с сообщением, герой сохраняется
+    for (const k of chars) {
+      const old = this.world.findByName(k);
+      if (old) this.kick(old);
+    }
     const save = db.load(name);
     if (!save) throw new ServerError(404, "Герой не найден");
     return { name, save, created: freshChars.delete(key), accountId: sess.accountId };
@@ -118,7 +121,10 @@ export class WorldRoom extends Room<WorldState> {
       s.y = map.playerSpawn.y;
     }
     s.mapVer = MAP_VERSION;
-    const p = new Player(client.sessionId, auth.name, auth.save, (type, msg) => client.send(type, msg));
+    const id = client.sessionId;
+    this.sockets.set(id, client);
+    // после переподключения у сессии новый объект клиента: отправка идёт через актуальный
+    const p = new Player(id, auth.name, auth.save, (type, msg) => this.sockets.get(id)?.send(type, msg));
     p.admin = WorldRoom.db.isAdmin(p.name);
     p.accountId = auth.accountId ?? WorldRoom.db.ownerOf(p.name) ?? 0;
     this.world.addPlayer(p, auth.fromArena ? `${p.name} возвращается с арены.` : undefined);
@@ -132,21 +138,110 @@ export class WorldRoom extends Room<WorldState> {
     this.sendArenaInfo(key);
   }
 
-  override onLeave(client: Client) {
+  /**
+   * Уход клиента. Обрыв связи (не согласованный выход) — герой RECONNECT_SEC ждёт в мире:
+   * обмен отменяется, маунт снимается, группа сохраняется. Не вернулся — сохранение и удаление.
+   */
+  override async onLeave(client: Client, consented: boolean) {
     const p = this.world.players.get(client.sessionId);
-    if (p) {
+    if (!p) return;
+    if (!consented && !p.noReconnect && !p.goingToArena) {
+      this.suspend(p);
+      const key = p.name.toLowerCase();
+      try {
+        const wait = this.allowReconnection(client, Number(process.env.RECONNECT_SEC) || RECONNECT_SEC);
+        this.waiting.set(key, wait);
+        const fresh = await wait;
+        if (this.waiting.get(key) === (wait as unknown)) this.waiting.delete(key);
+        if (this.world.players.get(client.sessionId) === p) return this.resume(p, fresh);
+        return;
+      } catch {
+        if (this.waiting.get(key)) this.waiting.delete(key);
+        if (this.world.players.get(client.sessionId) !== p) return; // уже вытеснен новым входом
+      }
+    }
+    this.finalLeave(p);
+  }
+
+  /** Актуальный клиент сессии (после переподключения объект клиента другой). */
+  private sockets = new Map<string, Client>();
+  /** Ожидающие переподключения (ключ имени → отложенное переподключение Colyseus). */
+  private waiting = new Map<string, { reject: Function }>();
+
+  /** Обрыв связи: герой остаётся на месте, без движения и цели; обмен отменён, маунт снят. */
+  private suspend(p: Player) {
+    p.offline = true;
+    p.logout = null;
+    p.input = { mx: 0, my: 0 };
+    p.moveTo = null;
+    p.targetId = null;
+    try {
+      this.trade.leave(p);
+      this.world.breakMount(p);
+      this.queue.drop(p.name.toLowerCase());
+      WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
+    } catch (e) {
+      console.error("[world] обрыв связи:", e);
+    }
+  }
+
+  /** Переподключение: тот же герой (HP, мана, баффы, группа), клиенту — полное состояние заново. */
+  private resume(p: Player, client: Client) {
+    this.sockets.set(p.id, client);
+    p.offline = false;
+    p.selfDirty = true;
+    p.bagsDirty = true;
+    const key = p.name.toLowerCase();
+    client.send("welcome", { id: client.sessionId, seed: this.world.map.seed, created: false, resumed: true });
+    sendNodes(this.world, p);
+    p.send("combat", { on: p.combatSent });
+    const t = this.world.time;
+    for (const [id, until] of p.cds) if (until > t) p.send("cd", { id, ms: until - t });
+    client.send("party", this.parties.state(key));
+    this.sendArenaInfo(key);
+    p.send("toast", { text: "Соединение восстановлено", kind: "info" });
+  }
+
+  /** Окончательный уход: сохранение (всегда), отмена обмена, очередь и группа, удаление из мира. */
+  private finalLeave(p: Player, keepParty = false) {
+    const key = p.name.toLowerCase();
+    try {
       forgetRumors(p.id);
       p.logout = null;
       this.trade.leave(p);
       this.world.breakMount(p);
-      WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
-      const key = p.name.toLowerCase();
       if (!p.goingToArena) {
         this.queue.drop(key);
-        this.parties.leave(key);
+        if (!keepParty) this.parties.leave(key);
       }
+    } catch (e) {
+      console.error("[world] выход:", e);
     }
-    this.world.removePlayer(client.sessionId, p?.goingToArena ? `${p.name} отправляется на арену.` : undefined);
+    try {
+      WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
+    } catch (e) {
+      console.error("[world] сохранение при выходе:", e);
+    }
+    this.sockets.delete(p.id);
+    this.world.removePlayer(p.id, p.goingToArena ? `${p.name} отправляется на арену.` : undefined);
+  }
+
+  /** Вход тем же аккаунтом с другой вкладки: старая сессия закрывается с сообщением, герой сохраняется. */
+  private kick(p: Player) {
+    console.warn(`[world] ${p.name}: вход с другой вкладки, старая сессия ${p.id} закрыта`);
+    p.noReconnect = true;
+    const key = p.name.toLowerCase();
+    const client = this.clients.find((c) => c.sessionId === p.id);
+    try {
+      p.send("kicked", { text: KICK_TEXT });
+    } catch {}
+    this.finalLeave(p, true);
+    const wait = this.waiting.get(key);
+    this.waiting.delete(key);
+    wait?.reject(new Error("kicked"));
+    try {
+      client?.leave(KICK_CODE);
+    } catch {}
   }
 
   override onDispose() {
@@ -188,6 +283,7 @@ export class WorldRoom extends Room<WorldState> {
     p.logout = null;
     const client = this.clients.find((c) => c.sessionId === p.id);
     if (!client) return;
+    p.noReconnect = true;
     p.send("logout:ok", {});
     client.leave(LOGOUT_CODE);
   }
