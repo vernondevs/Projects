@@ -2,6 +2,7 @@
 import { TILE } from "../../../shared/constants";
 import { isBound, type Item } from "../../../shared/items";
 import { TRADE_CONFIRM_DELAY_MS, TRADE_RANGE_TILES, TRADE_REQUEST_MS, TRADE_SLOTS, type TradeSideView, type TradeView } from "../../../shared/trade";
+import { isQuestItem, QUEST_ITEM_MSG } from "../../../shared/quests";
 import type { GameDB } from "../db";
 import { addItem } from "../game/inventory";
 import type { Player } from "../game/Player";
@@ -122,6 +123,7 @@ export class TradeManager {
     const it = p.save.inventory[index as number];
     if (!it) return;
     if (isBound(it)) return toast(p, "Предмет привязан к персонажу — его нельзя передать");
+    if (isQuestItem(it.base)) return toast(p, QUEST_ITEM_MSG);
     const s = this.sideOf(t, key(p));
     if (s.offers.some((o) => o && o.index === index)) return;
     let slot = Number.isInteger(slotRaw) && (slotRaw as number) >= 0 && (slotRaw as number) < TRADE_SLOTS && !s.offers[slotRaw as number] ? (slotRaw as number) : s.offers.indexOf(null);

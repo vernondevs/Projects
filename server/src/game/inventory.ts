@@ -4,6 +4,7 @@ import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
 import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { MATERIALS } from "../../../shared/upgrade";
 import { RESOURCES } from "../../../shared/biomes";
+import { isQuestItem, QUEST_ITEM_MSG } from "../../../shared/quests";
 import type { Player } from "./Player";
 import { recordSale, sellPrice, sendPrices } from "./market";
 import type { World } from "./World";
@@ -136,6 +137,7 @@ export function sell(w: World, p: Player, index: unknown) {
   const it = p.save.inventory[index];
   if (!it) return;
   if (!nearMerchant(w, p)) return err(p, "Торговец далеко");
+  if (isQuestItem(it.base)) return err(p, QUEST_ITEM_MSG);
   const qty = it.qty ?? 1;
   const gold = sellPrice(it) * qty;
   recordSale(it, qty);

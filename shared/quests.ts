@@ -27,3 +27,8 @@ export interface QuestSave {
   active: Record<string, number>;
   done: string[];
 }
+
+/** Квестовые предметы: ресурсы из активных в игре заданий «добыть». Нельзя в банк/склад, торговцу и в обмен — иначе ломается счёт. */
+const QUEST_ITEMS = new Set(Object.values(QUESTS).filter((q) => q.kind === "gather").map((q) => q.target));
+export const isQuestItem = (base: string) => QUEST_ITEMS.has(base);
+export const QUEST_ITEM_MSG = "Квестовый предмет нельзя положить в банк, продать или передать";

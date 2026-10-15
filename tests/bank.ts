@@ -1,5 +1,5 @@
 /** Проверки банка. Запуск: npx tsx tests/bank.ts */
-import { BANKER } from "../shared/bank";
+import { BANKER, SHARED_TAB } from "../shared/bank";
 import { assert, Bot, check, passedCount, sleep, startServer, stopServer } from "./harness";
 
 type B = Bot & { bank: any; trade: any; req: any };
@@ -54,6 +54,18 @@ async function main() {
       await a.until(() => a.bank.tabs[0][0]?.base === "sword" && !a.bank.tabs[0][5], 2000, "перестановка");
       a.send("bank:take", { tab: 0, slot: 0 });
       await a.until(() => idxOf(a, "sword") >= 0 && !inBank(a, "sword"), 2000, "меч в сумке");
+    });
+
+    await check("квестовый предмет нельзя в банк и склад", async () => {
+      await toBanker(a);
+      a.send("dbg", { op: "item", base: "cactus_juice" });
+      await a.until(() => idxOf(a, "cactus_juice") >= 0, 2000, "сок кактуса");
+      a.toasts.length = 0;
+      a.send("bank:put", { index: idxOf(a, "cactus_juice"), tab: 0, slot: 3 });
+      await toast(a, "Квестовый предмет");
+      a.send("bank:put", { index: idxOf(a, "cactus_juice"), tab: SHARED_TAB, slot: 0 });
+      await sleep(200);
+      assert(idxOf(a, "cactus_juice") >= 0 && !inBank(a, "cactus_juice"), "предмет остался в сумке");
     });
 
     await check("зелья складываются в стопку", async () => {

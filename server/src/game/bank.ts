@@ -4,6 +4,7 @@ import { MERCHANT_RANGE } from "../../../shared/constants";
 import { BANK_GOLD_MAX, BANK_STEP, BANK_TAB_SIZE, BANK_TABS, BANKER, bankPrice, newBank, SHARED_SIZE, SHARED_TAB, type BankSave, type BankView } from "../../../shared/bank";
 import { BASE_ITEMS, type Item } from "../../../shared/items";
 import type { GameDB } from "../db";
+import { isQuestItem, QUEST_ITEM_MSG } from "../../../shared/quests";
 import { addItem } from "./inventory";
 import type { Player } from "./Player";
 import type { World } from "./World";
@@ -170,6 +171,7 @@ export class BankService {
       const inv = p.save.inventory;
       const it = inv[index];
       if (!it) return "Ячейка пуста";
+      if (isQuestItem(it.base)) return QUEST_ITEM_MSG;
       if (this.slotOk(x, tab, slot)) {
         const t = this.cells(x, tab)!, cur = t[slot as number];
         if (!cur) {
