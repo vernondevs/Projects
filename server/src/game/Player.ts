@@ -41,6 +41,9 @@ export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSa
 
 export type Sender = (type: string, msg: unknown) => void;
 
+/** Сколько после боевого действия игрок считается «в бою». */
+export const COMBAT_MS = 5000;
+
 export class Player {
   readonly unit = new Unit();
   derived!: Derived;
@@ -76,6 +79,13 @@ export class Player {
   hastePct = 0;
   /** Последний момент боя: вне боя регенерация быстрее. */
   combatAt = -1e9;
+  /** Последнее отправленное клиенту состояние «в бою». */
+  combatSent = false;
+  /** Единственный источник истины «в бою»: урон от/по враждебному актёру за последние 5 с (часы World.time). */
+  inCombat(now: number): boolean {
+    const d = now - this.combatAt;
+    return d >= 0 && d < COMBAT_MS;
+  }
   deadAt = 0;
   dead = false;
   castUntil = 0;

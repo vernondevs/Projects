@@ -1,5 +1,5 @@
 /** Города на сервере: открытие телепортов, телепорт-кастинг (3 с) и задания. Всё проверяется здесь, клиент шлёт намерения. */
-import { cityAtTile, cityById, stoneNear, teleportPrice, TELEPORT_CAST_MS, TELEPORT_COMBAT_MS } from "../../../shared/cities";
+import { cityAtTile, cityById, stoneNear, teleportPrice, TELEPORT_CAST_MS } from "../../../shared/cities";
 import { TILE } from "../../../shared/constants";
 import { makeItem, Rarity } from "../../../shared/items";
 import { QUESTS, QUEST_GIVERS, QUEST_MAX_ACTIVE } from "../../../shared/quests";
@@ -58,7 +58,7 @@ export function startTeleport(w: World, p: Player, id: unknown) {
   const found = p.save.cities ?? [];
   if (!to || to.id === from.id || (to.id !== "ember" && !found.includes(to.id))) return err(p, "Этот телепорт не открыт");
   if (p.tele) return;
-  if (w.time - p.combatAt < TELEPORT_COMBAT_MS) return err(p, "Нельзя телепортироваться в бою");
+  if (p.inCombat(w.time)) return err(p, "Нельзя телепортироваться в бою");
   if (p.stunUntil > w.time || p.mountCast) return;
   const price = teleportPrice(from, to);
   if (p.save.gold < price) return err(p, "Не хватает золота");

@@ -171,6 +171,7 @@ export class Hud {
       n.on("self", (s) => this.renderSelf(s));
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
+      n.on("combat", (m) => this.setCombat(m.on));
       n.on("mountcast", (m) => this.mountCast(m.ms, m.name));
       n.on("air", (m) => this.airBar(m.air, m.max));
       n.on("arena:info", () => this.applyFrame());
@@ -474,6 +475,7 @@ export class Hud {
     const pts = [s.statPoints ? `<span class="pill" data-open="char">+${s.statPoints} хар.</span>` : "", s.skillPoints ? `<span class="pill" data-open="skills">+${s.skillPoints} ум.</span>` : ""].join("");
     this.player.innerHTML = `
       <div class="row1"><span class="nm">${esc(s.name)}</span><span class="lv">${CLASSES[s.cls].name} · ур. ${s.level}</span></div>
+      <div class="combat-badge" ${this.inCombat ? "" : "hidden"}>╳ В бою</div>
       <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
       <div class="bar mp"><i id="mp-fill"></i><span id="mp-text"></span></div>
       <div class="bar xp" title="Опыт"><i style="width:${s.xpNext ? (s.xp / s.xpNext) * 100 : 100}%"></i></div>
@@ -693,6 +695,13 @@ export class Hud {
     const k = Math.max(0, Math.min(1, air / max));
     bar.style.width = `${k * 100}%`;
     bar.style.background = k < 0.25 ? "#ff5a4a" : "#4ab8ff";
+  }
+
+  private inCombat = false;
+  private setCombat(on: boolean) {
+    this.inCombat = on;
+    const b = this.player.querySelector<HTMLElement>(".combat-badge");
+    if (b) b.hidden = !on;
   }
 
   private mountCast(ms: number, name?: string) {

@@ -9,7 +9,7 @@ import { nearestCity } from "../../../shared/cities";
 import { ELITE } from "../../../shared/elites";
 import { SKILLS } from "../../../shared/skills";
 import { MOBS } from "../../../shared/mobs";
-import { MOUNTS, MOUNT_CAST_MS, MOUNT_COMBAT_LOCK_MS } from "../../../shared/mounts";
+import { MOUNTS, MOUNT_CAST_MS } from "../../../shared/mounts";
 import {
   Anim, BUFF_BURN, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STEALTH, BUFF_STUN, BUFF_WARCRY, Dir,
   type ChatLine, type Fx, type FxKind,
@@ -354,9 +354,9 @@ export class World {
     u.hp = Math.max(0, u.hp - v);
     if (this.isPlayer(dst)) {
       if (v > 0) dst.stealthUntil = 0;
-      dst.combatAt = this.time;
+      // бой — только урон от враждебного актёра; среда (жара, холод, утопление) боем не считается
+      if (src && src !== dst) { dst.combatAt = this.time; if (this.isPlayer(src)) src.combatAt = this.time; }
       if (v > 0) this.breakMount(dst);
-      if (src && this.isPlayer(src)) src.combatAt = this.time;
       if (u.hp <= 0) this.killPlayer(dst, src);
     } else {
       dst.lastHitAt = this.time;
@@ -450,7 +450,7 @@ export class World {
     const m = MOUNTS[p.save.mount ?? ""];
     if (!m || !p.save.mounts?.includes(m.id)) return err("У вас нет маунта (конь с 10 уровня)");
     if (p.level < m.level) return err(`${m.name}: нужен ${m.level} уровень`);
-    if (this.time - p.combatAt < MOUNT_COMBAT_LOCK_MS) return err("Нельзя призвать маунта в бою");
+    if (p.inCombat(this.time)) return err("Нельзя призвать маунта в бою");
     if (p.stunUntil > this.time || p.frozenUntil > this.time) return;
     p.input = { mx: 0, my: 0 };
     p.moveTo = null;
@@ -501,6 +501,8 @@ export class World {
     u.buffs = b;
 
     p.checkFood();
+    const cb = p.inCombat(t);
+    if (cb !== p.combatSent) { p.combatSent = cb; p.send("combat", { on: cb }); }
     tickPetCast(this, p);
     if (p.mountCast) {
       if (Math.hypot(u.x - p.mountCast.x, u.y - p.mountCast.y) > 0.5 || p.input.mx || p.input.my || p.moveTo || p.stunUntil > t) this.breakMount(p);
@@ -513,7 +515,7 @@ export class World {
 
     // регенерация: вне боя быстрее, в городе ещё быстрее
     const town = this.inTown(u.x, u.y);
-    const calm = t - p.combatAt > 5000;
+    const calm = !p.inCombat(t);
     const d = p.derived;
     p.regenAcc += d.hpRegen * dt * (town ? 8 : calm ? 3 : 1);
     p.manaAcc += d.mpRegen * dt * (town ? 4 : 1);

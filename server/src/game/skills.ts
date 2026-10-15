@@ -66,7 +66,6 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
     const cd = def.cd!(rank) * 1000;
     p.cds.set(id, w.time + cd);
     p.send("cd", { id, ms: cd });
-    p.combatAt = w.time;
     u.aseq = (u.aseq + 1) % 65535;
     u.dir = World.dirTo(ax - u.x, ay - u.y);
     // автоатака не сразу после умения
@@ -343,7 +342,6 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
           tp.unit.hp = Math.max(1, Math.round(tp.unit.maxHp * rv.hp / 100));
           tp.unit.anim = Anim.Idle;
           tp.stunUntil = tp.rootUntil = tp.slowUntil = 0;
-          tp.combatAt = w.time;
           tp.selfDirty = true;
           tp.send("toast", { text: `${p.name} воскрешает вас`, kind: "info" });
           w.emit({ t: "buff", id: tp.id, k: "heal", ms: 900 });

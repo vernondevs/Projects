@@ -27,7 +27,6 @@ interface Trade {
   changedAt: number;
 }
 
-const COMBAT_MS = 5000;
 const key = (p: Player) => p.name.toLowerCase();
 const toast = (p: Player | undefined, text: string, kind: "info" | "error" = "error") => p?.send("toast", { text, kind });
 
@@ -57,7 +56,7 @@ export class TradeManager {
     const w = this.world();
     if (p.dead || q.dead) return "Мёртвые не торгуют";
     if (w.dist(p, q) > TRADE_RANGE_TILES * TILE) return "Слишком далеко для обмена (до 5 шагов)";
-    if (w.time - p.combatAt < COMBAT_MS || w.time - q.combatAt < COMBAT_MS) return "Нельзя торговать в бою";
+    if (p.inCombat(w.time) || q.inCombat(w.time)) return "Нельзя торговать в бою";
     if (this.busy(p) || this.busy(q)) return "Нельзя торговать на арене или в очереди на неё";
     return null;
   }

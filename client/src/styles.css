@@ -417,3 +417,6 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .win-help { left: 50%; top: 70px; transform: translateX(-50%); width: min(480px, calc(100vw - 24px)); z-index: 5; }
 .win-worldmap { left: 50%; top: 50px; transform: translateX(-50%); width: min(760px, calc(100vw - 24px)); z-index: 5; }
 .win-worldmap canvas { width: 100%; height: auto; aspect-ratio: 4 / 3; image-rendering: pixelated; display: block; border-radius: 3px; }
+
+.combat-badge { display: inline-block; margin: 2px 0; padding: 0 8px; font-size: 13px; letter-spacing: 1px; color: #ffd9c9; background: #5a1f14; border: 1px solid #c4452e; border-radius: 3px; }
+.combat-badge[hidden] { display: none; }

@@ -330,7 +330,7 @@ export function updatePet(w: World, pet: Pet, dt: number) {
     return;
   }
   // лёгкая регенерация вне боя
-  if (t - o.combatAt > 5000 && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + Math.ceil(u.maxHp * 0.02 * dt * 5));
+  if (!o.inCombat(t) && u.hp < u.maxHp) u.hp = Math.min(u.maxHp, u.hp + Math.ceil(u.maxHp * 0.02 * dt * 5));
   u.buffs = pet.shellUntil > t ? 4 : 0;
   const target = o.dead ? null : pickTarget(w, pet);
   let moving = false;
