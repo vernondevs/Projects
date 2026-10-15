@@ -685,7 +685,7 @@ export class Hud {
       for (const base of ["hp_potion", "mp_potion"]) {
         const def = BASE_ITEMS[base], p = def.price ?? 0;
         row(`<img src="${icon(def.icon)}" alt="">`, def.name, base === "hp_potion" ? "+45% здоровья" : "+50% маны",
-          [1, 5, 20].map((q) => [`×${q} `, p * q, false, () => this.ctx.net.send("buy", { base, qty: q })] as [string, number, boolean, () => void]));
+          [1, 5, 20].map((q) => [`×${q}`, p * q, false, () => this.ctx.net.send("buy", { base, qty: q })] as [string, number, boolean, () => void]));
       }
       const mounts = MOUNT_IDS.filter((id) => MOUNTS[id].price > 0 && !s.mounts?.includes(id));
       if (mounts.length) head("Ездовые животные");
