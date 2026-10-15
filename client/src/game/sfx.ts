@@ -1,5 +1,5 @@
 /** Процедурные звуки на WebAudio (без файлов). AudioContext стартует по первому действию игрока. */
-export type SfxName = "hit" | "crit" | "fire" | "frost" | "arrow" | "heal" | "shield" | "poison" | "explosion" | "slam" | "arcane" | "holy" | "shadow";
+export type SfxName = "hit" | "crit" | "fire" | "frost" | "arrow" | "heal" | "shield" | "poison" | "explosion" | "slam" | "arcane" | "holy" | "shadow" | "step" | "clink" | "call" | "halt" | "bell" | "horn";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -89,6 +89,27 @@ function noise(dur: number, vol: number, f0: number, f1: number, type: BiquadFil
   s.stop(t + dur + 0.02);
 }
 
+/** Голосоподобный возглас: слоги пилы через формантный фильтр. */
+function voice(v: number, pitches: number[], syl: number, _n: number) {
+  const c = ctx!;
+  pitches.forEach((f, i) => {
+    const t = c.currentTime + i * syl * 1.15;
+    const o = c.createOscillator(), fl = c.createBiquadFilter(), g = c.createGain();
+    o.type = "sawtooth";
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.linearRampToValueAtTime(f * (i % 2 ? 0.85 : 1.15), t + syl);
+    fl.type = "bandpass";
+    fl.frequency.value = i % 2 ? 700 : 1100;
+    fl.Q.value = 3;
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(v * 1.4, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + syl);
+    o.connect(fl).connect(g).connect(master!);
+    o.start(t);
+    o.stop(t + syl + 0.02);
+  });
+}
+
 /** gain 0..1 — громкость по расстоянию/важности. Одинаковые звуки чаще раза в 50 мс не играются. */
 export function play(name: SfxName, gain = 1) {
   if (muted || volume <= 0 || gain <= 0.02 || !ctx || ctx.state !== "running" || !master) return;
@@ -109,6 +130,12 @@ export function play(name: SfxName, gain = 1) {
     case "slam": noise(0.4, v * 1.3, 600, 50, "lowpass"); tone("sine", 70, 25, 0.45, v * 1.2); break;
     case "arcane": tone("sine", 400, 1200, 0.18, v * 0.5); tone("triangle", 800, 1800, 0.14, v * 0.3, 0.04); break;
     case "holy": tone("sine", 880, 880, 0.2, v * 0.4); tone("sine", 1320, 1320, 0.25, v * 0.3, 0.06); break;
+    case "step": noise(0.06, v * 0.7, 700, 180, "lowpass"); tone("sine", 120 + Math.random() * 30, 60, 0.05, v * 0.4); break;
+    case "clink": tone("triangle", 2600 + Math.random() * 500, 2000, 0.07, v * 0.25); tone("square", 3900, 3000, 0.04, v * 0.12, 0.02); noise(0.05, v * 0.3, 7000, 4000, "highpass"); break;
+    case "call": voice(v, [150, 190, 170], 0.14, 3); break;
+    case "halt": voice(v * 1.2, [180, 230, 200, 150], 0.12, 4); break;
+    case "bell": for (let i = 0; i < 4; i++) { tone("sine", 660, 640, 0.5, v * 0.7, i * 0.32); tone("sine", 1320, 1300, 0.35, v * 0.3, i * 0.32); tone("triangle", 1980, 1950, 0.2, v * 0.12, i * 0.32); } break;
+    case "horn": tone("sawtooth", 196, 190, 0.7, v * 0.5); tone("sawtooth", 294, 290, 0.7, v * 0.35, 0.02); tone("sawtooth", 196, 185, 0.5, v * 0.5, 0.85); tone("sawtooth", 294, 280, 0.5, v * 0.35, 0.87); break;
     case "shadow": tone("sawtooth", 300, 80, 0.2, v * 0.4); noise(0.18, v * 0.5, 1500, 200, "bandpass"); break;
   }
 }

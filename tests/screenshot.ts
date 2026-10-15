@@ -102,6 +102,16 @@ async function main() {
       await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(1));
       await sleep(1500);
       await page.screenshot({ path: path.join(OUT, "shot-town-wide.png") });
+      // ночь: сдвигаем часы страницы в середину ночной фазы цикла, смотрим на стражу у ворот
+      await page.evaluate(() => {
+        const o = Date.now.bind(Date), C = 20 * 60 * 1000;
+        const off = (0.82 * C - (o() % C) + C) % C;
+        Date.now = () => o() + off;
+        (window as any).__game.scene.getScene("game").cameras.main.setZoom(2);
+      });
+      await dbg(at(0, -15));
+      await sleep(2500);
+      await page.screenshot({ path: path.join(OUT, "shot-town-night.png") });
     } else if (scenario === "cities") {
       // малые города: ворота, площадь, жилой квартал, окна заданий и телепорта, общий вид
       const { CITIES } = await import("../shared/cities");

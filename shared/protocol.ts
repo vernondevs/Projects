@@ -138,7 +138,7 @@ export type Fx =
   | { t: "chain"; pts: number[]; k?: string }
   | { t: "lvl"; id: string; level: number }
   | { t: "buff"; id: string; k: string; ms: number }
-  | { t: "say"; id: string; text: string }
+  | { t: "say"; id: string; text: string; /** звук у города: перекличка, окрик у ворот, тревога */ snd?: "call" | "halt" | "alarm" }
   | { t: "spawn"; id: string; k: string };
 
 export interface ChatLine {

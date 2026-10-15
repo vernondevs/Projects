@@ -333,6 +333,14 @@ export class Effects {
         break;
       }
       case "say": {
+        if (f.snd) {
+          // звук у города: слышно в пределах ~20 тайлов, громкость по расстоянию; далеко — без реплики
+          const u = this.unit(f.id);
+          const k = u ? this.near(u.x, u.y, 640) : 0;
+          if (k <= 0) break;
+          if (f.snd === "alarm") { sfx.play("bell", k); sfx.play("horn", k * 0.8); }
+          else sfx.play(f.snd === "halt" ? "halt" : "call", k);
+        }
         this.onSay(f.id, f.text);
         break;
       }

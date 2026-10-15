@@ -25,6 +25,8 @@ export interface HSpec {
   cape?: Ramp;
   head?: "helmet" | "hat" | "hood" | "horns" | "feathers" | "darkhelm" | "witchhat" | "cap" | "none";
   headRamp?: Ramp;
+  /** Султан на шлеме (стража): яркий цвет города, виден издалека. */
+  plume?: Ramp;
   weapon?: "sword" | "axe" | "staff" | "bow" | "dagger" | "flamesword" | "skullstaff" | "claws" | "none";
   orb?: Ramp;
   shield?: Ramp;
@@ -318,7 +320,11 @@ export function drawHumanoid(spec: HSpec, view: View, pose: Pose, k = 1): PC {
         c.rect(L(hcx - headR + 1), L(eyeY - 1.2), L(headR * 2 - 1), L(1), hr[1]);
         if (spec.head === "darkhelm") c.poly([[L(hcx + 1), L(hcy - 4)], [L(hcx + 4), L(hcy - 10)], [L(hcx + 3.5), L(hcy - 3)]], P.bone[2]);
       } else if (spec.head === "darkhelm") for (const s of [-1, 1]) c.poly([[L(hcx + s * 4), L(hcy - 4)], [L(hcx + s * 8), L(hcy - 9)], [L(hcx + s * 5.5), L(hcy - 3)]], P.bone[2]);
-      if (spec.head === "helmet" && view !== "side") c.rect(L(hcx - 0.5), L(hcy - headR - 1.5), L(1), L(2), P.cloth.red[2]);
+      if (spec.head === "helmet" && spec.plume) {
+        const sx = view === "side" ? -2.2 : 0;
+        c.shadedEllipse(L(hcx + sx), L(hcy - headR - 1.6), L(view === "side" ? 2.6 : 1.7), L(3), spec.plume);
+        if (view === "side") c.shadedEllipse(L(hcx - 4), L(hcy - headR + 0.4), L(2), L(1.4), spec.plume);
+      } else if (spec.head === "helmet" && view !== "side") c.rect(L(hcx - 0.5), L(hcy - headR - 1.5), L(1), L(2), P.cloth.red[2]);
       break;
     }
     case "hat":
@@ -551,17 +557,17 @@ const SPECS: Record<string, HSpec> = {
   },
   /** Стражник Эмберхолла: латы, алый табард с золотом, шлем, меч и щит в цветах города. */
   guard: {
-    skin: P.skin, hair: P.hair.brown, hairStyle: "short", torso: ramp_("#5a1018", "#8a1c24", "#b8302e", "#e05a40"), legs: P.steel, boots: P.darkSteel, belt: P.gold,
-    head: "helmet", headRamp: P.steel, weapon: "sword", shield: ramp_("#6a4210", "#a8681c", "#e0a630", "#ffd864"), armorPlates: P.steel, cape: P.cloth.red, beard: P.hair.brown,
+    skin: P.skin, hair: P.hair.brown, hairStyle: "short", torso: ramp_("#7a1620", "#b02a30", "#e0463c", "#ff7a58"), legs: P.steel, boots: P.darkSteel, belt: P.gold,
+    head: "helmet", headRamp: P.steel, plume: ramp_("#8a1020", "#c82030", "#f04a48", "#ff9a88"), weapon: "sword", shield: ramp_("#6a4210", "#a8681c", "#e0a630", "#ffd864"), armorPlates: P.steel, cape: P.cloth.red, beard: P.hair.brown,
   },
   /** Стражи малых городов: тот же силуэт, цвета оазиса (песочный табард, бирюза) и долины (синий табард, мех). */
   guard_desert: {
-    skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: ramp_("#7a4a14", "#b07424", "#d89c3c", "#f4c864"), legs: P.cloth.brown, boots: P.leather, belt: P.cloth.green,
-    head: "helmet", headRamp: P.gold, weapon: "sword", shield: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), armorPlates: P.gold, cape: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), beard: P.hair.black,
+    skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: ramp_("#9a5c10", "#d89028", "#ffbe48", "#ffe088"), legs: P.cloth.brown, boots: P.leather, belt: P.cloth.green,
+    head: "helmet", headRamp: P.gold, plume: ramp_("#1a5a58", "#2a9a90", "#50d0c0", "#a0f0e0"), weapon: "sword", shield: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), armorPlates: P.gold, cape: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), beard: P.hair.black,
   },
   guard_snow: {
-    skin: P.skinPale, hair: P.hair.white, hairStyle: "short", torso: ramp_("#1a2a4a", "#2c4a7e", "#4a74b4", "#86aee0"), legs: P.cloth.blue, boots: P.leather, belt: P.leather,
-    head: "helmet", headRamp: P.steel, weapon: "sword", shield: P.wood, armorPlates: P.steel, cape: P.cloth.white, beard: P.hair.white,
+    skin: P.skinPale, hair: P.hair.white, hairStyle: "short", torso: ramp_("#1c3a78", "#3a68c8", "#5a94f0", "#a4cbff"), legs: P.cloth.blue, boots: P.leather, belt: P.leather,
+    head: "helmet", headRamp: P.steel, plume: ramp_("#a0b4d0", "#d0def0", "#f0f6ff", "#ffffff"), weapon: "sword", shield: P.wood, armorPlates: P.steel, cape: P.cloth.white, beard: P.hair.white,
   },
   citizen_desert: {
     skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: P.cloth.rag, legs: P.cloth.rag, boots: P.leather, belt: P.cloth.red,

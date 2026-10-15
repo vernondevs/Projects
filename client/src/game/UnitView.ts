@@ -5,6 +5,7 @@ import { RARITY_COLORS } from "../../../shared/items";
 import { net, type UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
+import { nightLevel } from "../../../shared/daynight";
 import { mountSprite } from "../../../shared/mounts";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
@@ -23,6 +24,10 @@ export class UnitView {
   titleText: Phaser.GameObjects.Text;
   frameGfx: Phaser.GameObjects.Graphics;
   mountSpr?: Phaser.GameObjects.Sprite;
+  /** Факел стражника ночью: пламя и мерцающее свечение. */
+  private torchGfx?: Phaser.GameObjects.Graphics;
+  private torchGlow?: Phaser.GameObjects.Image;
+  stepAt = 0;
   private mountId = "";
   private lastTitle = "";
   private lastColor = "";
@@ -219,6 +224,8 @@ export class UnitView {
     const showName = !this.dead && this.label.visible;
     this.titleText.setVisible(showName && !!u.title).setPosition(Math.round(this.x), Math.round(top - 13));
     this.frameGfx.clear();
+    if (u.kind === UnitKind.Guard && showName) this.guardBadge(top);
+    this.torch(!this.dead && u.kind === UnitKind.Guard && nightLevel(Date.now()) > 0.35);
     if (u.elite && showName) {
       const w = this.label.width + 6, h = 11;
       const fx = Math.round(this.x - w / 2), fy = Math.round(top - 4 - h + 1);
@@ -280,6 +287,33 @@ export class UnitView {
     }
   }
 
+  /** Значок щита слева от имени: цвет города (красный, бирюзовый, синий) со стальной каймой. */
+  private guardBadge(top: number) {
+    const c = this.u.sprite === "guard_desert" ? 0x2fb0a2 : this.u.sprite === "guard_snow" ? 0x4a8ae8 : 0xd02a34;
+    const bx = Math.round(this.x - this.label.width / 2 - 9), by = Math.round(top - 14);
+    const g = this.frameGfx;
+    g.fillStyle(0x120a10, 0.9).fillRect(bx - 1, by - 1, 9, 11).fillRect(bx, by + 9, 7, 1).fillRect(bx + 1, by + 10, 5, 1);
+    g.fillStyle(0xaab4c4, 1).fillRect(bx, by, 7, 8).fillRect(bx + 1, by + 8, 5, 1).fillRect(bx + 2, by + 9, 3, 1);
+    g.fillStyle(c, 1).fillRect(bx + 1, by + 1, 5, 7).fillRect(bx + 2, by + 8, 3, 1);
+    g.fillStyle(0xffe08a, 1).fillRect(bx + 3, by + 2, 1, 5).fillRect(bx + 2, by + 3, 3, 1);
+  }
+
+  /** Факел в руке: ночью с мерцающим светом (ADD), днём прячется. */
+  private torch(on: boolean) {
+    if (!on) { this.torchGfx?.setVisible(false); this.torchGlow?.setVisible(false); return; }
+    this.torchGfx ??= this.scene.add.graphics();
+    this.torchGlow ??= this.scene.add.image(0, 0, "fx_glow").setBlendMode(Phaser.BlendModes.ADD).setTint(0xff9a3a);
+    const dx = this.u.dir === Dir.Left ? -8 : this.u.dir === Dir.Up ? -7 : 8;
+    const hx = Math.round(this.x + dx), hy = Math.round(this.y - 13);
+    const t = this.scene.time.now, fl = 0.75 + Math.sin(t / 70 + this.x) * 0.12 + Math.sin(t / 130) * 0.1 + Math.random() * 0.06;
+    const g = this.torchGfx;
+    g.setVisible(true).setDepth(this.y + 1).clear();
+    g.fillStyle(0x4a2a10, 1).fillRect(hx, hy - 1, 2, 6);
+    g.fillStyle(0xff7a1a, 1).fillRect(hx - 1, hy - 4, 4, 3);
+    g.fillStyle(0xffd860, 1).fillRect(hx, hy - 5 + (fl > 0.8 ? 0 : 1), 2, 3);
+    this.torchGlow.setVisible(true).setPosition(hx + 1, hy - 3).setDepth(DEPTH.top - 12).setScale(2.2 * fl).setAlpha(0.55 * fl);
+  }
+
   hitTest(wx: number, wy: number): number {
     if (this.dead) return Infinity;
     const r = this.frame > 32 ? 30 : 14;
@@ -299,5 +333,7 @@ export class UnitView {
     this.stun?.destroy();
     this.titleText.destroy();
     this.frameGfx.destroy();
+    this.torchGfx?.destroy();
+    this.torchGlow?.destroy();
   }
 }

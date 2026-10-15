@@ -66,6 +66,9 @@ interface Folk {
   foe: Mob | null;
   attackAt: number;
   sayAt: number;
+  /** Часовой у ворот: игрок уже рядом / когда можно окликнуть снова. */
+  nearP: boolean;
+  haltAt: number;
   syncAt: number;
 }
 
@@ -73,6 +76,9 @@ export class Townfolk {
   readonly folk: Folk[] = [];
   private scanAt = 0;
   private n = 0;
+  /** Таймеры города: перекличка на стенах и тревога (общая, чтобы не трубить на каждого моба). */
+  private callAt = new Map<Site, number>();
+  private alarmAt = new Map<Site, number>();
 
   constructor(private w: World) {
     for (const site of SITES) {
@@ -102,14 +108,14 @@ export class Townfolk {
   private add(site: Site, guard: boolean, x: number, y: number, post: Folk["post"], route: Folk["route"], who?: { name: string; sprite: string }): Folk {
     const u = new Unit();
     u.kind = guard ? UnitKind.Guard : UnitKind.Citizen;
-    u.name = guard ? site.guard.name : who!.name;
+    u.name = guard ? (post ? "Часовой" : site.guard.name) : who!.name;
     u.sprite = guard ? site.guard.sprite : who!.sprite;
     u.level = guard ? G.level : 1;
     u.hp = u.maxHp = 1;
     u.x = x;
     u.y = y;
     u.dir = post?.dir ?? Dir.Down;
-    const f: Folk = { id: `${guard ? "g" : "c"}${++this.n}`, site, unit: u, guard, x, y, dir: u.dir, anim: Anim.Idle, nav: new Nav(), post, route, idx: 0, waitUntil: 0, foe: null, attackAt: 0, sayAt: 0, syncAt: 0 };
+    const f: Folk = { id: `${guard ? "g" : "c"}${++this.n}`, site, unit: u, guard, x, y, dir: u.dir, anim: Anim.Idle, nav: new Nav(), post, route, idx: 0, waitUntil: 0, foe: null, attackAt: 0, sayAt: 0, nearP: false, haltAt: 0, syncAt: 0 };
     this.folk.push(f);
     this.w.state.mobs.set(f.id, u);
     return f;
@@ -125,6 +131,7 @@ export class Townfolk {
     if (t >= this.scanAt) {
       this.scanAt = t + 400;
       this.assignFoes();
+      this.voices(t);
     }
     for (const f of this.folk) {
       if (f.guard) this.updateGuard(f, dt);
@@ -158,10 +165,43 @@ export class Townfolk {
       if (!best) continue;
       best.foe = m;
       best.nav.reset();
-      if (this.w.time >= best.sayAt) {
+      if (this.w.time >= (this.alarmAt.get(site) ?? 0)) {
+        // тревога на весь город: колокол и рог у тех, кто рядом
+        this.alarmAt.set(site, this.w.time + 30000);
+        best.sayAt = this.w.time + 20000;
+        this.w.emit({ t: "say", id: best.id, text: "Тревога!", snd: "alarm" });
+      } else if (this.w.time >= best.sayAt) {
         best.sayAt = this.w.time + 20000;
         this.w.emit({ t: "say", id: best.id, text: best.site.guard.lines[Math.floor(Math.random() * best.site.guard.lines.length)] });
       }
+    }
+  }
+
+  /** Есть ли живой игрок в радиусе px от точки. */
+  private playerNear(x: number, y: number, px: number): boolean {
+    for (const p of this.w.players.values()) if (p.unit.anim !== Anim.Dead && Math.hypot(p.unit.x - x, p.unit.y - y) < px) return true;
+    return false;
+  }
+
+  /** Голоса стражи: окрик у ворот и перекличка на стенах (только если рядом есть игрок — трафик минимален). */
+  private voices(t: number) {
+    for (const f of this.folk) {
+      if (!f.guard || !f.post) continue;
+      const near = this.playerNear(f.x, f.y, 150);
+      if (near && !f.nearP && t >= f.haltAt) {
+        f.haltAt = t + 25000;
+        this.w.emit({ t: "say", id: f.id, text: "Стой, кто идёт!", snd: "halt" });
+      }
+      f.nearP = near;
+    }
+    for (const site of SITES) {
+      if (t < (this.callAt.get(site) ?? 0)) continue;
+      this.callAt.set(site, t + rnd(22000, 42000));
+      const posts = this.folk.filter((f) => f.site === site && f.guard && f.post && !f.foe);
+      if (!posts.length) continue;
+      const f = posts[Math.floor(Math.random() * posts.length)];
+      if (!this.playerNear(f.x, f.y, 700)) continue;
+      this.w.emit({ t: "say", id: f.id, text: Math.random() < 0.7 ? "Всё спокойно!" : "На посту всё тихо!", snd: "call" });
     }
   }
 

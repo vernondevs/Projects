@@ -925,9 +925,9 @@ export class Hud {
     for (const [, v] of info.units) {
       if (v.dead) continue;
       const near = Math.hypot(v.x - info.pos.x, v.y - info.pos.y) < 900;
-      if ((v.u.kind === UnitKind.Mob && !near) || v.u.kind === UnitKind.Guard || v.u.kind === UnitKind.Citizen) continue;
+      if ((v.u.kind === UnitKind.Mob && !near) || v.u.kind === UnitKind.Citizen) continue;
       const enemy = v.u.kind === UnitKind.Player && this.ctx.net.kind === "arena" && v.u.team !== this.ctx.net.arena?.team;
-      g.fillStyle = v.u.kind === UnitKind.Player ? (enemy ? "#ff6a5a" : "#6ac8ff") : v.u.kind === UnitKind.Boss ? "#ff3a1a" : "#e84a4a";
+      g.fillStyle = v.u.kind === UnitKind.Guard ? "#7a9cc8" : v.u.kind === UnitKind.Player ? (enemy ? "#ff6a5a" : "#6ac8ff") : v.u.kind === UnitKind.Boss ? "#ff3a1a" : "#e84a4a";
       const s = v.u.kind === UnitKind.Boss ? 3 : dot;
       g.fillRect(Math.floor(X(v.x)), Math.floor(Y(v.y)), s, s);
     }

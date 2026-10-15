@@ -3,6 +3,7 @@ import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from 
 import { generateMap, moveWithCollision, terrainSpeedMul, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
 import { ENV } from "../../../shared/biomes";
 import * as sfx from "./sfx";
+import { nightLevel } from "../../../shared/daynight";
 import { Anim, BUFF_STEALTH, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
 import { activeSkills, SKILLS } from "../../../shared/skills";
 import { RUMOR_NPCS } from "../../../shared/rumors";
@@ -577,7 +578,15 @@ export class GameScene extends Phaser.Scene {
       }
       me.update(dt, this.pos.x, this.pos.y);
     }
-    for (const [id, v] of this.units) if (id !== net.id) v.update(dt);
+    for (const [id, v] of this.units) {
+      if (id !== net.id) v.update(dt);
+      // шаги и звон доспехов идущей стражи рядом (до ~20 тайлов, громкость по расстоянию)
+      if (v.u.kind === UnitKind.Guard && v.u.anim === Anim.Walk && !v.dead && now >= v.stepAt) {
+        const k = 1 - Math.hypot(v.x - this.pos.x, v.y - this.pos.y) / 640;
+        v.stepAt = now + 330 + Math.random() * 60;
+        if (k > 0.03) { sfx.play("step", k * 0.8); if (Math.random() < 0.28) sfx.play("clink", k * 0.7); }
+      }
+    }
     this.scenes?.update(this.pos.x, this.pos.y);
     if (this.targetId && !this.units.get(this.targetId)) this.targetId = null;
 
@@ -623,9 +632,12 @@ export class GameScene extends Phaser.Scene {
     }
     const cam = this.cameras.main;
     const tint = zoneTint(z);
-    const target = tint.dark;
+    // ночь (общий цикл по часам): затемнение и синева на поверхности, не в подземельях/арене/под водой
+    const night = z === Zone.Dungeon || z === Zone.Arena || z === Zone.Underwater || z === Zone.Volcano ? 0 : nightLevel(Date.now());
+    const target = Math.max(tint.dark, night * 0.5);
     const dark = this.world.dark;
-    dark.setFillStyle(tint.color, 1);
+    const nc = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.IntegerToColor(tint.color), Phaser.Display.Color.IntegerToColor(0x060a28), 100, Math.round(night * 100));
+    dark.setFillStyle(Phaser.Display.Color.GetColor(nc.r, nc.g, nc.b), 1);
     const cs = this.world.caustics;
     cs.setSize(cam.width, cam.height).setAlpha(cs.alpha + ((z === Zone.Underwater ? 0.3 : 0) - cs.alpha) * Math.min(1, dt * 2));
     cs.setTilePosition(now * 0.02, now * 0.012);
