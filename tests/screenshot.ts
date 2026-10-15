@@ -9,6 +9,7 @@ import puppeteer, { type Page } from "puppeteer-core";
 import { createServer } from "vite";
 import { PORT, sleep, startServer, stopServer } from "./harness";
 
+const VITE_PORT = Number(process.env.VITE_TEST_PORT) || 5199;
 const scenario = process.argv[2] || "basic";
 const OUT = path.resolve("tools/out");
 fs.mkdirSync(OUT, { recursive: true });
@@ -62,7 +63,7 @@ async function login(page: Page, name: string, cls: string) {
 async function main() {
   process.env.VITE_SERVER_URL = `ws://localhost:${PORT}`;
   await startServer(true);
-  const vite = await createServer({ configFile: path.resolve("vite.config.ts"), server: { port: 5199, strictPort: true }, logLevel: "error" });
+  const vite = await createServer({ configFile: path.resolve("vite.config.ts"), server: { port: VITE_PORT, strictPort: true }, logLevel: "error" });
   await vite.listen();
   const browser = await puppeteer.launch({
     executablePath: chromePath(),
@@ -76,7 +77,7 @@ async function main() {
     const page = await browser.newPage();
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
     page.on("pageerror", (e) => errors.push(String(e)));
-    await page.goto("http://localhost:5199/", { waitUntil: "networkidle0" });
+    await page.goto(`http://localhost:${VITE_PORT}/`, { waitUntil: "networkidle0" });
     await page.screenshot({ path: path.join(OUT, "shot-login.png") });
     const cls = process.env.CLS || (scenario === "mage" ? "mage" : scenario === "ranger" ? "ranger" : "warrior");
     await login(page, "Скриншот", cls);
@@ -112,6 +113,36 @@ async function main() {
       await dbg(at(0, -15));
       await sleep(2500);
       await page.screenshot({ path: path.join(OUT, "shot-town-night.png") });
+    } else if (scenario === "teleport") {
+      // телепорт: руны, спираль, нить, вспышка, прибытие
+      const { CITIES } = await import("../shared/cities");
+      const [ember, oasis] = CITIES;
+      await dbg({ op: "god" });
+      await dbg({ op: "gold", v: 1000 });
+      await dbg({ op: "tp", x: oasis.spawn.x, y: oasis.spawn.y });
+      await sleep(800);
+      await dbg({ op: "tp", x: ember.stone.x + 34, y: ember.stone.y + 6 });
+      await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(2.5));
+      await sleep(1200);
+      const shot = (n: string) => page.screenshot({ path: path.join(OUT, `shot-tp-${n}.png`) });
+      await page.evaluate(() => (window as any).__net.send("tp:go", { id: "oasis" }));
+      const t0 = Date.now();
+      await sleep(400);
+      await shot("0.5");
+      await sleep(900);
+      await shot("1.5");
+      await sleep(Math.max(0, 2450 - (Date.now() - t0)));
+      for (let i = 0; i < 3; i++) await shot("go" + i);
+      // замедленный показ ухода и прибытия: время сцены и твинов растянуто
+      await sleep(1500);
+      const frames = async (ph: string, n: number) => {
+        await page.evaluate((ph) => { const sc = (window as any).__game.scene.getScene("game"); sc.tweens.timeScale = 0.12; const u = sc.units.get((window as any).__net.id); sc.fx.play([{ t: "tp", id: (window as any).__net.id, ph, x: u.x, y: u.y }]); }, ph);
+        for (let i = 0; i < n; i++) { await shot(ph + i); await sleep(250); }
+        await page.evaluate(() => { (window as any).__game.scene.getScene("game").tweens.timeScale = 1; });
+        await sleep(1200);
+      };
+      await frames("go", 4);
+      await frames("arrive", 4);
     } else if (scenario === "cities") {
       // малые города: ворота, площадь, жилой квартал, окна заданий и телепорта, общий вид
       const { CITIES } = await import("../shared/cities");

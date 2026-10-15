@@ -428,6 +428,7 @@ export class World {
   breakMount(p: Player) {
     if (p.tele) {
       p.tele = null;
+      this.emit({ t: "tp", id: p.id, ph: "cancel", x: p.x, y: p.y });
       p.send("mountcast", { ms: 0 });
       p.send("toast", { text: "Телепорт прерван", kind: "error" });
     }

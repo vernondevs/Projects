@@ -139,7 +139,9 @@ export type Fx =
   | { t: "lvl"; id: string; level: number }
   | { t: "buff"; id: string; k: string; ms: number }
   | { t: "say"; id: string; text: string; /** звук у города: перекличка, окрик у ворот, тревога */ snd?: "call" | "halt" | "alarm" }
-  | { t: "spawn"; id: string; k: string };
+  | { t: "spawn"; id: string; k: string }
+  /** Телепорт: cast — начало каста у камня (sx,sy), go — уход, arrive — прибытие, cancel — прерван */
+  | { t: "tp"; id: string; ph: "cast" | "go" | "arrive" | "cancel"; x: number; y: number; sx?: number; sy?: number; ms?: number };
 
 export interface ChatLine {
   from: string;

@@ -37,13 +37,15 @@ export function tickCities(w: World) {
       p.tele = null;
       p.send("mountcast", { ms: 0 });
       const to = cityById(t.to);
-      if (!to || p.save.gold < t.price) continue;
+      if (!to || p.save.gold < t.price) { w.emit({ t: "tp", id: p.id, ph: "cancel", x: p.x, y: p.y }); continue; }
+      w.emit({ t: "tp", id: p.id, ph: "go", x: p.x, y: p.y });
       p.save.gold -= t.price;
       p.unit.x = to.arrive.x;
       p.unit.y = to.arrive.y;
       p.moveTo = null;
       p.nav.reset();
       p.selfDirty = true;
+      w.emit({ t: "tp", id: p.id, ph: "arrive", x: to.arrive.x, y: to.arrive.y });
       p.send("toast", { text: `Телепорт: ${to.name} (−${t.price} з)`, kind: "info" });
     }
   }
@@ -67,6 +69,7 @@ export function startTeleport(w: World, p: Player, id: unknown) {
   p.moveTo = null;
   p.tele = { until: w.time + TELEPORT_CAST_MS, x: p.x, y: p.y, to: to.id, price };
   p.send("mountcast", { ms: TELEPORT_CAST_MS, name: `Телепорт: ${to.name}` });
+  w.emit({ t: "tp", id: p.id, ph: "cast", x: p.x, y: p.y, sx: from.stone.x, sy: from.stone.y, ms: TELEPORT_CAST_MS });
 }
 
 // ---------- задания ----------

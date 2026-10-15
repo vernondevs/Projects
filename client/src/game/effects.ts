@@ -4,6 +4,7 @@ import type { Fx } from "../../../shared/protocol";
 import { DEPTH } from "./terrain";
 import { FONT, type UnitView } from "./UnitView";
 import * as sfx from "./sfx";
+import { TeleportFx } from "./teleportFx";
 
 const MAX_BURST = 36;
 const MAX_POOL = 90;
@@ -22,7 +23,10 @@ export class Effects {
     readonly unit: (id: string) => UnitView | undefined,
     readonly selfId: string,
     readonly onSay: (id: string, text: string) => void,
-  ) {}
+  ) {
+    this.tp = new TeleportFx(scene, unit, selfId, (x, y) => this.near(x, y, 600));
+  }
+  private tp: TeleportFx;
 
   play(list: Fx[]) {
     for (const f of list) {
@@ -100,6 +104,7 @@ export class Effects {
   private one(f: Fx) {
     const s = this.scene;
     switch (f.t) {
+      case "tp": return this.tp.handle(f);
       case "dmg": {
         const u = this.unit(f.id);
         if (!u) return;

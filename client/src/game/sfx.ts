@@ -1,5 +1,5 @@
 /** Процедурные звуки на WebAudio (без файлов). AudioContext стартует по первому действию игрока. */
-export type SfxName = "hit" | "crit" | "fire" | "frost" | "arrow" | "heal" | "shield" | "poison" | "explosion" | "slam" | "arcane" | "holy" | "shadow" | "step" | "clink" | "call" | "halt" | "bell" | "horn";
+export type SfxName = "hit" | "crit" | "fire" | "frost" | "arrow" | "heal" | "shield" | "poison" | "explosion" | "slam" | "arcane" | "holy" | "shadow" | "step" | "clink" | "call" | "halt" | "bell" | "horn" | "tpgo" | "tparrive" | "tpfizzle";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -136,8 +136,66 @@ export function play(name: SfxName, gain = 1) {
     case "halt": voice(v * 1.2, [180, 230, 200, 150], 0.12, 4); break;
     case "bell": for (let i = 0; i < 4; i++) { tone("sine", 660, 640, 0.5, v * 0.7, i * 0.32); tone("sine", 1320, 1300, 0.35, v * 0.3, i * 0.32); tone("triangle", 1980, 1950, 0.2, v * 0.12, i * 0.32); } break;
     case "horn": tone("sawtooth", 196, 190, 0.7, v * 0.5); tone("sawtooth", 294, 290, 0.7, v * 0.35, 0.02); tone("sawtooth", 196, 185, 0.5, v * 0.5, 0.85); tone("sawtooth", 294, 280, 0.5, v * 0.35, 0.87); break;
+    case "tpgo":
+      noise(0.7, v * 1.1, 400, 7000, "bandpass"); tone("sine", 300, 2200, 0.6, v * 0.7); tone("triangle", 600, 3200, 0.5, v * 0.4, 0.05);
+      for (let i = 0; i < 6; i++) tone("sine", 1400 + i * 380, 1400 + i * 380, 0.22, v * 0.25, 0.1 + i * 0.05);
+      break;
+    case "tparrive":
+      tone("sine", 100, 38, 0.5, v * 1.0); noise(0.5, v * 0.7, 6000, 500, "bandpass");
+      [880, 1320, 1760, 2640].forEach((f, i) => { tone("sine", f, f, 0.7, v * (0.5 - i * 0.07), 0.04 + i * 0.07); tone("triangle", f * 2, f * 2, 0.35, v * 0.12, 0.04 + i * 0.07); });
+      break;
+    case "tpfizzle": noise(0.45, v * 0.9, 3500, 250, "bandpass"); tone("sawtooth", 520, 70, 0.35, v * 0.4); tone("sine", 1600, 300, 0.25, v * 0.3); break;
     case "shadow": tone("sawtooth", 300, 80, 0.2, v * 0.4); noise(0.18, v * 0.5, 1500, 200, "bandpass"); break;
   }
+}
+
+/** Нарастающий гул телепорта на время каста; stopHum — оборвать (отмена). */
+let hum: { id: string; stop: () => void } | null = null;
+export function startHum(id: string, dur: number, gain = 1) {
+  if (muted || volume <= 0 || gain <= 0.02 || !ctx || ctx.state !== "running" || !master) return;
+  stopHum(hum?.id ?? "");
+  const c = ctx, t = c.currentTime, v = 0.3 * gain;
+  const out = c.createGain();
+  out.gain.setValueAtTime(0.0001, t);
+  out.gain.exponentialRampToValueAtTime(v * 0.9, t + dur * 0.92);
+  out.connect(master);
+  const lp = c.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.setValueAtTime(300, t);
+  lp.frequency.exponentialRampToValueAtTime(3600, t + dur);
+  lp.connect(out);
+  const trem = c.createGain();
+  trem.gain.value = 0.7;
+  trem.connect(lp);
+  const lfo = c.createOscillator(), lg = c.createGain();
+  lfo.frequency.setValueAtTime(4, t);
+  lfo.frequency.linearRampToValueAtTime(17, t + dur);
+  lg.gain.value = 0.3;
+  lfo.connect(lg).connect(trem.gain);
+  const oscs: OscillatorNode[] = [lfo];
+  for (const [type, a, b, vol] of [["triangle", 80, 260, 0.6], ["sawtooth", 160, 520, 0.22], ["sine", 320, 1040, 0.4]] as const) {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(a, t);
+    o.frequency.exponentialRampToValueAtTime(b, t + dur);
+    g.gain.value = vol;
+    o.connect(g).connect(trem);
+    oscs.push(o);
+  }
+  for (const o of oscs) { o.start(t); o.stop(t + dur + 0.1); }
+  for (let i = 0; i < 12; i++) tone("sine", 1500 + Math.random() * 2200, 2400 + Math.random() * 2000, 0.12, v * 0.18, 0.4 + (i / 12) * dur * 0.9 + Math.random() * 0.1);
+  const me = { id, stop: () => {
+    out.gain.cancelScheduledValues(c.currentTime);
+    out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), c.currentTime);
+    out.gain.linearRampToValueAtTime(0, c.currentTime + 0.12);
+    for (const o of oscs) { try { o.stop(c.currentTime + 0.15); } catch {} }
+    if (hum === me) hum = null;
+  } };
+  hum = me;
+  setTimeout(() => { if (hum === me) hum = null; }, dur * 1000 + 100);
+}
+export function stopHum(id: string) {
+  if (hum && hum.id === id) hum.stop();
 }
 
 // ---------- фоновая музыка и атмосфера биомов ----------
