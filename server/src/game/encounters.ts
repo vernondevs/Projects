@@ -4,7 +4,7 @@ import { CLASSES } from "../../../shared/classes";
 import { MERCHANT_RANGE, TILE } from "../../../shared/constants";
 import { FOOD_IDS, FOOD } from "../../../shared/food";
 import { BASE_ITEMS, EQUIP_BASES, itemValue, makeItem, Rarity, type Item } from "../../../shared/items";
-import { roadDist, walkable, zoneAtPx, Zone, ZONES } from "../../../shared/map";
+import { isTownZone, roadDist, walkable, zoneAtPx, Zone, ZONES } from "../../../shared/map";
 import { MOBS } from "../../../shared/mobs";
 import type { On } from "../rooms/common";
 import { addItem } from "./inventory";
@@ -38,7 +38,7 @@ const get = (w: World) => encs.get(w) ?? encs.set(w, new Map()).get(w)!;
 
 const npcDef = (k: "traveler" | "merchant") => D[k].npc as { name: string; sprite: string; tint: string; color: string; icon: string; lying?: boolean };
 const classPool = (p: Player) => EQUIP_BASES.filter((b) => !BASE_ITEMS[b].classes || BASE_ITEMS[b].classes!.includes(p.cls));
-const badZone = (z: Zone) => z === Zone.Town || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Frontier;
+const badZone = (z: Zone) => isTownZone(z) || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Frontier;
 
 /** Подходящая точка рядом с игроком: проходимая, не в городе/подземелье, по возможности у дороги. */
 function findSpot(w: World, p: Player): { x: number; y: number } | null {

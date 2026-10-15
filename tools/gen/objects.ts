@@ -3,6 +3,7 @@ import { PC, hash01, hex, mix, rng, shade, withA, type RGBA, type Ramp } from ".
 import { P } from "./palette";
 import { FOOD } from "../../shared/food";
 import { TOWN_ART } from "./town";
+import { CITY_ART } from "./cities";
 import { BIOME_ART, resourceIcon } from "./biomes";
 import { RESOURCE_IDS } from "../../shared/biomes";
 
@@ -291,6 +292,7 @@ export const OBJECT_ART: Record<string, Art> = {
   mushrooms: mushrooms(false), mushrooms_glow: mushrooms(true), lilypad, bones, ember_vent: emberVent, crystal,
   bag: bag(false), bag_boss: bag(true),
   ...TOWN_ART,
+  ...CITY_ART,
   ...BIOME_ART,
 };
 

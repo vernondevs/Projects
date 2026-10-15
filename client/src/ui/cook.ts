@@ -1,5 +1,5 @@
 /** Повар Борщан: небольшое окно с блюдами; описание бонусов еды для подсказок. */
-import { COOK, FOOD_IDS, FOOD, type Dish } from "../../../shared/food";
+import { COOK, COOKS, FOOD_IDS, FOOD, type Dish } from "../../../shared/food";
 import { ITEM_STAT_NAMES, type ItemStatKey } from "../../../shared/items";
 import type { SelfState } from "../../../shared/protocol";
 import type { Net } from "../net";
@@ -33,7 +33,9 @@ export class CookUI {
   bind(net: Net) {
     this.net = net;
   }
-  open() {
+  private who = COOK;
+  open(id?: string) {
+    this.who = COOKS.find((c) => c.id === id) ?? COOK;
     this.win.hidden = false;
     if (this.net.self) this.update(this.net.self);
   }
@@ -44,8 +46,8 @@ export class CookUI {
   }
   update(s: SelfState) {
     if (this.win.hidden) return;
-    this.win.innerHTML = `<h2><span>${esc(COOK.name)}</span><button class="x" aria-label="Закрыть">×</button></h2>
-      <p class="muted">${esc(COOK.greeting)}</p><div class="cook-list"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+    this.win.innerHTML = `<h2><span>${esc(this.who.name)}</span><button class="x" aria-label="Закрыть">×</button></h2>
+      <p class="muted">${esc(this.who.greeting)}</p><div class="cook-list"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     const list = this.win.querySelector<HTMLElement>(".cook-list")!;
     for (const id of FOOD_IDS) {

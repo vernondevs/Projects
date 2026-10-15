@@ -20,7 +20,8 @@ import { buyMaterial, upgradeItem } from "../game/smith";
 import { registerAdmin } from "../game/admin";
 import { registerEncounters } from "../game/encounters";
 import { registerBiomes, sendNodes } from "../game/biomes";
-import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
+import { questProgress, registerCities } from "../game/cities";
+import { addItem, buy, buyFood, nearMerchant, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
 import { forgetRumors, rumorFor } from "../game/rumors";
@@ -70,6 +71,7 @@ export class WorldRoom extends Room<WorldState> {
     registerAdmin(this, on);
     registerEncounters(on, () => this.world);
     registerBiomes(on, () => this.world);
+    registerCities(on, () => this.world);
     if (process.env.TEST_MODE === "1") this.registerDebug(on);
     this.clock.setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
     this.clock.setInterval(() => this.queue.tick(), 1000);
@@ -284,14 +286,14 @@ export class WorldRoom extends Room<WorldState> {
     on<{ id: unknown }>("pet:select", (p, m) => typeof m.id === "string" && selectPet(w(), p, m.id));
     on<{ id: unknown }>("pet:buy", (p, m) => {
       if (typeof m.id !== "string" || p.dead) return;
-      if (w().dist(p, w().map.merchant) > MERCHANT_RANGE) return p.send("toast", { text: "Подойдите к торговке", kind: "error" });
+      if (!nearMerchant(w(), p)) return p.send("toast", { text: "Подойдите к торговке", kind: "error" });
       buyPet(w(), p, m.id);
     });
     on<{ id: unknown }>("mount:buy", (p, m) => {
       const def = typeof m.id === "string" ? MOUNTS[m.id] : undefined;
       const err = (text: string) => p.send("toast", { text, kind: "error" });
       if (!def || p.dead) return;
-      if (w().dist(p, w().map.merchant) > MERCHANT_RANGE) return err("Подойдите к торговке");
+      if (!nearMerchant(w(), p)) return err("Подойдите к торговке");
       if (p.save.mounts?.includes(def.id)) return err("Маунт уже у вас");
       if (p.level < def.level) return err(`${def.name}: нужен ${def.level} уровень`);
       if (def.price <= 0 || p.save.gold < def.price) return err("Не хватает золота");
@@ -367,6 +369,7 @@ export class WorldRoom extends Room<WorldState> {
         case "item": addItem(p, m.unique ? makeUnique(String(m.unique)) : makeItem(String(m.base), Number(m.ilvl || 1), Number(m.rarity || 0) as Rarity)); break;
         case "mobhp": { const mob = w().mobs.get(String(m.id)); if (mob) mob.unit.hp = Math.max(1, Math.round(mob.unit.maxHp * Number(m.v))); break; }
         case "hurt": w().applyDamage(p, Number(m.v)); break;
+        case "qp": questProgress(p, m.kind === "gather" ? "gather" : "kill", String(m.target), Number(m.n || 1)); break;
         case "calm": p.combatAt = -1e9; break;
         case "fill": for (let i = 0; i < p.save.inventory.length; i++) if (!p.save.inventory[i]) p.save.inventory[i] = makeItem("ring", 1, Rarity.Common); break;
         case "rating": services.arena.setRating(p.name.toLowerCase(), p.name, p.cls, m.mode as ArenaMode, Number(m.v)); this.sendArenaInfo(p.name.toLowerCase()); break;

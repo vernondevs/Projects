@@ -554,6 +554,23 @@ const SPECS: Record<string, HSpec> = {
     skin: P.skin, hair: P.hair.brown, hairStyle: "short", torso: ramp_("#5a1018", "#8a1c24", "#b8302e", "#e05a40"), legs: P.steel, boots: P.darkSteel, belt: P.gold,
     head: "helmet", headRamp: P.steel, weapon: "sword", shield: ramp_("#6a4210", "#a8681c", "#e0a630", "#ffd864"), armorPlates: P.steel, cape: P.cloth.red, beard: P.hair.brown,
   },
+  /** Стражи малых городов: тот же силуэт, цвета оазиса (песочный табард, бирюза) и долины (синий табард, мех). */
+  guard_desert: {
+    skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: ramp_("#7a4a14", "#b07424", "#d89c3c", "#f4c864"), legs: P.cloth.brown, boots: P.leather, belt: P.cloth.green,
+    head: "helmet", headRamp: P.gold, weapon: "sword", shield: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), armorPlates: P.gold, cape: ramp_("#1a4a48", "#2a7a74", "#46a89c", "#80d4c4"), beard: P.hair.black,
+  },
+  guard_snow: {
+    skin: P.skinPale, hair: P.hair.white, hairStyle: "short", torso: ramp_("#1a2a4a", "#2c4a7e", "#4a74b4", "#86aee0"), legs: P.cloth.blue, boots: P.leather, belt: P.leather,
+    head: "helmet", headRamp: P.steel, weapon: "sword", shield: P.wood, armorPlates: P.steel, cape: P.cloth.white, beard: P.hair.white,
+  },
+  citizen_desert: {
+    skin: P.skin, hair: P.hair.black, hairStyle: "short", torso: P.cloth.rag, legs: P.cloth.rag, boots: P.leather, belt: P.cloth.red,
+    robe: ramp_("#8a6a30", "#b8944a", "#dcc078", "#f2dca0"), head: "hood", headRamp: ramp_("#8a6a30", "#b8944a", "#dcc078", "#f2dca0"), weapon: "none", bodyW: 10,
+  },
+  citizen_snow: {
+    skin: P.skinPale, hair: P.hair.brown, hairStyle: "short", torso: P.cloth.brown, legs: P.cloth.brown, boots: P.leather, belt: P.leather,
+    robe: ramp_("#2a3a52", "#44607e", "#6a8aae", "#a0bcd8"), head: "hood", headRamp: ramp_("#2a3a52", "#44607e", "#6a8aae", "#a0bcd8"), weapon: "none", bodyW: 10, beard: P.hair.brown,
+  },
   citizen1: {
     skin: P.skin, hair: P.hair.brown, hairStyle: "long", torso: P.cloth.green, legs: P.cloth.brown, boots: P.leather, belt: P.leather,
     robe: ramp_("#3a4a22", "#56683a", "#768a52", "#98ac6e"), weapon: "none", bodyW: 10,
@@ -661,6 +678,10 @@ export const UNIT_ART: Record<string, UnitArt> = {
   merchant: humanoidArt(SPECS.merchant),
   arenamaster: humanoidArt(SPECS.arenamaster),
   guard: humanoidArt(SPECS.guard),
+  guard_desert: humanoidArt(SPECS.guard_desert),
+  guard_snow: humanoidArt(SPECS.guard_snow),
+  citizen_desert: humanoidArt(SPECS.citizen_desert),
+  citizen_snow: humanoidArt(SPECS.citizen_snow),
   citizen1: humanoidArt(SPECS.citizen1),
   citizen2: humanoidArt(SPECS.citizen2),
   citizen3: humanoidArt(SPECS.citizen3),

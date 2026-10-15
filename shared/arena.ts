@@ -273,6 +273,7 @@ export function generateArenaMap(): WorldMap {
     vents: [],
     playerSpawn: { x: 4.5 * TILE, y: cy * TILE },
     merchant: { x: -1000, y: -1000 },
+    merchants: [],
   };
 }
 /** Точки появления: команда 1 слева, команда 2 справа. */

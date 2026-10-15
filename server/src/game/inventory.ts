@@ -1,5 +1,5 @@
 /** Инвентарь, экипировка, зелья, торговец, подбор добычи. Каждая операция проверяется на сервере. */
-import { COOK, FOOD, foodOf, type Dish } from "../../../shared/food";
+import { COOKS, FOOD, foodOf, type Dish } from "../../../shared/food";
 import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
 import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { MATERIALS } from "../../../shared/upgrade";
@@ -114,7 +114,7 @@ function eat(p: Player, index: number, dish: Dish) {
 export function buyFood(w: World, p: Player, id: unknown, qtyRaw: unknown) {
   const dish = typeof id === "string" ? FOOD[id] : undefined;
   if (!dish) return;
-  if (w.dist(p, COOK) > MERCHANT_RANGE) return err(p, "Повар далеко");
+  if (!COOKS.some((c) => w.dist(p, c) <= MERCHANT_RANGE)) return err(p, "Повар далеко");
   const qty = Number.isInteger(qtyRaw) ? Math.max(1, Math.min(20, qtyRaw as number)) : 1;
   const price = dish.price * qty;
   if (p.save.gold < price) return err(p, "Не хватает золота");
@@ -127,8 +127,8 @@ export function buyFood(w: World, p: Player, id: unknown, qtyRaw: unknown) {
   p.selfDirty = true;
 }
 
-function nearMerchant(w: World, p: Player) {
-  return w.dist(p, w.map.merchant) <= MERCHANT_RANGE;
+export function nearMerchant(w: World, p: Player) {
+  return w.map.merchants.some((m) => w.dist(p, m) <= MERCHANT_RANGE);
 }
 
 export function sell(w: World, p: Player, index: unknown) {

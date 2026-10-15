@@ -1,4 +1,5 @@
 /** Награды за убийство: опыт и уровни, золото, личные мешки с добычей. */
+import { questProgress } from "./cities";
 import { CLASSES } from "../../../shared/classes";
 import { LOOT_BAG_TTL_MS, MAX_LEVEL } from "../../../shared/constants";
 import { xpForKill, xpToNext } from "../../../shared/formulas";
@@ -72,6 +73,7 @@ export function grantKillRewards(w: World, m: Mob, killer?: Player) {
     p.save.kills++;
     const mk = (p.save.mobKills ??= {});
     mk[m.def.id] = (mk[m.def.id] || 0) + 1;
+    questProgress(p, "kill", m.def.id);
     if (boss) p.save.bossKills[m.def.id] = (p.save.bossKills[m.def.id] || 0) + 1;
     gainXp(w, p, xp);
     petXp(w, p, Math.round(xp * 0.7));

@@ -13,7 +13,7 @@ const RED = P.cloth.red;
 const GOLD = P.gold;
 
 /** Кирпичная кладка: ряды по 6 px, кирпичи по 12 px со сдвигом, лёгкий шум. */
-function bricks(c: PC, x: number, y: number, w: number, h: number, r: Ramp = ST, seed = 1) {
+export function bricks(c: PC, x: number, y: number, w: number, h: number, r: Ramp = ST, seed = 1) {
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     const px = x + i, py = y + j;
     const row = Math.floor(j / 6);
@@ -27,7 +27,7 @@ function bricks(c: PC, x: number, y: number, w: number, h: number, r: Ramp = ST,
   }
 }
 /** Камни мостовой/плиты дорожки по стене. */
-function slabs(c: PC, x: number, y: number, w: number, h: number, r: Ramp = ST, seed = 3) {
+export function slabs(c: PC, x: number, y: number, w: number, h: number, r: Ramp = ST, seed = 3) {
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     const row = Math.floor(j / 8), off = row % 2 ? 5 : 0;
     const seam = j % 8 === 7 || (i + off) % 10 === 9;

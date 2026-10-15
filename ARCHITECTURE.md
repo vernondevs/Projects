@@ -3,13 +3,13 @@
 Стек: Phaser 3 (client), Colyseus 0.16 (server), SQLite через node:sqlite (server/src/db.ts).
 
 ## Где что лежит
-- data/ — контент в JSON: bestiary, rumors, food, elites, upgrade, mounts, legendaries, bank, pets, scenes, townfolk.
+- data/ — контент в JSON: bestiary, rumors, food, elites, upgrade, mounts, legendaries, bank, pets, scenes, townfolk, cities, quests.
 - shared/ — общий код: constants, map (генератор мира), town (планировка Эмберхолла), formulas, classes, skills, items, mobs, protocol, path (A*),
-  arena, trade, bestiary, rumors, food, elites, upgrade, mounts, legendary, bank.
+  arena, trade, bestiary, rumors, food, elites, upgrade, mounts, legendary, bank, cities (города, телепорт), quests.
 - server/src/index.ts — HTTP + WebSocket. db.ts — аккаунты, сохранения, trade_log, admin_log, market_demand.
 - server/src/rooms/ — WorldRoom (мир), ArenaRoom (инстанс арены), schema, common.
 - server/src/game/ — World, Player, Mob, skills, bosses, rewards, inventory, rumors, smith, market,
-  legendary (эффекты), admin, bank, Pet (питомцы), rogue (яд, удар в спину), townfolk (стражники и горожане).
+  legendary (эффекты), admin, bank, Pet (питомцы), rogue (яд, удар в спину), townfolk (стражники и горожане), cities (телепорт, задания).
 - server/src/arena/ — store, queue, party, registry, rewards, bots. server/src/trade/TradeManager.ts — обмен.
 - client/src/net.ts — подключение; game/ — сцены и отрисовка (UnitView, effects, terrain — куски 32×32 у камеры);
   ui/ — hud (меню, сумка, настройки), arena, trade, bestiary, rumor, cook, smith, bank, admin.
@@ -20,6 +20,8 @@
 - Биомы в Неизведанных землях (shared/map.ts frontierZone): запад — Пустыня Миражей, север — Снежные пики, восток — Пылающий вулкан, юг — Затонувшая бухта (под водой: шкала воздуха). CITY_SITES — площадки под города (оазис, снежная долина).
 - Среда: server/src/game/biomes.ts (жар, лава, воздух, добыча узлов), параметры и ресурсы — data/biomes.json, shared/biomes.ts. Музыка по зонам — client/src/game/sfx.ts (setAmbience), частицы погоды — GameScene.setupAmbient, арт — tools/gen/biomes.ts.
 - 320×240 тайлов: освоенная часть CORE (зоны 1–30, данж), по краям «Неизведанные земли» под будущие города и биомы.
+- Малые города (shared/cities.ts, зоны OasisCity/SnowCity, isTownZone): Оазис Миражей (30,152) и Снежная долина (112,18), одна раскладка 27×21 с двумя воротами, стиль (desert/snow) задаёт арт (tools/gen/cities.ts) и покрытие. Жители — data/cities.json, стража в townfolk.ts (SITES), камень телепорта есть и в Эмберхолле.
+- Телепорт и задания: server/src/game/cities.ts (открытие города при входе в зону -> save.cities, каст 3 с, отмена движением/уроном/боем; задания из data/quests.json -> save.quests). Возрождение — в ближайшем открытом городе (nearestCity).
 - Эмберхолл — стены, башни, 4 ворот, кварталы (shared/town.ts); мобы в город не заходят, стражники бьют их у стен.
 - Смена раскладки — поднять MAP_VERSION: старые позиции из сохранений сбросятся к фонтану.
 

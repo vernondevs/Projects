@@ -4,7 +4,8 @@ import * as sfx from "../game/sfx";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
 import { LEGENDARIES } from "../../../shared/legendary";
 import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
-import { T, Zone, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
+import { isTownZone, T, Zone, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
+import { CITIES, CITY_WALL } from "../../../shared/cities";
 import { TOWN, WALL } from "../../../shared/town";
 import { MOBS } from "../../../shared/mobs";
 import { Anim, UnitKind, type ChatLine, type SelfState, type ToastMsg } from "../../../shared/protocol";
@@ -18,6 +19,7 @@ import { BestiaryUI } from "./bestiary";
 import { RumorUI } from "./rumor";
 import { EncounterUI } from "./encounter";
 import { CookUI, foodTip } from "./cook";
+import { QuestUI, TeleportUI } from "./cities";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
 import { MOUNTS, MOUNT_IDS, mountSprite } from "../../../shared/mounts";
@@ -95,6 +97,8 @@ export class Hud {
   readonly cook: CookUI;
   readonly smith: SmithUI;
   readonly bank: BankUI;
+  readonly quest: QuestUI;
+  readonly tp: TeleportUI;
   private foodUntil = 0;
   private foodId = "";
 
@@ -122,6 +126,8 @@ export class Hud {
     this.enc = new EncounterUI(root);
     this.cook = new CookUI(root);
     this.smith = new SmithUI(root);
+    this.quest = new QuestUI(root);
+    this.tp = new TeleportUI(root);
     this.bank = new BankUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true), showInv: () => { if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); } } });
     window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
@@ -167,6 +173,8 @@ export class Hud {
       this.cook.bind(n);
       this.smith.bind(n);
       this.bank.bind(n);
+      this.quest.bind(n);
+      this.tp.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
     }
     this.arena.bind(n);
@@ -308,7 +316,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.enc.close() || this.cook.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.enc.close() || this.cook.close() || this.quest.close() || this.tp.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -408,6 +416,8 @@ export class Hud {
     this.foodId = s.food?.id ?? "";
     this.foodUntil = s.food ? Date.now() + s.food.left : 0;
     this.cook.update(s);
+    this.quest.update(s);
+    this.tp.update(s, this.lastPos);
     this.smith.update(s);
     this.bank.update();
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
@@ -733,10 +743,16 @@ export class Hud {
       let col = TERRAIN_COLORS[m.vtx[y * (m.w + 1) + x]] ?? "#4f873c";
       const blocked = m.cell[y * m.w + x] & 1 && m.vtx[y * (m.w + 1) + x] !== T.Water && m.vtx[y * (m.w + 1) + x] !== T.Lava;
       if (m.cell[y * m.w + x] & 2) col = "#1c1822";
-      else if (blocked && m.zone[y * m.w + x] === Zone.Town) {
+      else if (blocked && isTownZone(m.zone[y * m.w + x])) {
+        const c = CITIES.find((k) => k.style && Math.abs(x - k.x) <= k.half.x && Math.abs(y - k.y) <= k.half.y);
+        if (c) {
+          const ax = Math.abs(x - c.x), ay = Math.abs(y - c.y);
+          col = ax >= CITY_WALL.x || ay >= CITY_WALL.y ? (c.style === "desert" ? "#d8b878" : "#9a6a3a") : c.style === "desert" ? "#c8884a" : "#6a4a32";
+        } else {
         // город: стены и башни — светлый камень, дома — черепица
         const dx = Math.abs(x - TOWN.x), dy = Math.abs(y - TOWN.y);
         col = dx >= WALL.x || dy >= WALL.y ? "#c8c0b0" : "#a04a30";
+        }
       } else if (blocked) col = "#22402a";
       const i = (y * m.w + x) * 4;
       img.data[i] = parseInt(col.slice(1, 3), 16);
@@ -790,8 +806,10 @@ export class Hud {
   }
 
   // ---------- каждый кадр ----------
+  private lastPos = { x: 0, y: 0 };
   frame(info: FrameInfo) {
     const me = info.me;
+    this.lastPos = info.pos;
     if (me) {
       const hp = document.getElementById("hp-fill"), mp = document.getElementById("mp-fill");
       if (hp) { hp.style.width = `${(me.hp / Math.max(1, me.maxHp)) * 100}%`; document.getElementById("hp-text")!.textContent = `${Math.max(0, me.hp)} / ${me.maxHp}`; }

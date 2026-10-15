@@ -8,7 +8,7 @@ import { DEPTH } from "./terrain";
 import { mountSprite } from "../../../shared/mounts";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
-const MELEE = new Set(["guard", "pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
+const MELEE = new Set(["guard", "guard_desert", "guard_snow", "pet_wolf", "pet_turtle", "warrior", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
 const rowOf = (dir: number) => (dir === Dir.Down ? 0 : dir === Dir.Up ? 1 : 2);
 
 export class UnitView {

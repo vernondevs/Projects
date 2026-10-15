@@ -1,4 +1,5 @@
 /** Биомы на сервере: жар вулкана, лава, воздух под водой и добыча ресурсов (узлы на карте). */
+import { questProgress } from "./cities";
 import { ENV, RESOURCES } from "../../../shared/biomes";
 import { breathable, nearLava, zoneAtPx, Zone } from "../../../shared/map";
 import { makeItem, Rarity } from "../../../shared/items";
@@ -123,6 +124,7 @@ function finishGather(w: World, s: WState, p: Player, st: PState) {
     return void p.send("toast", { text: "Сумка полна", kind: "error" });
   }
   p.selfDirty = true;
+  questProgress(p, "gather", res.id, qty);
   s.depleted.set(c.node, w.time + ENV.nodeRespawnSec * 1000);
   w.broadcast("node", { id: c.node, up: false });
   p.send("toast", { text: `Добыто: ${res.name}${qty > 1 ? ` ×${qty}` : ""}`, kind: "loot" });

@@ -39,6 +39,18 @@
   "guard": {
    "frame": 32
   },
+  "guard_desert": {
+   "frame": 32
+  },
+  "guard_snow": {
+   "frame": 32
+  },
+  "citizen_desert": {
+   "frame": 32
+  },
+  "citizen_snow": {
+   "frame": 32
+  },
   "citizen1": {
    "frame": 32
   },
@@ -296,6 +308,70 @@
   "hay": {
    "w": 32,
    "h": 32
+  },
+  "sand_wall_h": {
+   "w": 32,
+   "h": 56
+  },
+  "sand_wall_v": {
+   "w": 32,
+   "h": 56
+  },
+  "sand_tower": {
+   "w": 64,
+   "h": 136
+  },
+  "sand_gate": {
+   "w": 96,
+   "h": 92
+  },
+  "sand_house": {
+   "w": 128,
+   "h": 128
+  },
+  "sand_house_b": {
+   "w": 128,
+   "h": 128
+  },
+  "tent": {
+   "w": 96,
+   "h": 80
+  },
+  "stall_sand": {
+   "w": 64,
+   "h": 72
+  },
+  "pal_h": {
+   "w": 32,
+   "h": 56
+  },
+  "pal_v": {
+   "w": 32,
+   "h": 56
+  },
+  "pal_tower": {
+   "w": 64,
+   "h": 136
+  },
+  "pal_gate": {
+   "w": 96,
+   "h": 92
+  },
+  "log_house": {
+   "w": 128,
+   "h": 128
+  },
+  "log_house_b": {
+   "w": 128,
+   "h": 128
+  },
+  "brazier": {
+   "w": 32,
+   "h": 48
+  },
+  "teleport_stone": {
+   "w": 48,
+   "h": 80
   },
   "cactus": {
    "w": 32,

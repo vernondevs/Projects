@@ -174,6 +174,8 @@ export function buildWorld(scene: Phaser.Scene, m: WorldMap): WorldView {
       objs.push(e);
     }
     if (o.kind === "torch") glow(objs, o.x, o.y - 22, 0xff9a3a, 2.4, 0.55, true);
+    if (o.kind === "brazier") glow(objs, o.x, o.y - 26, 0xff8a2a, 2.6, 0.6, true);
+    if (o.kind === "teleport_stone") glow(objs, o.x, o.y - 34, 0x7ac0ff, 2.2, 0.5, true);
     if (o.kind === "lamp") glow(objs, o.x, o.y - 46, 0xffd27a, 2.2, 0.45, true);
     if (o.kind === "ember_vent") glow(objs, o.x, o.y - 6, 0xff5a1a, 1.4, 0.5, true);
     if (o.kind === "mushrooms_glow") glow(objs, o.x, o.y - 8, 0x5aa8ff, 1.1, 0.35);
@@ -272,7 +274,9 @@ export function zoneTint(z: Zone): { dark: number; color: number } {
     case Zone.Ashlands: return { dark: 0.16, color: 0x0a0614 };
     case Zone.Forest: return { dark: 0.08, color: 0x0a1008 };
     case Zone.Arena: return { dark: 0.28, color: 0x0a0614 };
+    case Zone.OasisCity:
     case Zone.Desert: return { dark: 0.1, color: 0xd88a30 };
+    case Zone.SnowCity:
     case Zone.Snow: return { dark: 0.12, color: 0x9ac8ff };
     case Zone.Volcano: return { dark: 0.22, color: 0x2a0806 };
     case Zone.Underwater: return { dark: 0.38, color: 0x0a4c8c };

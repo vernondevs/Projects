@@ -6,7 +6,7 @@ import path from "node:path";
 import { Client, type Room } from "colyseus.js";
 import type { SelfState } from "../shared/protocol";
 
-export const PORT = 2601;
+export const PORT = Number(process.env.TEST_PORT) || 2601;
 let server: ChildProcess | null = null;
 export const dbFile = path.join(os.tmpdir(), `emberfall-test-${process.pid}.sqlite`);
 

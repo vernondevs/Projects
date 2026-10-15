@@ -4,11 +4,12 @@
  * клиент плавно доводит. Стражники неуязвимы, с игроками не воюют и добивают мобов у стен.
  */
 import data from "../../../data/townfolk.json";
+import { CITIES, CITY_CITIZEN_COUNT, CITY_CITIZEN_SPOTS, CITY_GATE_GUARDS, CITY_PATROLS } from "../../../shared/cities";
 import { TILE } from "../../../shared/constants";
-import { moveWithCollision, townDist } from "../../../shared/map";
+import { moveWithCollision } from "../../../shared/map";
 import { Nav } from "../../../shared/path";
 import { Anim, Dir, UnitKind } from "../../../shared/protocol";
-import { CITIZEN_COUNT, CITIZEN_SPOTS, GATE_GUARDS, GUARD_RANGE_TILES, PATROLS, TOWN, WALL } from "../../../shared/town";
+import { CITIZEN_COUNT, CITIZEN_SPOTS, GATE_GUARDS, GUARD_RANGE_TILES, PATROLS, TOWN, TOWN_HALF, WALL } from "../../../shared/town";
 import { Unit } from "../rooms/schema";
 import type { Mob } from "./Mob";
 import type { World } from "./World";
@@ -18,14 +19,38 @@ const dirTo = (dx: number, dy: number): Dir => (Math.abs(dx) > Math.abs(dy) ? (d
 const SYNC_MS = 200;
 const R = 8;
 const G = data.guard, C = data.citizen;
-/** Клетка-смещение от TOWN → центр клетки в пикселях. */
-const cellPx = (dx: number, dy: number) => ({ x: (TOWN.x + dx) * TILE + 16, y: (TOWN.y + dy) * TILE + 16 });
-/** Точка маршрута (уже с .5 у центра клетки) → пиксели. */
-const ptPx = (dx: number, dy: number) => ({ x: (TOWN.x + dx) * TILE, y: (TOWN.y + dy) * TILE });
+/** Город со своей стражей: Эмберхолл и малые города (центр в тайлах, полуразмеры зоны, посты и маршруты). */
+interface Site {
+  x: number;
+  y: number;
+  half: { x: number; y: number };
+  /** Расстояние от стен до ворот по x: посты у боковых стен смотрят наружу. */
+  sideX: number | null;
+  gateGuards: [number, number][];
+  patrols: [number, number][][];
+  spots: [number, number][];
+  count: number;
+  guard: { name: string; sprite: string; lines: string[] };
+  people: { name: string; sprite: string }[];
+}
+const SITES: Site[] = [
+  { x: TOWN.x, y: TOWN.y, half: TOWN_HALF, sideX: WALL.x - 2, gateGuards: GATE_GUARDS, patrols: PATROLS, spots: CITIZEN_SPOTS, count: CITIZEN_COUNT, guard: G, people: C.people },
+  ...CITIES.filter((c) => c.style).map((c): Site => ({
+    x: c.x, y: c.y, half: c.half, sideX: null, gateGuards: CITY_GATE_GUARDS, patrols: CITY_PATROLS, spots: CITY_CITIZEN_SPOTS, count: CITY_CITIZEN_COUNT,
+    guard: { ...G, ...c.guard! }, people: c.people!,
+  })),
+];
+/** Расстояние в тайлах от точки (тайлы) до прямоугольника города (0 внутри). */
+function siteDist(s: Site, x: number, y: number): number {
+  const ex = Math.max(0, Math.abs(x - (s.x + 0.5)) - s.half.x - 0.5);
+  const ey = Math.max(0, Math.abs(y - (s.y + 0.5)) - s.half.y - 0.5);
+  return Math.sqrt(ex * ex + ey * ey);
+}
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 interface Folk {
   id: string;
+  site: Site;
   unit: Unit;
   guard: boolean;
   x: number;
@@ -50,44 +75,49 @@ export class Townfolk {
   private n = 0;
 
   constructor(private w: World) {
-    for (const [dx, dy] of GATE_GUARDS) {
-      const p = cellPx(dx, dy);
-      // смотрят наружу: на западе — влево, на востоке — вправо, у северных и южных ворот — к зрителю
-      const dir = Math.abs(dx) >= WALL.x - 2 ? (dx < 0 ? Dir.Left : Dir.Right) : Dir.Down;
-      this.add(true, p.x, p.y, { ...p, dir }, []);
-    }
-    for (const r of PATROLS) {
-      const route = r.map(([dx, dy]) => ptPx(dx, dy));
-      this.add(true, route[0].x, route[0].y, null, route);
-    }
-    const spots = CITIZEN_SPOTS.map(([dx, dy]) => cellPx(dx, dy));
-    for (let i = 0; i < CITIZEN_COUNT; i++) {
-      const s = spots[(i * 7) % spots.length];
-      const f = this.add(false, s.x, s.y, null, spots, C.people[i % C.people.length]);
-      f.idx = (i * 7) % spots.length;
-      f.waitUntil = rnd(500, 6000);
+    for (const site of SITES) {
+      // клетка-смещение от центра города → центр клетки в пикселях; точка маршрута (с .5) → пиксели
+      const cellPx = (dx: number, dy: number) => ({ x: (site.x + dx) * TILE + 16, y: (site.y + dy) * TILE + 16 });
+      const ptPx = (dx: number, dy: number) => ({ x: (site.x + dx) * TILE, y: (site.y + dy) * TILE });
+      for (const [dx, dy] of site.gateGuards) {
+        const p = cellPx(dx, dy);
+        // смотрят наружу: у боковых стен — от центра, у северных и южных ворот — к зрителю
+        const dir = site.sideX !== null && Math.abs(dx) >= site.sideX ? (dx < 0 ? Dir.Left : Dir.Right) : Dir.Down;
+        this.add(site, true, p.x, p.y, { ...p, dir }, []);
+      }
+      for (const r of site.patrols) {
+        const route = r.map(([dx, dy]) => ptPx(dx, dy));
+        this.add(site, true, route[0].x, route[0].y, null, route);
+      }
+      const spots = site.spots.map(([dx, dy]) => cellPx(dx, dy));
+      for (let i = 0; i < site.count; i++) {
+        const s = spots[(i * 7) % spots.length];
+        const f = this.add(site, false, s.x, s.y, null, spots, site.people[i % site.people.length]);
+        f.idx = (i * 7) % spots.length;
+        f.waitUntil = rnd(500, 6000);
+      }
     }
   }
 
-  private add(guard: boolean, x: number, y: number, post: Folk["post"], route: Folk["route"], who?: { name: string; sprite: string }): Folk {
+  private add(site: Site, guard: boolean, x: number, y: number, post: Folk["post"], route: Folk["route"], who?: { name: string; sprite: string }): Folk {
     const u = new Unit();
     u.kind = guard ? UnitKind.Guard : UnitKind.Citizen;
-    u.name = guard ? G.name : who!.name;
-    u.sprite = guard ? G.sprite : who!.sprite;
+    u.name = guard ? site.guard.name : who!.name;
+    u.sprite = guard ? site.guard.sprite : who!.sprite;
     u.level = guard ? G.level : 1;
     u.hp = u.maxHp = 1;
     u.x = x;
     u.y = y;
     u.dir = post?.dir ?? Dir.Down;
-    const f: Folk = { id: `${guard ? "g" : "c"}${++this.n}`, unit: u, guard, x, y, dir: u.dir, anim: Anim.Idle, nav: new Nav(), post, route, idx: 0, waitUntil: 0, foe: null, attackAt: 0, sayAt: 0, syncAt: 0 };
+    const f: Folk = { id: `${guard ? "g" : "c"}${++this.n}`, site, unit: u, guard, x, y, dir: u.dir, anim: Anim.Idle, nav: new Nav(), post, route, idx: 0, waitUntil: 0, foe: null, attackAt: 0, sayAt: 0, syncAt: 0 };
     this.folk.push(f);
     this.w.state.mobs.set(f.id, u);
     return f;
   }
 
   /** Моб угрожает городу: живой, не босс и в пределах GUARD_RANGE_TILES от стен. */
-  private threat(m: Mob) {
-    return !m.dead && !m.def.boss && townDist(m.x / TILE, m.y / TILE) <= GUARD_RANGE_TILES;
+  private threat(m: Mob, site: Site) {
+    return !m.dead && !m.def.boss && siteDist(site, m.x / TILE, m.y / TILE) <= GUARD_RANGE_TILES;
   }
 
   update(dt: number) {
@@ -112,22 +142,25 @@ export class Townfolk {
   }
 
   private assignFoes() {
-    const guards = this.folk.filter((f) => f.guard);
-    for (const g of guards) if (g.foe && (!this.threat(g.foe) || g.foe.state === "return")) g.foe = null;
+    const all = this.folk.filter((f) => f.guard);
+    for (const g of all) if (g.foe && (!this.threat(g.foe, g.site) || g.foe.state === "return")) g.foe = null;
     for (const m of this.w.mobs.values()) {
-      if (!this.threat(m) || guards.some((g) => g.foe === m)) continue;
+      if (m.dead || all.some((g) => g.foe === m)) continue;
+      const site = SITES.find((s) => this.threat(m, s));
+      if (!site) continue;
+      const guards = all.filter((g) => g.site === site);
       let best: Folk | null = null, bd = Infinity;
       for (const g of guards) {
         if (g.foe) continue;
         const d = Math.hypot(g.x - m.x, g.y - m.y);
         if (d < bd) { bd = d; best = g; }
       }
-      if (!best) break;
+      if (!best) continue;
       best.foe = m;
       best.nav.reset();
       if (this.w.time >= best.sayAt) {
         best.sayAt = this.w.time + 20000;
-        this.w.emit({ t: "say", id: best.id, text: G.lines[Math.floor(Math.random() * G.lines.length)] });
+        this.w.emit({ t: "say", id: best.id, text: best.site.guard.lines[Math.floor(Math.random() * best.site.guard.lines.length)] });
       }
     }
   }

@@ -80,6 +80,33 @@ async function main() {
       await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(1));
       await sleep(1500);
       await page.screenshot({ path: path.join(OUT, "shot-town-wide.png") });
+    } else if (scenario === "cities") {
+      // малые города: ворота, площадь, жилой квартал, окна заданий и телепорта, общий вид
+      const { CITIES } = await import("../shared/cities");
+      await dbg({ op: "god" });
+      await dbg({ op: "level", v: 20 });
+      await dbg({ op: "gold", v: 500 });
+      for (const c of CITIES.filter((x) => x.style)) {
+        const at = (dx: number, dy: number) => ({ op: "tp", x: (c.x + dx) * 32 + 16, y: (c.y + dy) * 32 + 16 });
+        for (const [name, dx, dy] of [["gate", 0, -14], ["plaza", 0, 3], ["west", -8, 3], ["north", 5, -4], ["south", 0, 12]] as const) {
+          await dbg(at(dx, dy));
+          await sleep(1500);
+          await page.screenshot({ path: path.join(OUT, `shot-city-${c.id}-${name}.png`) });
+        }
+        await dbg(at(-8, 3));
+        await sleep(600);
+        await page.evaluate((id) => { const sc = (window as any).__game.scene.getScene("game"); sc.hud.quest.open(id); }, c.quest!.id);
+        await sleep(400);
+        await page.screenshot({ path: path.join(OUT, `shot-city-${c.id}-quest.png`) });
+        await page.evaluate(() => { const sc = (window as any).__game.scene.getScene("game"); sc.hud.quest.close(); sc.hud.tp.open(sc.pos); });
+        await sleep(400);
+        await page.screenshot({ path: path.join(OUT, `shot-city-${c.id}-tp.png`) });
+        await page.evaluate(() => { const sc = (window as any).__game.scene.getScene("game"); sc.hud.tp.close(); sc.cameras.main.setZoom(1); });
+        await dbg(at(0, 0));
+        await sleep(1800);
+        await page.screenshot({ path: path.join(OUT, `shot-city-${c.id}-wide.png`) });
+        await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(3));
+      }
     } else if (scenario.startsWith("tp:")) {
       // tp:<моб>[:level] — бой у точки появления моба
       const [, mob, lvl] = scenario.split(":");

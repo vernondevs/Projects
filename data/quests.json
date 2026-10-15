@@ -1,0 +1,18 @@
+{
+  "_doc": "Простые задания городов. kind: kill (target — id моба) или gather (target — id ресурса). Награда: gold, xp, item {base, qty}. Прогресс считается с момента принятия.",
+  "max_active": 5,
+  "quests": {
+    "oasis_jackals": { "giver": "oasis_scout", "name": "Шакалья напасть", "kind": "kill", "target": "jackal", "n": 8, "level": 18,
+      "text": "Шакалы подбираются к оазису и пугают караваны. Перебей восьмерых.", "done": "Караваны снова пойдут. Держи награду.",
+      "reward": { "gold": 220, "xp": 700 } },
+    "oasis_cactus": { "giver": "oasis_scout", "name": "Колючий урожай", "kind": "gather", "target": "cactus_juice", "n": 6, "level": 18,
+      "text": "Нашему повару нужен кактусовый сок. Добудь шесть порций у кактусовых зарослей.", "done": "Касим будет в восторге. Вот тебе за труды.",
+      "reward": { "gold": 180, "xp": 600, "item": { "base": "hp_potion", "qty": 5 } } },
+    "snow_wolves": { "giver": "snow_hunter", "name": "Волчья стая", "kind": "kill", "target": "frost_wolf", "n": 8, "level": 20,
+      "text": "Ледяные волки режут скот. Убей восьмерых, и стада вздохнут.", "done": "Тише стало в долине. Спасибо!",
+      "reward": { "gold": 260, "xp": 900 } },
+    "snow_ice": { "giver": "snow_hunter", "name": "Лёд для коптильни", "kind": "gather", "target": "ice_crystal", "n": 6, "level": 20,
+      "text": "Для ледника нужны ледяные кристаллы. Принеси шесть, добыв их из ледяных глыб.", "done": "Мясо до весны сохранится. Держи.",
+      "reward": { "gold": 220, "xp": 800, "item": { "base": "mp_potion", "qty": 5 } } }
+  }
+}

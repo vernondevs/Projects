@@ -6,6 +6,7 @@ import path from "node:path";
 import type { ClassId, Stats } from "../../shared/classes";
 import type { Item, Slot } from "../../shared/items";
 import type { BankSave } from "../../shared/bank";
+import type { QuestSave } from "../../shared/quests";
 
 export interface PlayerSave {
   cls: ClassId;
@@ -40,6 +41,10 @@ export interface PlayerSave {
   mapVer?: number;
   /** Банк: вкладки и золото. Хранится в той же строке, что и сумка, — перенос сохраняется одной записью. */
   bank?: BankSave;
+  /** Открытые телепорты (id городов); Эмберхолл открыт всегда. */
+  cities?: string[];
+  /** Задания городов. */
+  quests?: QuestSave;
 }
 
 export class GameDB {

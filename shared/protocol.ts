@@ -2,6 +2,7 @@
 import type { ClassId, StatKey, Stats } from "./classes";
 import type { Derived } from "./formulas";
 import type { Item, Slot } from "./items";
+import type { QuestSave } from "./quests";
 
 export const ROOM_NAME = "world";
 
@@ -72,6 +73,9 @@ export interface ClientMessages {
   "pet:toggle": Record<string, never>;
   "pet:select": { id: string };
   "pet:buy": { id: string };
+  "tp:go": { id: string };
+  "quest:accept": { id: string };
+  "quest:turn": { id: string };
 }
 
 // ---------- сервер -> клиент ----------
@@ -105,6 +109,9 @@ export interface SelfState {
   pets?: Record<string, { level: number; xp: number; next: number }>;
   pet?: string;
   petCd?: number;
+  /** Открытые телепорты (id городов) и задания. */
+  cities?: string[];
+  quests?: QuestSave;
   /** Входящие запросы на обмен отключены. */
 }
 

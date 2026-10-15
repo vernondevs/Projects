@@ -6,6 +6,7 @@
  */
 import { ENV, resourceOfNode, type MapNode } from "./biomes";
 import { MAP_H, MAP_W, TILE } from "./constants";
+import { CITIES, CITY_HOUSES, CITY_STALLS, CITY_TOWERS, CITY_WALL, STYLE, cityDecor, cityGround, inCityRect, isCityGate, type City, type CityStyle } from "./cities";
 import { BUILDINGS, inTownRect, isGate, STALLS, TOWERS, TOWN, TOWN_HALF, townGround, WALL } from "./town";
 
 export { TOWN } from "./town";
@@ -45,7 +46,13 @@ export enum Zone {
   Snow,
   Volcano,
   Underwater,
+  /** Малые города (shared/cities.ts). */
+  OasisCity,
+  SnowCity,
 }
+/** Зона города (безопасная, мобы не заходят). */
+export const isTownZone = (z: Zone) => z === Zone.Town || z === Zone.OasisCity || z === Zone.SnowCity;
+const CITY_ZONE: Record<string, Zone> = { oasis: Zone.OasisCity, snow_valley: Zone.SnowCity };
 export interface ZoneInfo {
   name: string;
   levels: [number, number];
@@ -68,6 +75,8 @@ export const ZONES: ZoneInfo[] = [
   { name: "Снежные пики", levels: [20, 26], safe: false, mobs: ["frost_wolf", "ice_golem"] },
   { name: "Пылающий вулкан", levels: [26, 30], safe: false, mobs: ["magma_slime", "lava_hound"] },
   { name: "Затонувшая бухта", levels: [22, 28], safe: false, mobs: ["jellyfish", "sea_crab"] },
+  { name: "Город Оазис Миражей", levels: [0, 0], safe: true, mobs: [] },
+  { name: "Город Снежная долина", levels: [0, 0], safe: true, mobs: [] },
 ];
 
 /** Версия раскладки мира: при смене позиции из старых сохранений сбрасываются к точке появления. */
@@ -111,6 +120,8 @@ export interface WorldMap {
   vents: { x: number; y: number }[];
   playerSpawn: { x: number; y: number };
   merchant: { x: number; y: number };
+  /** Все торговцы (Марфа и торговцы малых городов): сюда ходят продавать и покупать. */
+  merchants: { x: number; y: number }[];
 }
 
 /** Какие объекты непроходимы и сколько клеток занимают (от клетки привязки вправо и вверх). */
@@ -143,6 +154,20 @@ export const OBJECT_FOOTPRINT: Record<string, { w: number; h: number } | undefin
   dummy: { w: 1, h: 1 },
   weapon_rack: { w: 1, h: 1 },
   hay: { w: 1, h: 1 },
+  teleport_stone: { w: 1, h: 1 },
+  sand_wall_h: { w: 1, h: 1 },
+  sand_wall_v: { w: 1, h: 1 },
+  sand_tower: { w: 2, h: 2 },
+  sand_house: { w: 4, h: 3 },
+  sand_house_b: { w: 4, h: 3 },
+  pal_h: { w: 1, h: 1 },
+  pal_v: { w: 1, h: 1 },
+  pal_tower: { w: 2, h: 2 },
+  log_house: { w: 4, h: 3 },
+  log_house_b: { w: 4, h: 3 },
+  stall_sand: { w: 2, h: 1 },
+  tent: { w: 3, h: 2 },
+  brazier: { w: 1, h: 1 },
   cactus: { w: 1, h: 1 },
   palm: { w: 1, h: 1 },
   sandstone: { w: 1, h: 1 },
@@ -196,16 +221,16 @@ const ROADS: [number, number][][] = [
   [[TOWN.x + 0.5, TOWN.y - TOWN_HALF.y], [88, 70], [92, 3]],
   [[TOWN.x + 0.5, TOWN.y + TOWN_HALF.y + 1], [88, 175], [91, 237]],
   // дороги в биомы: пустыня (оазис), снега (долина), вулкан (две ветки), подводная бухта
-  [[40, 122], [31, 138], [24, 151]],
-  [[89, 40], [102, 26], [111, 19]],
+  [[40, 122], [34, 132], [30, 139]],
+  [[89, 40], [104, 34], [112, 31]],
   [[201, 65], [238, 40], [276, 50], [306, 64]],
   [[201, 179], [240, 204], [280, 196], [306, 184]],
   [[172, 168], [169, 200], [171, 224]],
 ];
 /** Ровные площадки под будущие города (центр в тайлах, r — радиус свободной зоны). */
 export const CITY_SITES = [
-  { id: "oasis", name: "Оазис Миражей", biome: Zone.Desert, x: 24, y: 152, r: 10 },
-  { id: "snow_valley", name: "Снежная долина", biome: Zone.Snow, x: 112, y: 18, r: 10 },
+  { id: "oasis", name: "Оазис Миражей", biome: Zone.Desert, x: CITIES[1].x, y: CITIES[1].y, r: 14 },
+  { id: "snow_valley", name: "Снежная долина", biome: Zone.Snow, x: CITIES[2].x, y: CITIES[2].y, r: 14 },
 ];
 /** Расстояние до ближайшей площадки в долях её радиуса (меньше 1 — внутри). */
 function siteDist(x: number, y: number): number {
@@ -214,7 +239,7 @@ function siteDist(x: number, y: number): number {
   return best;
 }
 /** Пруд оазиса (центр в тайлах). */
-const OASIS_POND = { x: CITY_SITES[0].x - 14, y: CITY_SITES[0].y };
+const OASIS_POND = { x: 9, y: CITY_SITES[0].y };
 export const BOSS_SPAWNS: BossSpawn[] = [
   { id: "ent", x: 234 * TILE, y: 60 * TILE, arena: 10 * TILE },
   { id: "witch", x: 234 * TILE, y: 181 * TILE, arena: 10 * TILE },
@@ -298,6 +323,7 @@ function frontierZone(x: number, y: number, seed: number): Zone {
 export function zoneAt(x: number, y: number, seed: number): Zone {
   if (inDungeon(x, y)) return Zone.Dungeon;
   if (inTownRect(Math.floor(x) - TOWN.x, Math.floor(y) - TOWN.y)) return Zone.Town;
+  for (const c of CITIES) if (c.style && inCityRect(Math.floor(x) - c.x, Math.floor(y) - c.y)) return CITY_ZONE[c.id];
   const e = (fbm(x, y, seed + 17) - 0.5) * 16;
   if (x < CORE.x0 + e || x > CORE.x1 - e || y < CORE.y0 + e || y > CORE.y1 - e) return frontierZone(x, y, seed);
   const w = (fbm(x, y, seed + 5) - 0.5) * 30 * S;
@@ -334,6 +360,15 @@ function terrainAt(x: number, y: number, seed: number): T {
         if (g === "dirt") dirt = true;
       }
       return dirt ? T.Dirt : T.Grass;
+    }
+    case Zone.OasisCity:
+    case Zone.SnowCity: {
+      const c = CITIES[z === Zone.OasisCity ? 1 : 2];
+      const vx = Math.round(x) - c.x, vy = Math.round(y) - c.y;
+      const gs = [[-1, -1], [0, -1], [-1, 0], [0, 0]].map(([ox, oy]) => cityGround(c.style!, vx + ox, vy + oy));
+      if (gs.every((g) => g === "pool")) return T.Water;
+      const [road, path, plain] = c.style === "desert" ? [T.Cobble, T.Sand, T.Dune] : [T.Cobble, T.Dirt, T.Snow];
+      return gs.includes("road") ? road : gs.includes("path") ? path : plain;
     }
     case Zone.Frontier:
     case Zone.Meadow: {
@@ -437,7 +472,7 @@ function buildTown(seed: number, w: number, cell: Uint8Array, vtx: Uint8Array, o
     ["oak", -10, 3], ["oak", -7, 6], ["oak", 8, 3], ["oak", 10, 5], ["pine", 7, 7], ["oak", -10, 7],
     ["lamp", -2, -10], ["lamp", 2, -10], ["lamp", -13, -10], ["lamp", 13, -10],
     ["lamp", -2, 10], ["lamp", 2, 10], ["lamp", -13, 10], ["lamp", 13, 10],
-    ["well", -9, 6],
+    ["well", -9, 6], ["teleport_stone", 5, 3],
   ];
   for (const [k, dx, dy] of decor) put(k, dx, dy);
   // сады за домами и цветы во дворах
@@ -452,6 +487,38 @@ function buildTown(seed: number, w: number, cell: Uint8Array, vtx: Uint8Array, o
     else if (hash(x, y, seed + 3) < 0.16) objects.push({ kind: "flowers", x: x * TILE + 16, y: y * TILE + 30 });
   }
   void vtx;
+}
+
+/** Малый город: стены, башни, ворота, дома, прилавки, убранство, камень телепорта. */
+function buildCity(c: City, cell: Uint8Array, w: number, objects: MapObject[], place: Place, seed: number) {
+  const style = c.style as CityStyle, S = STYLE[style];
+  const X = (dx: number) => c.x + dx, Y = (dy: number) => c.y + dy;
+  const towerCells = new Set<number>();
+  for (const [dx, dy] of CITY_TOWERS) {
+    place(S.tower, X(dx), Y(dy));
+    for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) towerCells.add((dy - j) * 1000 + dx + i);
+  }
+  const wallOk = (dx: number, dy: number) => !isCityGate(dx, dy) && !towerCells.has(dy * 1000 + dx);
+  for (let dx = -CITY_WALL.x; dx <= CITY_WALL.x; dx++) for (const dy of [-CITY_WALL.y, CITY_WALL.y]) if (wallOk(dx, dy)) place(S.wall_h, X(dx), Y(dy));
+  for (let dy = -CITY_WALL.y + 1; dy < CITY_WALL.y; dy++) for (const dx of [-CITY_WALL.x, CITY_WALL.x]) if (wallOk(dx, dy)) place(S.wall_v, X(dx), Y(dy));
+  for (const dy of [-CITY_WALL.y, CITY_WALL.y]) objects.push({ kind: S.gate, x: X(0) * TILE + 16, y: (Y(dy) + 1) * TILE - 2 });
+  const fits = (kind: string, x: number, y: number) => {
+    const f = OBJECT_FOOTPRINT[kind] ?? { w: 1, h: 1 };
+    for (let j = 0; j < f.h; j++) for (let i = 0; i < f.w; i++) if (cell[(y - j) * w + x + i] & CELL_BLOCK) return false;
+    return true;
+  };
+  CITY_HOUSES.forEach(([dx, dy], i) => place(S.houses[i % 2], X(dx), Y(dy)));
+  CITY_STALLS.forEach(([dx, dy], i) => place(S.stalls[i], X(dx), Y(dy)));
+  for (const [k, dx, dy] of cityDecor(style)) if (fits(k, X(dx), Y(dy))) place(k, X(dx), Y(dy));
+  place("teleport_stone", c.stoneTile.x, c.stoneTile.y);
+  // цветы/кустики на открытой земле у стен и снег с кустами
+  const r = rng(seed + 11 + c.x);
+  for (let dy = -CITY_WALL.y + 1; dy < CITY_WALL.y; dy++) for (let dx = -CITY_WALL.x + 1; dx < CITY_WALL.x; dx++) {
+    const x = X(dx), y = Y(dy);
+    if (cell[y * w + x] & CELL_BLOCK || cityGround(style, dx, dy) !== "plain") continue;
+    const roll = r();
+    if (roll < 0.05) objects.push({ kind: style === "desert" ? "dry_bush" : "snow_bush", x: x * TILE + 16, y: y * TILE + 30 });
+  }
 }
 
 export function generateMap(seed: number): WorldMap {
@@ -469,7 +536,7 @@ export function generateMap(seed: number): WorldMap {
     let f = 0;
     if (BLOCKING.has(terrainAt(cx, cy, seed))) f |= CELL_BLOCK;
     if (z === Zone.Dungeon && !inRooms(x, y)) f |= CELL_BLOCK | CELL_WALL;
-    if (z === Zone.Town || roadDist(cx, cy) < 2.2 || siteDist(cx, cy) < 1.15 || bossNear(cx, cy, 1) || townDist(cx, cy) < 3) f |= CELL_RESERVED;
+    if (isTownZone(z) || roadDist(cx, cy) < 2.2 || siteDist(cx, cy) < 1.15 || bossNear(cx, cy, 1) || townDist(cx, cy) < 3) f |= CELL_RESERVED;
     cell[i] = f;
   }
 
@@ -487,6 +554,7 @@ export function generateMap(seed: number): WorldMap {
   };
 
   buildTown(seed, w, cell, vtx, objects, place);
+  for (const c of CITIES) if (c.style) buildCity(c, cell, w, objects, place, seed);
   const nodes: MapNode[] = [];
   const vents: { x: number; y: number }[] = [];
   const placeNode = (kind: string, x: number, y: number) => {
@@ -504,7 +572,7 @@ export function generateMap(seed: number): WorldMap {
     const f = cell[i];
     const roll = r(), jit = Math.floor((r() - 0.5) * 10);
     if (f & (CELL_BLOCK | CELL_RESERVED)) {
-      if (f & CELL_WALL || !(f & CELL_BLOCK) || zone[i] === Zone.Town) continue;
+      if (f & CELL_WALL || !(f & CELL_BLOCK) || isTownZone(zone[i])) continue;
       // вода: кувшинки и камыш у берега
       const t = vtx[y * (w + 1) + x];
       if (t === T.Water && zone[i] === Zone.Swamp && roll < 0.05) objects.push({ kind: "lilypad", x: x * TILE + 16 + jit, y: y * TILE + 24 });
@@ -645,6 +713,7 @@ export function generateMap(seed: number): WorldMap {
     playerSpawn: { x: TOWN.x * TILE + 16, y: (TOWN.y + 3) * TILE + 16 },
     // торговка Марфа — за прилавком на рынке (прилавок STALLS[2])
     merchant: { x: (TOWN.x + 5) * TILE, y: (TOWN.y - 5) * TILE + 8 },
+    merchants: [{ x: (TOWN.x + 5) * TILE, y: (TOWN.y - 5) * TILE + 8 }, ...CITIES.filter((c) => c.merchant).map((c) => c.merchant!)],
   };
 }
 

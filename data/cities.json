@@ -1,0 +1,29 @@
+{
+  "_doc": "Малые города (shared/cities.ts, server/src/game/townfolk.ts). Раскладка в shared/cities.ts; здесь только жители и NPC.",
+  "oasis": {
+    "name": "Оазис Миражей",
+    "guard": { "name": "Страж оазиса", "sprite": "guard_desert", "lines": ["Назад, песчаная тварь!", "Оазис под защитой!", "Ни шагу к колодцу!", "Шакалы, опять вы…"] },
+    "people": [
+      { "name": "Водонос Тарик", "sprite": "citizen_desert" },
+      { "name": "Ткачиха Лейла", "sprite": "citizen1" },
+      { "name": "Караванщик Омар", "sprite": "citizen_desert" },
+      { "name": "Старейшина Салим", "sprite": "citizen4" }
+    ],
+    "merchant": { "id": "oasis_merchant", "name": "Торговка Зара", "sprite": "merchant", "tint": "0xffe0a0", "color": "#ffd08a" },
+    "cook": { "id": "oasis_cook", "name": "Повар Касим", "sprite": "merchant", "tint": "0xffb890", "color": "#ffb070", "greeting": "«Кускус, финики и жареная ящерица! Путнику в пустыне без еды не выжить.»" },
+    "quest": { "id": "oasis_scout", "name": "Следопыт Рахим", "sprite": "ranger", "tint": "0xffd890", "color": "#ffe0a0", "greeting": "«Путник, пустыня щедра на беды. Поможешь оазису — оазис не забудет.»" }
+  },
+  "snow_valley": {
+    "name": "Снежная долина",
+    "guard": { "name": "Страж долины", "sprite": "guard_snow", "lines": ["Волки у частокола!", "Долина под защитой!", "Холод не пустит — и мы не пустим.", "Прочь от ограды!"] },
+    "people": [
+      { "name": "Дровосек Улаф", "sprite": "citizen_snow" },
+      { "name": "Пряха Хильда", "sprite": "citizen3" },
+      { "name": "Рыбак Торвальд", "sprite": "citizen_snow" },
+      { "name": "Дед Эрик", "sprite": "citizen4" }
+    ],
+    "merchant": { "id": "snow_merchant", "name": "Торговец Бьорн", "sprite": "merchant", "tint": "0xc8dcff", "color": "#b8d4ff" },
+    "cook": { "id": "snow_cook", "name": "Повар Олаф", "sprite": "merchant", "tint": "0xc0e8e0", "color": "#a8e0d0", "greeting": "«Горячая похлёбка согреет и мёртвого. Бери, пока не остыла!»" },
+    "quest": { "id": "snow_hunter", "name": "Охотник Свен", "sprite": "warrior", "tint": "0xc0d8ff", "color": "#c8e0ff", "greeting": "«Зима голодная, а волки — наглые. Помоги, и я в долгу не останусь.»" }
+  }
+}

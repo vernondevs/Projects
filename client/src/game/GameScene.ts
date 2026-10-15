@@ -7,6 +7,7 @@ import { Anim, BUFF_STEALTH, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type Loo
 import { activeSkills, SKILLS } from "../../../shared/skills";
 import { RUMOR_NPCS } from "../../../shared/rumors";
 import { COOK } from "../../../shared/food";
+import { CITIES } from "../../../shared/cities";
 import { SMITH } from "../../../shared/upgrade";
 import { BANKER } from "../../../shared/bank";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
@@ -19,14 +20,14 @@ import { Scenes } from "./scenes";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
 
-type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "enc";
+type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "enc" | "quest" | "stone";
 type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string; objs?: Phaser.GameObjects.GameObject[] };
 
 const AMBIENCE: Partial<Record<Zone, string>> = {
-  [Zone.Town]: "town", [Zone.Meadow]: "meadow", [Zone.Forest]: "forest", [Zone.Swamp]: "swamp", [Zone.Ashlands]: "ash", [Zone.Dungeon]: "dungeon", [Zone.Arena]: "ash",
+  [Zone.Town]: "town", [Zone.OasisCity]: "desert", [Zone.SnowCity]: "snow", [Zone.Meadow]: "meadow", [Zone.Forest]: "forest", [Zone.Swamp]: "swamp", [Zone.Ashlands]: "ash", [Zone.Dungeon]: "dungeon", [Zone.Arena]: "ash",
   [Zone.Desert]: "desert", [Zone.Snow]: "snow", [Zone.Volcano]: "volcano", [Zone.Underwater]: "water", [Zone.Frontier]: "meadow",
 };
-const ZONE_COLOR: Partial<Record<Zone, string>> = { [Zone.Desert]: "#f0c070", [Zone.Snow]: "#bfe4ff", [Zone.Volcano]: "#ff8a4a", [Zone.Underwater]: "#7ad0ff", [Zone.Swamp]: "#a8d890", [Zone.Forest]: "#a8e080" };
+const ZONE_COLOR: Partial<Record<Zone, string>> = { [Zone.OasisCity]: "#f0c070", [Zone.SnowCity]: "#bfe4ff", [Zone.Desert]: "#f0c070", [Zone.Snow]: "#bfe4ff", [Zone.Volcano]: "#ff8a4a", [Zone.Underwater]: "#7ad0ff", [Zone.Swamp]: "#a8d890", [Zone.Forest]: "#a8e080" };
 
 export class GameScene extends Phaser.Scene {
   map!: WorldMap;
@@ -110,6 +111,17 @@ export class GameScene extends Phaser.Scene {
       this.addNpc("smith", SMITH.sprite, SMITH, SMITH.name, SMITH.color, SMITH.tint, SMITH.id);
       this.addNpc("bank", BANKER.sprite, BANKER, BANKER.name, BANKER.color, BANKER.tint, BANKER.id);
       for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
+      for (const c of CITIES) {
+        if (c.style) {
+          const m = c.merchant!, k = c.cook!, q = c.quest!;
+          this.addNpc("shop", m.sprite, m, m.name, m.color, m.tint, m.id);
+          this.addNpc("cook", k.sprite, k, k.name, k.color, k.tint, k.id);
+          this.addNpc("quest", q.sprite, q, q.name, q.color, q.tint, q.id);
+        }
+        // камень телепорта нарисован картой; здесь только невидимая точка нажатия
+        const st = this.add.sprite(c.stone.x, c.stone.y - 14, "u_merchant", 0).setVisible(false);
+        this.npcs.push({ sprite: st, kind: "stone", id: c.id, name: "Камень телепорта" });
+      }
       this.scenes = new Scenes(this, this.map);
       this.setupEncounters();
     } else this.scenes = null;
@@ -217,7 +229,7 @@ export class GameScene extends Phaser.Scene {
     const want: Record<string, boolean> = {
       leaves: z === Zone.Forest, fireflies: z === Zone.Swamp, fog: z === Zone.Swamp,
       embers: z === Zone.Ashlands || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Volcano, ash: z === Zone.Volcano,
-      pollen: z === Zone.Meadow || z === Zone.Town, snow: z === Zone.Snow, sand: z === Zone.Desert, bubbles: z === Zone.Underwater,
+      pollen: z === Zone.Meadow || z === Zone.Town, snow: z === Zone.Snow || z === Zone.SnowCity, sand: z === Zone.Desert || z === Zone.OasisCity, bubbles: z === Zone.Underwater,
     };
     for (const [k, e] of Object.entries(this.ambient)) {
       e.setPosition(v.x - 40, v.y - (k === "leaves" ? 60 : 0));
@@ -482,9 +494,11 @@ export class GameScene extends Phaser.Scene {
   }
   private openNpc(n: Npc) {
     if (n.kind === "shop") this.hud.openShop();
-    else if (n.kind === "cook") this.hud.cook.open();
+    else if (n.kind === "cook") this.hud.cook.open(n.id);
     else if (n.kind === "smith") this.hud.smith.open();
     else if (n.kind === "bank") this.hud.bank.open();
+    else if (n.kind === "quest") this.hud.quest.open(n.id!);
+    else if (n.kind === "stone") this.hud.tp.open(this.pos);
     else if (n.kind === "rumor") this.hud.rumor.open(n.id!, n.name!);
     else if (n.kind === "enc") this.hud.enc.open(n.id!);
     else this.hud.arena.open();

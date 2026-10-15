@@ -2,8 +2,10 @@
 import { MAP_SEED, PLAYER_RADIUS, PLAYER_SPEED, RESPAWN_DELAY_MS, TICK_MS } from "../../../shared/constants";
 import { armorReduction } from "../../../shared/formulas";
 import { PVP_DAMAGE_MULT } from "../../../shared/arena";
-import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
+import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, isTownZone, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
 import { tickBiomes } from "./biomes";
+import { tickCities } from "./cities";
+import { nearestCity } from "../../../shared/cities";
 import { ELITE } from "../../../shared/elites";
 import { SKILLS } from "../../../shared/skills";
 import { MOBS } from "../../../shared/mobs";
@@ -181,6 +183,7 @@ export class World {
     this.runTimers();
     for (const p of this.players.values()) this.updatePlayer(p, dt);
     tickBiomes(this, dt);
+    tickCities(this);
     for (const m of this.mobs.values()) this.updateMob(m, dt);
     for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
     this.town?.update(dt);
@@ -228,7 +231,7 @@ export class World {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
   inTown(x: number, y: number) {
-    return zoneAtPx(this.map, x, y) === Zone.Town;
+    return isTownZone(zoneAtPx(this.map, x, y));
   }
   radiusOf(a: Actor) {
     return this.isPlayer(a) ? PLAYER_RADIUS : a.def.radius;
@@ -408,8 +411,10 @@ export class World {
     const lost = Math.floor(p.save.gold * 0.1);
     p.save.gold -= lost;
     p.dead = false;
-    p.unit.x = this.map.playerSpawn.x;
-    p.unit.y = this.map.playerSpawn.y;
+    // возрождение в ближайшем открытом городе (на арене и в старых сохранениях — у фонтана)
+    const sp = this.opts.mobs === false ? this.map.playerSpawn : nearestCity(p.save.cities, p.x, p.y).spawn;
+    p.unit.x = sp.x;
+    p.unit.y = sp.y;
     p.unit.hp = p.unit.maxHp;
     p.unit.mp = p.unit.maxMp;
     p.unit.anim = Anim.Idle;
@@ -421,6 +426,11 @@ export class World {
   // ---------- маунты ----------
   /** Снимает маунт и отменяет призыв (атака, умение, урон). */
   breakMount(p: Player) {
+    if (p.tele) {
+      p.tele = null;
+      p.send("mountcast", { ms: 0 });
+      p.send("toast", { text: "Телепорт прерван", kind: "error" });
+    }
     if (p.mountCast) {
       p.mountCast = null;
       p.send("mountcast", { ms: 0 });

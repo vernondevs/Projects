@@ -104,6 +104,8 @@ export class Player {
   lastSave = 0;
   /** Призыв маунта: момент готовности и точка начала (движение отменяет). */
   mountCast: { until: number; x: number; y: number } | null = null;
+  /** Каст телепорта (3 с): куда, откуда, цена. */
+  tele: { until: number; x: number; y: number; to: string; price: number } | null = null;
   /** Призыв питомца (2 с на месте) и момент, когда можно призвать снова после гибели. */
   petCast: { until: number; x: number; y: number } | null = null;
   petCdUntil = 0;
@@ -239,6 +241,8 @@ export class Player {
       kills: this.save.kills,
       bossKills: this.save.bossKills,
       mobKills: (this.save.mobKills ??= {}),
+      cities: this.save.cities ?? [],
+      quests: this.save.quests ?? { active: {}, done: [] },
       food: this.activeFood() ? { id: this.save.food!.id, left: this.save.food!.until - Date.now() } : null,
     };
   }
