@@ -13,6 +13,7 @@ const verb = (k: string) => (k === "kill" ? "Убить" : "Добыть");
 export class QuestUI {
   private win = document.createElement("div");
   private track = document.createElement("div");
+  private log = document.createElement("div");
   private net!: Net;
   private giver = "";
 
@@ -21,7 +22,27 @@ export class QuestUI {
     this.win.hidden = true;
     this.track.className = "panel hud-quests";
     this.track.hidden = true;
-    root.append(this.win, this.track);
+    this.log.className = "panel win win-qlog";
+    this.log.hidden = true;
+    root.append(this.win, this.track, this.log);
+  }
+  /** Журнал заданий (из меню Esc): активные задания с прогрессом. */
+  toggleLog() {
+    this.log.hidden = !this.log.hidden;
+    if (this.net.self) this.update(this.net.self);
+  }
+  closeLog(): boolean {
+    const was = !this.log.hidden;
+    this.log.hidden = true;
+    return was;
+  }
+  private renderLog(act: [string, number][]) {
+    this.log.innerHTML = `<h2><span>Задания</span><button class="x" aria-label="Закрыть">×</button></h2>`
+      + (act.length ? act.map(([id, n]) => {
+        const d = QUESTS[id];
+        return `<div class="quest-row"><div class="qt">${esc(d.name)} <span class="muted">ур. ${d.level}+</span></div><div>${verb(d.kind)}: ${esc(targetName(d.kind, d.target))} — ${Math.min(n, d.n)}/${d.n}${n >= d.n ? ' <span class="gold">(можно сдать)</span>' : ""}</div></div>`;
+      }).join("") : `<p class="muted">Активных заданий нет. Берите их у NPC в городах.</p>`);
+    this.log.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.closeLog();
   }
   bind(net: Net) {
     this.net = net;
@@ -32,8 +53,9 @@ export class QuestUI {
     if (this.net.self) this.update(this.net.self);
   }
   close(): boolean {
-    const was = !this.win.hidden;
+    const was = !this.win.hidden || !this.log.hidden;
     this.win.hidden = true;
+    this.log.hidden = true;
     return was;
   }
   update(s: SelfState) {
@@ -47,6 +69,7 @@ export class QuestUI {
         return `<div class="qrow${n >= d.n ? " ok" : ""}"><span>${esc(d.name)}</span><b>${Math.min(n, d.n)}/${d.n}</b></div>`;
       }).join("")
       : "";
+    if (!this.log.hidden) this.renderLog(act);
     if (this.win.hidden) return;
     const g = QUEST_GIVERS.find((x) => x.id === this.giver);
     if (!g) return;

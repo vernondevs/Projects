@@ -21,6 +21,7 @@ import { RumorUI } from "./rumor";
 import { EncounterUI } from "./encounter";
 import { CookUI, foodTip } from "./cook";
 import { QuestUI, TeleportUI } from "./cities";
+import { drawWorldMap, fillHelp, GameMenu, HOTKEYS } from "./gamemenu";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
 import { MOUNTS, MOUNT_IDS, mountSprite } from "../../../shared/mounts";
@@ -92,7 +93,7 @@ export class Hud {
   readonly trade: TradeUI;
   readonly bestiary: BestiaryUI;
   readonly admin: AdminUI;
-  private adminBtn: HTMLElement | null = null;
+  private gameMenu!: GameMenu;
   readonly rumor: RumorUI;
   readonly enc: EncounterUI;
   readonly cook: CookUI;
@@ -130,6 +131,14 @@ export class Hud {
     this.smith = new SmithUI(root);
     this.quest = new QuestUI(root);
     this.tp = new TeleportUI(root);
+    this.gameMenu = new GameMenu(root, {
+      toggle: (id) => this.toggle(id),
+      openQuests: () => this.quest.toggleLog(),
+      openMap: () => this.openWorldMap(),
+      openHelp: () => { this.wins.help.hidden = false; },
+      isAdmin: () => !!this.ctx.net.self?.isAdmin,
+      net: () => this.ctx.net,
+    });
     this.bank = new BankUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true), showInv: () => { if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); } } });
     window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
@@ -252,15 +261,51 @@ export class Hud {
     mk("shop", "win-shop", "Торговка Марфа");
     mk("settings", "win-settings", "Настройки");
     this.buildSettings(this.wins.settings.querySelector(".body")!);
+    mk("help", "win-help", "Помощь");
+    fillHelp(this.wins.help.querySelector(".body")!);
+    mk("worldmap", "win-worldmap", "Карта мира");
+    this.wins.worldmap.querySelector(".body")!.innerHTML = `<canvas width="760" height="570"></canvas>`;
+  }
+  openWorldMap() {
+    const w = this.wins.worldmap;
+    w.hidden = false;
+    drawWorldMap(w.querySelector("canvas")!, this.ctx.map, this.miniBase, this.lastPos, this.ctx.net.self?.cities);
+  }
+  /** Esc: закрыть верхнее окно; иначе снять цель; иначе открыть/закрыть меню. */
+  escape(hasTarget: boolean, clearTarget: () => void) {
+    if (this.gameMenu.close()) return;
+    if (this.closeTop()) return;
+    if (hasTarget) return clearTarget();
+    this.gameMenu.open();
+  }
+  /** Закрывает одно верхнее по z-index окно (при равенстве — позднее в DOM). */
+  private closeTop(): boolean {
+    let top: HTMLElement | null = null, tz = -1;
+    for (const w of this.root.querySelectorAll<HTMLElement>(".win")) {
+      if (w.hidden) continue;
+      const z = parseInt(getComputedStyle(w).zIndex, 10) || 0;
+      if (z >= tz) { top = w; tz = z; }
+    }
+    if (!top) return this.closeAll();
+    const byCls: Record<string, () => boolean> = {
+      "win-bestiary": () => this.bestiary.close(), "win-admin": () => this.admin.close(), "win-rumor": () => this.rumor.close(), "win-enc": () => this.enc.close(),
+      "win-cook": () => this.cook.close(), "win-quest": () => this.quest.close(), "win-qlog": () => this.quest.closeLog(), "win-tp": () => this.tp.close(),
+      "win-smith": () => this.smith.close(), "win-bank": () => this.bank.close(), "win-arena": () => this.arena.close(), "win-trade": () => this.trade.close(),
+    };
+    const cls = [...top.classList].find((c) => byCls[c]);
+    if (cls) byCls[cls]();
+    else top.hidden = true;
+    this.tip.hidden = true;
+    return true;
   }
   /** Меню под мини-картой: текстовые пункты с горячей клавишей справа. */
   private buildMenu() {
-    const items: [string, string, string, string][] = [["char", "Герой", "C", "Герой"], ["inv", "Сумка", "I", "Сумка"], ["skills", "Умения", "K", "Умения"], ["arena", "Арена", "P", "Арена"], ["bestiary", "Бестиарий", "B", "Бестиарий"], ["map", "Карта", "M", "Карта: свернуть или развернуть"], ["settings", "Настройки", "", "Настройки"]];
+    const items: [string, string, string, string][] = [["inv", "Сумка", "I", "Сумка"], ["skills", "Умения", "K", "Умения"], ["map", "Карта", "M", "Карта: свернуть или развернуть"], ["menu", "Меню", "Esc", "Игровое меню"]];
     for (const [k, text, key, label] of items) {
       const b = el("button", "btn mbtn", `<span class="ml">${text}</span><kbd>${key}</kbd>`);
       b.title = key ? `${label} (${key})` : label;
       b.setAttribute("aria-label", label);
-      b.onclick = () => (k === "map" ? this.toggleMinimap() : this.toggle(k));
+      b.onclick = () => (k === "map" ? this.toggleMinimap() : k === "menu" ? this.gameMenu.toggle() : this.toggle(k));
       this.menuBar.append(b);
     }
   }
@@ -269,7 +314,7 @@ export class Hud {
       this.uiScale = Math.min(150, Math.max(80, Number(localStorage.getItem("uiScale")) || 100));
       this.chatSize = Math.min(22, Math.max(14, Number(localStorage.getItem("chatSize")) || 14));
     } catch {}
-    const keys: [string, string][] = [["WASD / клик", "движение"], ["1–4", "умения"], ["Q / E", "зелья здоровья и маны"], ["Tab", "следующая цель"], ["Пробел", "подобрать предмет"], ["F", "поговорить с NPC"], ["X / Shift+X", "ездовое животное"], ["C / I / K", "герой / сумка / умения"], ["P / B / M", "арена / бестиарий / карта"], ["Enter", "чат"], ["Esc", "закрыть окна, снять цель"]];
+    const keys = HOTKEYS;
     body.innerHTML = `<div class="set-row"><label for="set-scale">Масштаб интерфейса</label><input id="set-scale" type="range" min="80" max="150" step="5"><output id="set-scale-v"></output></div>
       <div class="set-row"><label for="set-chat">Размер шрифта чата</label><input id="set-chat" type="range" min="14" max="22" step="1"><output id="set-chat-v"></output></div>
       <div class="set-row"><label for="set-vol">Громкость звуков</label><input id="set-vol" type="range" min="0" max="100" step="5"><output id="set-vol-v"></output></div>
@@ -413,8 +458,6 @@ export class Hud {
   // ---------- личное состояние ----------
   renderSelf(s: SelfState) {
     this.bestiary.update(s);
-    this.adminBtn ??= this.menuBar.appendChild(Object.assign(el("button", "btn mbtn", `<span class="ml">Админ</span><kbd>F10</kbd>`), { title: "Админ-панель (F10)", onclick: () => this.toggle("admin") }));
-    this.adminBtn.hidden = !s.isAdmin;
     if (!s.isAdmin) this.admin.close();
     if (!s) return;
     this.foodId = s.food?.id ?? "";

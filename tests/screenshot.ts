@@ -180,7 +180,11 @@ async function main() {
       await page.evaluate(() => { const l = document.querySelector(".bst-list"); if (l) l.scrollTop = 9999; });
       await page.screenshot({ path: path.join(OUT, "shot-win-bestiary-scrolled.png") });
       await page.keyboard.press("Escape");
-      await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".mbtn")].find((b) => b.textContent?.includes("Настройки"))!.click());
+      // меню по Esc (цель снята, окон нет)
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      await page.screenshot({ path: path.join(OUT, "shot-win-escmenu.png") });
+      await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".gm-item")].find((b) => b.textContent?.includes("Настройки"))!.click());
       await sleep(300);
       await page.evaluate(() => { const r = document.getElementById("set-scale") as HTMLInputElement; r.value = "120"; r.dispatchEvent(new Event("input")); });
       await sleep(300);

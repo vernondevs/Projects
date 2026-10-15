@@ -403,3 +403,17 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
     linear-gradient(90deg, #7a5a24, #d9a840 45%, #b88a30 60%, #6e4f1e);
 }
 ::-webkit-scrollbar-thumb:hover { filter: brightness(1.2); }
+
+/* игровое меню (Esc) */
+.gmenu-back { position: absolute; inset: 0; z-index: 9000; display: grid; place-items: center; background: rgba(8, 4, 10, 0.62); padding: 16px; }
+.gmenu-back[hidden] { display: none; }
+.gmenu { width: min(380px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.gmenu h2 { margin: 0 0 8px; font-family: var(--font-head); font-size: 28px; text-align: center; color: var(--gold); text-shadow: 0 3px 0 #5a2a10; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.gm-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 18px; padding: 7px 14px; text-align: left; }
+.gm-item kbd { font-family: var(--font); font-size: 16px; color: var(--dim); }
+.gm-item:hover kbd { color: var(--gold); }
+.gm-item small { font-size: 16px; color: var(--dim); }
+.win-qlog { left: 50%; top: 80px; transform: translateX(-50%); width: min(440px, calc(100vw - 24px)); }
+.win-help { left: 50%; top: 70px; transform: translateX(-50%); width: min(480px, calc(100vw - 24px)); z-index: 5; }
+.win-worldmap { left: 50%; top: 50px; transform: translateX(-50%); width: min(760px, calc(100vw - 24px)); z-index: 5; }
+.win-worldmap canvas { width: 100%; height: auto; aspect-ratio: 4 / 3; image-rendering: pixelated; display: block; border-radius: 3px; }
