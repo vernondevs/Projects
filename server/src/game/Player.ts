@@ -202,7 +202,8 @@ export class Player {
     u.mp = Math.min(u.mp, u.maxMp);
     u.level = this.save.level;
     const w = this.save.equip.weapon;
-    u.weapon = w ? `${w.base}:${w.rarity}` : "";
+    const maxPlus = Math.max(0, ...Object.values(this.save.equip).map((e) => (e && e.plus) || 0));
+    u.weapon = w ? `${w.base}:${w.rarity}:${maxPlus}:${w.legendary || ""}` : "";
     this.selfDirty = true;
   }
 

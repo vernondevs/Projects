@@ -160,6 +160,18 @@ button { font: inherit; color: inherit; }
 .cell .lbl { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; overflow: hidden; letter-spacing: -0.5px; color: #5a4c58; text-align: center; }
 .cell.r1 { border-color: var(--rare); box-shadow: inset 0 0 8px rgba(95, 168, 255, 0.35); }
 .cell.r2 { border-color: var(--epic); box-shadow: inset 0 0 10px rgba(196, 123, 255, 0.45); }
+.cell.r2 { animation: epic-pulse 2.6s ease-in-out infinite; }
+@keyframes epic-pulse { 0%, 100% { box-shadow: inset 0 0 8px rgba(196, 123, 255, 0.4), 0 0 2px rgba(196, 123, 255, 0.3); } 50% { box-shadow: inset 0 0 12px rgba(196, 123, 255, 0.7), 0 0 7px rgba(196, 123, 255, 0.6); } }
+.cell.r2::after, .cell.r3::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 3px;
+  background: radial-gradient(circle at 20% 80%, #fff 0 1px, transparent 2px), radial-gradient(circle at 80% 30%, #fff 0 1px, transparent 2px), radial-gradient(circle at 55% 60%, #fff 0 1px, transparent 2px);
+  animation: sparkle 2.2s ease-in-out infinite; }
+.cell.r3::after { background: radial-gradient(circle at 20% 80%, #ffd88a 0 1.5px, transparent 2.5px), radial-gradient(circle at 80% 25%, #fff 0 1.5px, transparent 2.5px), radial-gradient(circle at 50% 55%, #ffb040 0 1.5px, transparent 2.5px), radial-gradient(circle at 85% 85%, #fff 0 1px, transparent 2px);
+  animation: sparkle 1.4s ease-in-out infinite, sparkle-drift 3s linear infinite; }
+.cell.r3::before { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 3px; overflow: hidden;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 220, 140, 0.45) 50%, transparent 60%) -100% 0 / 200% 100% no-repeat; animation: shine 3s ease-in-out infinite; }
+@keyframes sparkle { 0%, 100% { opacity: 0.1; } 50% { opacity: 1; } }
+@keyframes sparkle-drift { from { background-position: 0 0, 0 0, 0 0, 0 0; } to { background-position: 0 -8px, 0 -6px, 0 -10px, 0 -5px; } }
+@keyframes shine { 0%, 55% { background-position: -100% 0; } 100% { background-position: 200% 0; } }
 .cell.r3 { border-color: var(--legend); animation: legend-pulse 1.8s ease-in-out infinite; }
 @keyframes legend-pulse { 0%, 100% { box-shadow: inset 0 0 8px rgba(255, 154, 46, 0.4), 0 0 3px rgba(255, 154, 46, 0.4); } 50% { box-shadow: inset 0 0 14px rgba(255, 154, 46, 0.8), 0 0 10px rgba(255, 154, 46, 0.8); } }
 .cell.cant img { filter: grayscale(0.7) brightness(0.6); }

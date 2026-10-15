@@ -2,6 +2,7 @@
 import Phaser from "phaser";
 import { BUFF_STEALTH, BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
 import { RARITY_COLORS } from "../../../shared/items";
+import { LEGENDARIES } from "../../../shared/legendary";
 import { net, type UnitState } from "../net";
 import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
@@ -27,6 +28,8 @@ export class UnitView {
   /** Факел стражника ночью: пламя и мерцающее свечение. */
   private torchGfx?: Phaser.GameObjects.Graphics;
   private torchGlow?: Phaser.GameObjects.Image;
+  private gearGlow?: Phaser.GameObjects.Image;
+  private gearGfx?: Phaser.GameObjects.Graphics;
   stepAt = 0;
   private mountId = "";
   private lastTitle = "";
@@ -267,6 +270,8 @@ export class UnitView {
       this.stun.setVisible(true).setPosition(this.x + Math.sin(this.scene.time.now / 120) * 3, top - 14);
     } else this.stun?.setVisible(false);
 
+    this.gearFx(u.kind === UnitKind.Player && !!u.weapon && !this.dead && !(b & BUFF_STEALTH));
+
     // полоска здоровья
     const showBar = !this.dead && !this.npc && (u.kind !== UnitKind.Player || u.hp < u.maxHp || this.isSelf);
     if (!showBar) this.bar.clear();
@@ -284,6 +289,32 @@ export class UnitView {
         const r = Number(u.weapon.split(":")[1] || 0);
         if (r > 0) this.bar.fillStyle(Phaser.Display.Color.HexStringToColor(RARITY_COLORS[r]).color, 1).fillRect(bx - 4, by, 2, 2);
       }
+    }
+  }
+
+  /** Свечение и искры снаряжения: цвет редкости (у легендарных — свой оттенок), яркость растёт с заточкой. */
+  private gearFx(on: boolean) {
+    const [, rs, ps, lg] = (this.u.weapon || "").split(":");
+    const r = Number(rs || 0), plus = Number(ps || 0);
+    if (!on || (r < 2 && plus < 3)) { this.gearGlow?.setVisible(false); this.gearGfx?.clear(); return; }
+    const hex = lg && LEGENDARIES[lg] ? LEGENDARIES[lg].tint : RARITY_COLORS[Math.min(3, r)];
+    const col = Phaser.Display.Color.HexStringToColor(hex).color;
+    const power = Math.min(1, (r >= 3 ? 0.5 : r >= 2 ? 0.25 : 0.1) + plus * 0.06);
+    const t = this.scene.time.now;
+    this.gearGlow ??= this.scene.add.image(0, 0, "fx_glow").setBlendMode(Phaser.BlendModes.ADD);
+    const dx = this.u.dir === Dir.Left ? -8 : 8;
+    this.gearGlow.setVisible(true).setTint(col).setPosition(this.x + dx, this.y - 12).setDepth(this.y + 1)
+      .setScale((0.5 + power * 0.9) * (1 + Math.sin(t / 220) * 0.08)).setAlpha(0.25 + power * 0.5);
+    this.gearGfx ??= this.scene.add.graphics();
+    const g = this.gearGfx;
+    g.clear().setDepth(this.y + 2);
+    const n = lg ? 5 : plus >= 7 ? 4 : plus >= 4 || r >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const ph = (t / (lg ? 1100 : 1600) + i / n) % 1;
+      const a = ph * Math.PI * 2 + i;
+      const px = Math.round(this.x + Math.cos(a) * (9 + (lg ? 3 : 0))), py = Math.round(this.y - 12 - ph * 18 + Math.sin(a) * 3);
+      g.fillStyle(col, 1 - ph).fillRect(px, py, 2, 2);
+      g.fillStyle(0xffffff, (1 - ph) * 0.8).fillRect(px, py, 1, 1);
     }
   }
 
@@ -335,5 +366,7 @@ export class UnitView {
     this.frameGfx.destroy();
     this.torchGfx?.destroy();
     this.torchGlow?.destroy();
+    this.gearGlow?.destroy();
+    this.gearGfx?.destroy();
   }
 }
