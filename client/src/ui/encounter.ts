@@ -1,4 +1,5 @@
 /** Окна случайных встреч: диалог путника и лавка бродячего торговца. */
+import { gold as goldHtml } from "./gold";
 import type { EncDialogMsg, EncShopMsg } from "../../../shared/encounters";
 import { iconFor, itemName, RARITY_COLORS } from "../../../shared/items";
 import type { Net } from "../net";
@@ -76,7 +77,7 @@ export class EncounterUI {
       row.innerHTML = `<img src="/assets/icons/${iconFor(it)}.png" alt=""><div><span style="color:${RARITY_COLORS[it.rarity]}">${esc(itemName(it))}${it.qty && it.qty > 1 ? ` ×${it.qty}` : ""}</span><br><span class="muted">ур. ${it.req}</span></div>`;
       const btn = document.createElement("button");
       btn.className = "btn small";
-      btn.innerHTML = `<span class="gold">${s.price} з</span>`;
+      btn.innerHTML = `${goldHtml(s.price)}`;
       btn.disabled = gold < s.price;
       btn.onclick = () => this.net.send("enc:buy", { id: m.id, idx: s.idx });
       row.append(btn);

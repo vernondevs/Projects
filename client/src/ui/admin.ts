@@ -97,7 +97,7 @@ export class AdminUI {
     }
     const L = this.logs;
     const rows = L.rows.map((r) => L.kind === "trades"
-      ? `<tr><td>${date(r.at)}</td><td>${esc(r.a)} ⇄ ${esc(r.b)}</td><td>${esc(this.items(r.a_items))} +${r.a_gold}з</td><td>${esc(this.items(r.b_items))} +${r.b_gold}з</td></tr>`
+      ? `<tr><td>${date(r.at)}</td><td>${esc(r.a)} ⇄ ${esc(r.b)}</td><td>${esc(this.items(r.a_items))} +${r.a_gold} з</td><td>${esc(this.items(r.b_items))} +${r.b_gold} з</td></tr>`
       : `<tr><td>${date(r.at)}</td><td>${esc(r.admin)}</td><td>${esc(r.action)}</td><td>${esc(r.target)} ${esc(r.details)}</td></tr>`).join("");
     const head = L.kind === "trades" ? "<th>Время</th><th>Участники</th><th>A отдал</th><th>B отдал</th>" : "<th>Время</th><th>Админ</th><th>Действие</th><th>Цель/детали</th>";
     return `<div class="adm-row"><select id="l-kind"><option value="trades"${this.logKind === "trades" ? " selected" : ""}>Сделки</option><option value="admin"${this.logKind === "admin" ? " selected" : ""}>Журнал админов</option></select><input id="l-name" class="wide" placeholder="Фильтр по имени" value="${esc(this.logName)}"><button class="btn small" data-act="logs">Показать</button></div>

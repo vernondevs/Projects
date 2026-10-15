@@ -1,4 +1,5 @@
 /** Повар Борщан: небольшое окно с блюдами; описание бонусов еды для подсказок. */
+import { gold } from "./gold";
 import { COOK, COOKS, FOOD_IDS, FOOD, type Dish } from "../../../shared/food";
 import { ITEM_STAT_NAMES, type ItemStatKey } from "../../../shared/items";
 import type { SelfState } from "../../../shared/protocol";
@@ -47,7 +48,7 @@ export class CookUI {
   update(s: SelfState) {
     if (this.win.hidden) return;
     this.win.innerHTML = `<h2><span>${esc(this.who.name)}</span><button class="x" aria-label="Закрыть">×</button></h2>
-      <p class="muted">${esc(this.who.greeting)}</p><div class="cook-list"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+      <p class="muted">${esc(this.who.greeting)}</p><div class="cook-list"></div><p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     const list = this.win.querySelector<HTMLElement>(".cook-list")!;
     for (const id of FOOD_IDS) {
@@ -58,7 +59,7 @@ export class CookUI {
       for (const q of [1, 5]) {
         const b = document.createElement("button");
         b.className = "btn small";
-        b.innerHTML = `×${q} · <span class="gold">${d.price * q} з</span>`;
+        b.innerHTML = `×${q} · ${gold(d.price * q)}`;
         b.disabled = s.gold < d.price * q;
         b.onclick = () => this.net.send("cook:buy", { id, qty: q });
         row.append(b);

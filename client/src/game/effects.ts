@@ -80,6 +80,13 @@ export class Effects {
     this.scene.tweens.add({ targets: g, scale: 1.1 * size, alpha: 0, duration: 160, onComplete: () => g.destroy() });
   }
 
+  /** «+N» с маленькой монетой над юнитом. */
+  goldPop(x: number, y: number, n: number) {
+    const t = this.scene.add.text(x - 5, y, "+" + n.toLocaleString("ru-RU"), { fontFamily: FONT, fontSize: "11px", color: "#ffd84a", stroke: "#14080c", strokeThickness: 4, resolution: 4, fontStyle: "600" }).setOrigin(1, 0.5).setDepth(DEPTH.top);
+    const c = this.scene.add.image(x - 1, y, "coin_icon").setDisplaySize(11, 11).setOrigin(0, 0.5).setDepth(DEPTH.top);
+    this.scene.tweens.add({ targets: [t, c], y: y - 26, alpha: { from: 1, to: 0 }, duration: 900, ease: "Cubic.easeOut", delay: 200, onComplete: () => { t.destroy(); c.destroy(); } });
+  }
+
   number(x: number, y: number, text: string, color: string, big = false) {
     const t = this.scene.add
       .text(x + (Math.random() - 0.5) * 10, y, text, { fontFamily: FONT, fontSize: big ? "14px" : "11px", color, stroke: "#14080c", strokeThickness: 4, resolution: 4, fontStyle: big ? "bold" : "600" })

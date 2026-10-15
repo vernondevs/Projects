@@ -1,4 +1,5 @@
 /** Банк Голдмунда: вкладки, ячейки, перетаскивание сумка ⇄ банк, золото и покупка места. Всё проверяет сервер. */
+import { gold } from "./gold";
 import { BANK_STEP, BANK_TAB_SIZE, BANK_TABS, BANKER, type BankView } from "../../../shared/bank";
 import { iconFor, itemName, type Item } from "../../../shared/items";
 import type { SelfState } from "../../../shared/protocol";
@@ -73,7 +74,7 @@ export class BankUI {
       <p class="muted">${esc(BANKER.greeting)}</p>
       <div class="bank-tabs"></div><div class="grid bank-grid"></div>
       <p class="muted">Клик — забрать в сумку. Перетащите предмет из сумки сюда или клик по нему в сумке — положить.</p>
-      <div class="bank-gold"><span>В банке: <b class="gold">${v?.gold ?? 0}</b> · в сумке: <b class="gold">${s?.gold ?? 0}</b></span>
+      <div class="bank-gold"><span>В банке: <b>${gold(v?.gold ?? 0)}</b> · в сумке: <b>${gold(s?.gold ?? 0)}</b></span>
         <input type="number" min="1" step="1" placeholder="Сумма"><button class="btn small" data-g="1">Положить</button><button class="btn small" data-g="-1">Снять</button></div>
       <div class="bank-buy"></div>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
@@ -150,7 +151,7 @@ export class BankUI {
       const what = last.length < BANK_TAB_SIZE ? `+${BANK_STEP} ячеек во вкладке ${v.tabs.length}` : `новая вкладка ${v.tabs.length + 1}`;
       const b = document.createElement("button");
       b.className = "btn";
-      b.innerHTML = `Купить: ${what} · <span class="gold">${v.price} з</span>`;
+      b.innerHTML = `Купить: ${what} · ${gold(v.price)}`;
       b.disabled = (s?.gold ?? 0) < v.price;
       b.onclick = () => this.net.send("bank:buy", {});
       buy.append(b);

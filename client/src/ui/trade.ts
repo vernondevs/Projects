@@ -1,4 +1,5 @@
 /** Окно обмена между игроками: запрос, два столбца по 8 слотов, золото, «Готов» → «Обменять». */
+import { gold } from "./gold";
 import { BASE_ITEMS, iconFor, itemName, type Item } from "../../../shared/items";
 import { plusBadge } from "./smith";
 import type { SelfState } from "../../../shared/protocol";
@@ -126,7 +127,7 @@ export class TradeUI {
     const k = mine ? "m" : "t";
     const status = side.confirm ? `<span class="ok">Обменять ✓</span>` : side.ready ? `<span class="ok">Готов ✓</span>` : `<span class="muted">не готов</span>`;
     col.innerHTML = `<h3>${mine ? "Вы отдаёте" : "Вы получаете"} ${status}</h3><div class="grid trade-grid"></div>
-      <label class="trade-gold ${this.lit(k + "g") ? "changed" : ""}">Золото: ${mine ? `<input type="number" min="0" step="1" value="${side.gold}">` : `<b class="gold">${side.gold}</b>`}</label>`;
+      <label class="trade-gold ${this.lit(k + "g") ? "changed" : ""}">Золото: ${mine ? `<input type="number" min="0" step="1" value="${side.gold}">` : `<b>${gold(side.gold)}</b>`}</label>`;
     const grid = col.querySelector(".grid")!;
     for (let i = 0; i < TRADE_SLOTS; i++) {
       const it = side.items[i];

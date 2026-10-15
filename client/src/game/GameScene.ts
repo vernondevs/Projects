@@ -102,6 +102,8 @@ export class GameScene extends Phaser.Scene {
       net.on("node", (m) => { this.world.setNode(m.id, m.up); if (m.up) this.depletedNodes.delete(m.id); else this.depletedNodes.add(m.id); }),
       net.on("nodes", (m) => { for (const id of m.depleted) { this.depletedNodes.add(id); this.world.setNode(id, false); } }),
     );
+    let lastGold = -1;
+    this.cleanup.push(net.on("self", (s) => { if (lastGold >= 0 && s.gold > lastGold) { const u = this.units.get(net.id); if (u) this.fx.goldPop(u.x, u.y - 40, s.gold - lastGold); } lastGold = s.gold; }));
     this.cleanup.push(net.on("fx", (list) => this.fx.play(list)), net.on("loot", (bags) => this.syncBags(bags)));
 
     // NPC — декоративные, проверки дальности делает сервер

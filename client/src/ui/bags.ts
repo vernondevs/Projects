@@ -1,4 +1,5 @@
 /** Сумочник Кожемякин: расширение сумки за золото. Всё проверяет сервер. */
+import { gold } from "./gold";
 import { BAGMAN, BAG_MAX, BAG_STEP, bagPrice } from "../../../shared/bags";
 import type { Net } from "../net";
 
@@ -28,7 +29,7 @@ export class BagsUI {
     this.win.innerHTML = `<h2><span>${esc(BAGMAN.name)}</span><button class="x" aria-label="Закрыть">×</button></h2>
       <p class="muted">${esc(BAGMAN.greeting)}</p>
       <p>Сейчас в сумке: <b class="gold">${size}</b> ячеек (максимум ${BAG_MAX}).</p>
-      ${price === null ? `<p class="muted">Сумка уже самая большая.</p>` : `<p>Следующее расширение: <b>+${BAG_STEP}</b> ячеек до <b>${size + BAG_STEP}</b> за <b class="gold">${price}</b> золота.</p><div class="bank-buy"><button class="btn" ${s.gold < price ? "disabled" : ""}>Расширить за ${price}</button></div>`}`;
+      ${price === null ? `<p class="muted">Сумка уже самая большая.</p>` : `<p>Следующее расширение: <b>+${BAG_STEP}</b> ячеек до <b>${size + BAG_STEP}</b> за ${gold(price)}.</p><div class="bank-buy"><button class="btn" ${s.gold < price ? "disabled" : ""}>Расширить за ${gold(price)}</button></div>`}`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     const b = this.win.querySelector<HTMLButtonElement>(".bank-buy .btn");
     if (b) b.onclick = () => this.net.send("bag:expand", {});

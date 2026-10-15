@@ -429,3 +429,5 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 
 .combat-badge { display: inline-block; margin: 2px 0; padding: 0 8px; font-size: 13px; letter-spacing: 1px; color: #ffd9c9; background: #5a1f14; border: 1px solid #c4452e; border-radius: 3px; }
 .combat-badge[hidden] { display: none; }
+.gold-amt { color: var(--gold); white-space: nowrap; }
+img.coin { height: 1em; width: 1em; vertical-align: middle; margin-left: 0.2em; image-rendering: pixelated; }

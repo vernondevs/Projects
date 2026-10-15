@@ -375,6 +375,17 @@ function itemIcon(kind: string): PC {
     case "mat_star_dust":
       for (const [x, y, r] of [[16, 16, 6], [8, 9, 3], [24, 10, 3], [22, 24, 3], [9, 23, 2]]) { c.ellipse(x, y, r, r, P.magic.blue[2]); c.ellipse(x, y, r / 2, r / 2, hex("#ffffff")); }
       break;
+    case "coin":
+      c.ellipse(16, 16, 13, 13, P.gold[0]);
+      c.shadedEllipse(16, 16, 12, 12, P.gold);
+      c.ellipse(16, 16, 9, 9, P.gold[1]);
+      c.ellipse(16, 16, 8, 8, P.gold[3]);
+      c.poly([[10, 21], [10, 12], [13, 16], [16, 10], [19, 16], [22, 12], [22, 21]], P.gold[1]);
+      c.poly([[11, 20], [11, 14], [13, 17], [16, 12], [19, 17], [21, 14], [21, 20]], P.gold[4]);
+      c.rect(10, 21, 12, 2, P.gold[1]);
+      for (const x of [10, 16, 22]) c.set(x, x === 16 ? 9 : 11, P.gold[4]);
+      c.line(7, 10, 10, 7, hex("#ffffff"), 1); c.set(6, 12, hex("#fff6c0"));
+      break;
     case "gold":
       for (const [x, y] of [[12, 22], [20, 22], [16, 16]]) { c.shadedEllipse(x, y, 6, 4, P.gold); c.rect(x - 2, y - 1, 4, 1, P.gold[1]); }
       break;
@@ -432,7 +443,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
   return c;
 }
 
-export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust", ...RESOURCE_IDS.map((id) => `res_${id}`)];
+export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", "coin", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust", ...RESOURCE_IDS.map((id) => `res_${id}`)];
 const R = P.cloth.red, B = P.cloth.blue, Pu = P.cloth.purple, G = P.cloth.green, Br = P.cloth.brown;
 export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_taunt: ["taunt", R, P.gold], sk_shieldblock: ["shieldblock", B, P.steel], sk_quake: ["quake", Br, P.gold], sk_unbending: ["unbending", P.cloth.black, P.steel], sk_laststand: ["laststand", R, P.gold],

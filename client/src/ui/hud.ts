@@ -1,4 +1,5 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
+import { gold, goldify } from "./gold";
 import { initWindowDrag, resetWindowPositions } from "./drag";
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import * as sfx from "../game/sfx";
@@ -228,14 +229,14 @@ export class Hud {
   }
   /** Текст тоста с иконкой предмета и цветными точками классов. */
   private lootHtml(t: ToastMsg): string {
-    if (!t.icon) return esc(t.text);
+    if (!t.icon) return goldify(esc(t.text));
     const dots = (t.classes ?? []).map((c) => `<i style="display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:3px;background:${CLASS_COLOR[c] ?? "#aaa"}" title="${esc(c)}"></i>`).join("");
-    return `<img src="${icon(t.icon)}" width="16" height="16" style="vertical-align:middle;margin-right:4px;image-rendering:pixelated">${esc(t.text)}${dots}`;
+    return `<img src="${icon(t.icon)}" width="16" height="16" style="vertical-align:middle;margin-right:4px;image-rendering:pixelated">${goldify(esc(t.text))}${dots}`;
   }
   chatLine(l: ChatLine & { loot?: boolean; html?: string }) {
     const d = el("div", l.sys ? (l.loot ? "loot" : "sys") : "");
     if (l.html) d.innerHTML = l.html;
-    else if (l.sys) d.textContent = l.text;
+    else if (l.sys) d.innerHTML = goldify(esc(l.text));
     else d.innerHTML = `<b style="color:${CLASS_COLOR[l.cls ?? ""] ?? "#ffb070"}">${esc(l.from)}:</b> ${esc(l.text)}`;
     const atBottom = this.chatLog.scrollTop + this.chatLog.clientHeight >= this.chatLog.scrollHeight - 4;
     this.chatLog.append(d);
@@ -384,7 +385,7 @@ export class Hud {
   }
   private priceHtml(it: Item): string {
     const { price, low } = this.sellInfo(it);
-    return `<span class="gold">${price} з</span>${low ? ` <span class="warn">▼ спрос низкий</span>` : ""}`;
+    return `${gold(price)}${low ? ` <span class="warn">▼ спрос низкий</span>` : ""}`;
   }
   openShop() {
     this.ctx.net.send("market:get", {});
@@ -487,7 +488,7 @@ export class Hud {
       <div class="bar hp"><i id="hp-fill"></i><span id="hp-text"></span></div>
       <div class="bar mp"><i id="mp-fill"></i><span id="mp-text"></span></div>
       <div class="bar xp" title="Опыт"><i style="width:${s.xpNext ? (s.xp / s.xpNext) * 100 : 100}%"></i></div>
-      <div class="pts"><span class="muted">Опыт ${s.xpNext ? `${s.xp} / ${s.xpNext}` : "максимум"}</span><span class="gold">${s.gold} з</span>${pts}</div><div class="food-buff" hidden></div>`;
+      <div class="pts"><span class="muted">Опыт ${s.xpNext ? `${s.xp} / ${s.xpNext}` : "максимум"}</span>${gold(s.gold)}${pts}</div><div class="food-buff" hidden></div>`;
     this.updateFoodLabel();
     this.player.querySelectorAll<HTMLElement>("[data-open]").forEach((p) => (p.onclick = () => this.toggle(p.dataset.open!)));
 
@@ -659,7 +660,7 @@ export class Hud {
   private renderInv(s: SelfState) {
     const b = this.body("inv");
     const shop = !this.wins.shop.hidden;
-    b.innerHTML = `<div class="equip"></div><div class="equip extra"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+    b.innerHTML = `<div class="equip"></div><div class="equip extra"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
@@ -795,7 +796,7 @@ export class Hud {
       tabs.append(tb);
     }
     const list = el("div", "shop-list");
-    const foot = el("div", "shop-foot", `<span class="muted">«Зелья свежие, цены честные.»</span><span>Золото: <b class="gold">${s.gold} з</b></span>`);
+    const foot = el("div", "shop-foot", `<span class="muted">«Зелья свежие, цены честные.»</span><span>Золото: <b>${gold(s.gold)}</b></span>`);
     b.append(tabs, list, foot);
     // карточка товара: иконка в ячейке, название, описание, кнопки с ценой
     let grid: HTMLElement = list;
@@ -803,7 +804,7 @@ export class Hud {
       const r = el("div", "shop-card", `<div class="sc-top"><span class="sc-icon">${pic}</span><div class="si-text"><b>${name}</b><span class="muted">${desc}</span></div></div>`);
       const bx = el("div", "si-btns");
       for (const [label, price, locked, buy] of btns) {
-        const btn = el("button", "btn small", `${label}<span class="gold">${price} з</span>`);
+        const btn = el("button", "btn small", `${label}${gold(price)}`);
         btn.disabled = locked || s.gold < price;
         btn.onclick = buy;
         bx.append(btn);
@@ -847,7 +848,7 @@ export class Hud {
       list.append(any ? grid : el("p", "muted", "Сумка пуста."));
       const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
       const junkSum = junk.reduce((a, [it]) => a + this.sellInfo(it!).price * (it!.qty ?? 1), 0);
-      const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · <span class="gold">~${junkSum} з</span>`);
+      const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · ${gold(junkSum, "~")}`);
       sellAll.disabled = !junk.length;
       sellAll.onclick = () => junk.slice().reverse().forEach(([, i]) => this.ctx.net.send("sell", { index: i }));
       list.append(sellAll);

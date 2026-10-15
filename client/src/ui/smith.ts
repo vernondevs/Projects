@@ -1,4 +1,5 @@
 /** Кузнец Гром: окно улучшения предметов (+1…+10) и покупки материалов. */
+import { gold } from "./gold";
 import { BASE_ITEMS, effStats, iconFor, itemName, ITEM_STAT_NAMES, SLOT_NAMES, SLOTS, type Item, type ItemStatKey, type Slot } from "../../../shared/items";
 import type { SelfState } from "../../../shared/protocol";
 import { MATERIAL_IDS, MATERIALS, MAX_PLUS, SMITH, stepFor } from "../../../shared/upgrade";
@@ -56,7 +57,7 @@ export class SmithUI {
     this.win.innerHTML = `<h2><span>${esc(SMITH.name)}</span><button class="x" aria-label="Закрыть">×</button></h2>
       <p class="muted">${esc(SMITH.greeting)}</p>
       <div class="smith-pick"></div><div class="smith-info"></div>
-      <div class="smith-mats"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+      <div class="smith-mats"></div><p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     const pick = this.win.querySelector<HTMLElement>(".smith-pick")!;
     const add = (item: Item | null, sel: Sel, label = "") => {
@@ -88,7 +89,7 @@ export class SmithUI {
         const okMat = have.ore >= step.ore && have.dust >= step.dust && s.gold >= step.gold;
         html += `<div>Станет +${plus + 1}: ${statLines(next)}</div>
           <div>Шанс: <b>${step.chance}%</b>${step.chance < 100 ? ` · при неудаче уровень снизится до +${Math.max(0, plus - 1)}` : ""}</div>
-          <div class="${s.gold >= step.gold ? "" : "warn"}">Золото: <span class="gold">${step.gold}</span></div>
+          <div class="${s.gold >= step.gold ? "" : "warn"}">Золото: ${gold(step.gold)}</div>
           <div class="${have.ore >= step.ore ? "" : "warn"}">Пепельная руда: ${have.ore} / ${step.ore}</div>
           ${step.dust ? `<div class="${have.dust >= step.dust ? "" : "warn"}">Звёздная пыль: ${have.dust} / ${step.dust}</div>` : ""}
           <button class="btn smith-go"${okMat ? "" : " disabled"}>Улучшить</button>`;
@@ -107,7 +108,7 @@ export class SmithUI {
       for (const q of [1, 10]) {
         const b = document.createElement("button");
         b.className = "btn small";
-        b.innerHTML = `×${q} · <span class="gold">${m.price * q} з</span>`;
+        b.innerHTML = `×${q} · ${gold(m.price * q)}`;
         b.disabled = s.gold < m.price * q;
         b.onclick = () => this.net.send("smith:buy", { id, qty: q });
         row.append(b);

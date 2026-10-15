@@ -1,4 +1,5 @@
 /** Города: диалог заданий, трекер под рамкой героя и окно камня телепорта. */
+import { gold } from "./gold";
 import { CITIES, cityById, stoneNear, teleportPrice } from "../../../shared/cities";
 import type { SelfState } from "../../../shared/protocol";
 import { QUESTS, QUEST_GIVERS, questsOf } from "../../../shared/quests";
@@ -84,7 +85,7 @@ export class QuestUI {
       const item = d.reward.item ? ` · ${d.reward.item.base === "hp_potion" ? "зелья здоровья" : "зелья маны"} ×${d.reward.item.qty}` : "";
       row.innerHTML = `<div class="qt">${esc(d.name)} <span class="muted">ур. ${d.level}+</span></div><div class="muted">${esc(done ? d.done : d.text)}</div>`
         + `<div>${verb(d.kind)}: ${esc(targetName(d.kind, d.target))} — ${have !== undefined ? Math.min(have, d.n) : 0}/${d.n}</div>`
-        + `<div class="muted">Награда: <span class="gold">${d.reward.gold} з · ${d.reward.xp} опыта${item}</span></div>`;
+        + `<div class="muted">Награда: ${gold(d.reward.gold)} · ${d.reward.xp} опыта${item}</div>`;
       const b = document.createElement("button");
       b.className = "btn small";
       if (done) { b.textContent = "Сдано"; b.disabled = true; }
@@ -131,7 +132,7 @@ export class TeleportUI {
     const found = new Set(["ember", ...(s.cities ?? [])]);
     this.win.innerHTML = `<h2><span>Камень телепорта</span><button class="x" aria-label="Закрыть">×</button></h2>
       <p class="muted">Вы здесь: <b>${esc(here?.name ?? "—")}</b>. Каст 3 секунды: движение, урон и бой прерывают переход.</p><div class="tp-list"></div>
-      <p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+      <p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     const list = this.win.querySelector<HTMLElement>(".tp-list")!;
     for (const c of CITIES) {
@@ -143,7 +144,7 @@ export class TeleportUI {
         const price = teleportPrice(here, cityById(c.id)!);
         const b = document.createElement("button");
         b.className = "btn small";
-        b.innerHTML = `Телепорт · <span class="gold">${price} з</span>`;
+        b.innerHTML = `Телепорт · ${gold(price)}`;
         b.disabled = s.gold < price;
         b.onclick = () => { this.net.send("tp:go", { id: c.id }); this.close(); };
         row.append(b);
