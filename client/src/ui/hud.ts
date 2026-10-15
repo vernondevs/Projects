@@ -107,9 +107,35 @@ export class Hud {
   private foodUntil = 0;
   private foodId = "";
 
+  /** Панели под рамкой героя (группа, питомец, задания) встают столбиком и не налезают друг на друга,
+   *  даже когда рамка растёт (очки, «В бою», еда) или панель появляется и пропадает. */
+  private stackLeftPanels() {
+    const order = [".hud-player", ".hud-party", ".hud-pet", ".hud-quests"];
+    const layout = () => {
+      let y = 12;
+      for (const sel of order) {
+        const e = this.root.querySelector<HTMLElement>(sel);
+        if (!e || e.hidden || e.offsetParent === null) continue;
+        if (sel !== ".hud-player" && e.style.top !== `${y}px`) e.style.top = `${y}px`;
+        y = (sel === ".hud-player" ? e.offsetTop : y) + e.offsetHeight + 8;
+      }
+    };
+    const ro = new ResizeObserver(layout);
+    const watch = () => order.forEach((sel) => { const e = this.root.querySelector<HTMLElement>(sel); if (e && !(e as any).__stacked) { (e as any).__stacked = true; ro.observe(e); } });
+    // новые панели добавляются прямо в корень; появление и скрытие — через атрибут hidden
+    new MutationObserver(() => { watch(); layout(); }).observe(this.root, { childList: true });
+    const vis = new MutationObserver(layout);
+    const watchVis = () => order.forEach((sel) => { const e = this.root.querySelector<HTMLElement>(sel); if (e && !(e as any).__vis) { (e as any).__vis = true; vis.observe(e, { attributes: true, attributeFilter: ["hidden", "class"] }); } });
+    new MutationObserver(watchVis).observe(this.root, { childList: true });
+    watchVis();
+    watch();
+    layout();
+  }
+
   constructor(readonly root: HTMLElement) {
     root.append(this.player, this.petBox, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
     initWindowDrag(root, () => this.ctx?.net.self?.name ?? "");
+    this.stackLeftPanels();
     this.targetBox.hidden = true;
     this.petBox.hidden = true;
     this.death.hidden = true;

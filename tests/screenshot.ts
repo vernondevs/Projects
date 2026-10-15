@@ -202,6 +202,11 @@ async function main() {
       await page.evaluate(() => (document.querySelector(".cell.comp") as HTMLElement).click());
       await sleep(300);
       await page.screenshot({ path: path.join(OUT, "shot-win-inv-pet-popup.png") });
+      // рамка питомца под рамкой героя не должна налезать на неё
+      await page.keyboard.press("Escape");
+      await page.evaluate(() => (window as any).__net.send("pet:toggle", {}));
+      await sleep(3000);
+      await page.screenshot({ path: path.join(OUT, "shot-pet-frame.png"), clip: { x: 0, y: 0, width: 420, height: 400 } });
       await page.keyboard.press("Escape");
       // drag inventory by header
       await page.keyboard.press("i");
