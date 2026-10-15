@@ -73,6 +73,7 @@ export interface ClientMessages {
   "pet:toggle": Record<string, never>;
   "pet:select": { id: string };
   "pet:buy": { id: string };
+  "bag:expand": Record<string, never>;
   "tp:go": { id: string };
   "quest:accept": { id: string };
   "quest:turn": { id: string };

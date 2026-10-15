@@ -24,6 +24,7 @@ import { QuestUI, TeleportUI } from "./cities";
 import { drawWorldMap, fillHelp, GameMenu, HOTKEYS } from "./gamemenu";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
+import { BagsUI } from "./bags";
 import { MOUNTS, MOUNT_IDS, mountSprite } from "../../../shared/mounts";
 import { PETS, PET_IDS, petUnitId } from "../../../shared/pets";
 import { MATERIALS } from "../../../shared/upgrade";
@@ -99,6 +100,7 @@ export class Hud {
   readonly cook: CookUI;
   readonly smith: SmithUI;
   readonly bank: BankUI;
+  readonly bags: BagsUI;
   readonly quest: QuestUI;
   readonly tp: TeleportUI;
   private foodUntil = 0;
@@ -140,6 +142,7 @@ export class Hud {
       net: () => this.ctx.net,
     });
     this.bank = new BankUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true), showInv: () => { if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); } } });
+    this.bags = new BagsUI(root, () => this.showInvWin());
     window.setInterval(() => this.updateFoodLabel(), 15000);
     this.trade = new TradeUI(root, { itemTip: (it, s) => this.itemTip(it, s), tipFor: (e, h) => this.tipFor(e, h), hideTip: () => (this.tip.hidden = true) });
     this.trade.onChange = () => {
@@ -185,6 +188,7 @@ export class Hud {
       this.cook.bind(n);
       this.smith.bind(n);
       this.bank.bind(n);
+      this.bags.bind(n);
       this.quest.bind(n);
       this.tp.bind(n);
       this.chatLine({ from: "", text: "Добро пожаловать! Клик по земле — идти, по врагу — атаковать. Умения: 1–4. Арена — клавиша P.", sys: true });
@@ -291,7 +295,7 @@ export class Hud {
     const byCls: Record<string, () => boolean> = {
       "win-bestiary": () => this.bestiary.close(), "win-admin": () => this.admin.close(), "win-rumor": () => this.rumor.close(), "win-enc": () => this.enc.close(),
       "win-cook": () => this.cook.close(), "win-quest": () => this.quest.close(), "win-qlog": () => this.quest.closeLog(), "win-tp": () => this.tp.close(),
-      "win-smith": () => this.smith.close(), "win-bank": () => this.bank.close(), "win-arena": () => this.arena.close(), "win-trade": () => this.trade.close(),
+      "win-smith": () => this.smith.close(), "win-bank": () => this.bank.close(), "win-bags": () => this.bags.close(), "win-arena": () => this.arena.close(), "win-trade": () => this.trade.close(),
     };
     const cls = [...top.classList].find((c) => byCls[c]);
     if (cls) byCls[cls]();
@@ -366,7 +370,7 @@ export class Hud {
     if (id === "shop" && w.hidden) this.renderSelf(this.ctx.net.self!);
   }
   closeAll(): boolean {
-    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.enc.close() || this.cook.close() || this.quest.close() || this.tp.close() || this.smith.close() || this.bank.close() || this.arena.close() || this.trade.close();
+    let any = this.bestiary.close() || this.admin.close() || this.rumor.close() || this.enc.close() || this.cook.close() || this.quest.close() || this.tp.close() || this.smith.close() || this.bank.close() || this.bags.close() || this.arena.close() || this.trade.close();
     for (const w of Object.values(this.wins)) if (!w.hidden) { w.hidden = true; any = true; }
     this.tip.hidden = true;
     return any;
@@ -457,6 +461,9 @@ export class Hud {
   }
 
   // ---------- личное состояние ----------
+  private showInvWin() {
+    if (this.wins.inv.hidden && this.ctx?.net.self) { this.wins.inv.hidden = false; this.renderSelf(this.ctx.net.self); }
+  }
   renderSelf(s: SelfState) {
     this.bestiary.update(s);
     if (!s.isAdmin) this.admin.close();
@@ -468,6 +475,7 @@ export class Hud {
     this.tp.update(s, this.lastPos);
     this.smith.update(s);
     this.bank.update();
+    this.bags.update();
     if (this.lastSelfLevel && s.level > this.lastSelfLevel) this.toast({ text: `Новый уровень: ${s.level}! Очки характеристик и умений ждут (C, K)`, kind: "level" });
     this.lastSelfLevel = s.level;
     const net = this.ctx.net;
@@ -590,10 +598,68 @@ export class Hud {
     }
     return c;
   }
+  private petPop: "pet" | "mount" | null = null;
+  /** Слоты «Питомец» и «Маунт» под снаряжением; клик открывает список своих. */
+  private renderCompanions(row: HTMLElement, s: SelfState) {
+    const send = (t: "pet:toggle" | "mount:toggle" | "pet:select" | "mount:select", id?: string) => this.ctx.net.send(t as never, (id ? { id } : {}) as never);
+    for (const kind of ["pet", "mount"] as const) {
+      const id = kind === "pet" ? s.pet : s.mount;
+      const owned = kind === "pet" ? !!id && !!s.pets?.[id] : !!id && !!s.mounts?.includes(id);
+      const label = kind === "pet" ? "Питомец" : "Маунт";
+      const c = el("button", `cell comp${this.petPop === kind ? " open" : ""}`);
+      const img = owned ? (kind === "pet" ? PETS[id!]?.sprite : mountSprite(id!)) : "";
+      if (owned && img) {
+        const lv = kind === "pet" ? `<span class="qty">${s.pets![id!].level}</span>` : "";
+        c.innerHTML = `<img src="${icon(img)}" alt="${label}">${lv}`;
+        this.tipFor(c, () => kind === "pet" ? this.petTip(id!, s) : this.mountTip(id!));
+      } else {
+        c.title = label;
+        c.innerHTML = `<img class="ghost" src="${icon(kind === "pet" ? "pet_wolf" : "mount_horse")}" alt="${label}">`;
+      }
+      c.onclick = () => { this.tip.hidden = true; this.petPop = this.petPop === kind ? null : kind; this.renderSelf(this.ctx.net.self!); };
+      row.append(c);
+    }
+    row.append(el("span", "muted comp-hint", "Питомец (G) и маунт (X)"));
+    const kind = this.petPop;
+    if (!kind) return;
+    const pop = el("div", "panel comp-pop");
+    const ids = kind === "pet" ? Object.keys(s.pets ?? {}) : (s.mounts ?? []);
+    const cur = kind === "pet" ? s.pet : s.mount;
+    if (!ids.length) {
+      pop.innerHTML = kind === "pet"
+        ? "<p class=\"muted\">Питомцев пока нет. Волчонка можно получить с 5 уровня, остальных продаёт торговка Марфа.</p>"
+        : "<p class=\"muted\">Маунтов пока нет. Их продаёт торговка Марфа в Эмберхолле.</p>";
+    }
+    for (const id of ids) {
+      const d = kind === "pet" ? PETS[id] : MOUNTS[id];
+      if (!d) continue;
+      const r = el("button", `comp-row${id === cur ? " cur" : ""}`);
+      const sub = kind === "pet" ? `ур. ${s.pets![id].level}` : `скорость ×${MOUNTS[id].speed}`;
+      r.innerHTML = `<img src="${icon(kind === "pet" ? PETS[id].sprite : mountSprite(id))}" alt=""><span class="nm">${esc(d.name)}</span><span class="muted">${sub}${id === cur ? " · выбран" : ""}</span>`;
+      r.onclick = () => send(kind === "pet" ? "pet:select" : "mount:select", id);
+      this.tipFor(r, () => kind === "pet" ? this.petTip(id, s) : this.mountTip(id));
+      pop.append(r);
+    }
+    if (ids.length) {
+      const b = el("button", "btn small", kind === "pet" ? "Призвать / отозвать" : "Сесть / слезть");
+      b.onclick = () => send(kind === "pet" ? "pet:toggle" : "mount:toggle");
+      pop.append(b);
+    }
+    row.after(pop);
+  }
+  private petTip(id: string, s: SelfState): string {
+    const d = PETS[id];
+    if (!d) return "";
+    return `<div class="t">${esc(d.name)} · ур. ${s.pets?.[id]?.level ?? 1}</div>${d.skills.map((k) => `<div><b>${esc(k.name)}</b> — ${esc(k.desc)}</div>`).join("")}<div class="d">Призвать: G, выбрать следующего: Shift+G</div>`;
+  }
+  private mountTip(id: string): string {
+    const m = MOUNTS[id];
+    return m ? `<div class="t">${esc(m.name)}</div><div>Скорость ×${m.speed}</div><div class="d">Сесть: X, выбрать следующий: Shift+X</div>` : "";
+  }
   private renderInv(s: SelfState) {
     const b = this.body("inv");
     const shop = !this.wins.shop.hidden;
-    b.innerHTML = `<div class="equip"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
+    b.innerHTML = `<div class="equip"></div><div class="equip extra"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b class="gold">${s.gold}</b></p>`;
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
       const it = s.equip[slot];
@@ -605,6 +671,7 @@ export class Hud {
       }
       eq.append(c);
     }
+    this.renderCompanions(b.querySelector<HTMLElement>(".equip.extra")!, s);
     const grid = b.querySelector(".grid")!;
     const locked = this.trade.lockedIndices();
     s.inventory.forEach((it, i) => {

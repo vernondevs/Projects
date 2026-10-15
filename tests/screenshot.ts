@@ -166,6 +166,12 @@ async function main() {
         await page.screenshot({ path: path.join(OUT, `shot-win-${name}.png`) });
         await page.keyboard.press("Escape");
       }
+      await page.keyboard.press("i");
+      await sleep(300);
+      await page.evaluate(() => (document.querySelector(".cell.comp") as HTMLElement).click());
+      await sleep(300);
+      await page.screenshot({ path: path.join(OUT, "shot-win-inv-pet-popup.png") });
+      await page.keyboard.press("Escape");
       // drag inventory by header
       await page.keyboard.press("i");
       await sleep(400);

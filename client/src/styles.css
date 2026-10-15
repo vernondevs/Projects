@@ -146,6 +146,14 @@ button { font: inherit; color: inherit; }
 .derived span:nth-child(odd) { color: var(--dim); }
 .equip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
 .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.equip.extra { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); align-items: center; }
+.equip.extra .comp-hint { grid-column: span 4; font-size: 12px; padding-left: 6px; }
+.cell.comp.open { outline: 1px solid var(--gold); }
+.comp-pop { margin: 4px 0; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.comp-row { display: flex; align-items: center; gap: 8px; background: #0e0b10; border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; cursor: pointer; color: inherit; text-align: left; font: inherit; }
+.comp-row.cur { border-color: var(--gold); }
+.comp-row img { width: 32px; height: 32px; image-rendering: pixelated; }
+.comp-row .nm { flex: 1; }
 .cell { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 4px; background: #0e0b10; position: relative; cursor: pointer; padding: 0; }
 .cell img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
 .cell .qty { position: absolute; right: 2px; bottom: 0; font-size: 14px; text-shadow: 0 1px 0 #000; }
@@ -302,6 +310,7 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .food-buff { display: inline-flex; align-items: center; gap: 4px; cursor: help; }
 .food-buff img { width: 20px; height: 20px; image-rendering: pixelated; }
 .win-smith { left: 50%; top: 70px; transform: translateX(-50%); width: min(480px, calc(100vw - 24px)); z-index: 4; max-height: calc(100vh - 100px); overflow-y: auto; }
+.win-bags { left: 50%; top: 90px; transform: translateX(-50%); width: min(380px, calc(100vw - 24px)); z-index: 4; }
 .win-bank { left: 50%; top: 70px; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); z-index: 4; max-height: calc(100vh - 100px); overflow-y: auto; }
 .bank-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
 .bank-tabs .btn.active { border-color: var(--gold); color: var(--gold); }

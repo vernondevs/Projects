@@ -28,6 +28,7 @@ import { forgetRumors, rumorFor } from "../game/rumors";
 import { World } from "../game/World";
 import { TradeManager } from "../trade/TradeManager";
 import { BankService } from "../game/bank";
+import { expandBag } from "../game/bags";
 import type { ArenaOptions, Participant } from "./ArenaRoom";
 import { makeOn, registerCombat, type On } from "./common";
 import { WorldState } from "./schema";
@@ -346,6 +347,7 @@ export class WorldRoom extends Room<WorldState> {
     on<{ index: unknown; slot: unknown }>("smith:upgrade", (p, m) => upgradeItem(w(), p, m.index, m.slot, (i) => this.trade.locked(p, i)));
     on<{ bag: unknown }>("pickup", (p, m) => pickup(w(), p, m.bag));
     // банк
+    on("bag:expand", (p) => expandBag(w(), WorldRoom.db, w().map.playerSpawn, p, p.goingToArena || inArena.has(p.name.toLowerCase())));
     on("bank:open", (p) => this.bank.open(p));
     on<{ index: unknown; tab: unknown; slot: unknown }>("bank:put", (p, m) => this.bank.put(p, m.index, m.tab, m.slot));
     on<{ tab: unknown; slot: unknown; index: unknown }>("bank:take", (p, m) => this.bank.take(p, m.tab, m.slot, m.index));

@@ -10,6 +10,7 @@ import { COOK } from "../../../shared/food";
 import { CITIES } from "../../../shared/cities";
 import { SMITH } from "../../../shared/upgrade";
 import { BANKER } from "../../../shared/bank";
+import { BAGMAN } from "../../../shared/bags";
 import { ARENA_NPC, generateArenaMap, MODE_NAMES } from "../../../shared/arena";
 import { MOUNTS } from "../../../shared/mounts";
 import { net, type UnitState } from "../net";
@@ -20,7 +21,7 @@ import { Scenes } from "./scenes";
 import { buildWorld, DEPTH, zoneTint, type WorldView } from "./terrain";
 import { FONT, UnitView } from "./UnitView";
 
-type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "enc" | "quest" | "stone";
+type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "bags" | "enc" | "quest" | "stone";
 type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string; objs?: Phaser.GameObjects.GameObject[] };
 
 const AMBIENCE: Partial<Record<Zone, string>> = {
@@ -110,6 +111,7 @@ export class GameScene extends Phaser.Scene {
       this.addNpc("cook", COOK.sprite, COOK, COOK.name, COOK.color, COOK.tint, COOK.id);
       this.addNpc("smith", SMITH.sprite, SMITH, SMITH.name, SMITH.color, SMITH.tint, SMITH.id);
       this.addNpc("bank", BANKER.sprite, BANKER, BANKER.name, BANKER.color, BANKER.tint, BANKER.id);
+      this.addNpc("bags", BAGMAN.sprite, BAGMAN, BAGMAN.name, BAGMAN.color, BAGMAN.tint, BAGMAN.id);
       for (const r of RUMOR_NPCS) this.addNpc("rumor", r.sprite, r, r.name, r.color, r.tint, r.id);
       for (const c of CITIES) {
         if (c.style) {
@@ -153,7 +155,7 @@ export class GameScene extends Phaser.Scene {
     const shadow = this.add.image(at.x, at.y - 2, "fx_shadow_blob").setDepth(DEPTH.ground + 5);
     const label = { fontFamily: FONT, fontSize: "9px", fontStyle: "600", color, stroke: "#120a10", strokeThickness: 4, resolution: 4 };
     const nameT = this.add.text(at.x, at.y - 31, name, label).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
-    const mark = this.add.text(at.x, at.y - 40, kind === "enc" ? (at as { icon?: string }).icon ?? "!" : kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : kind === "smith" ? "⚒" : kind === "bank" ? "$" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
+    const mark = this.add.text(at.x, at.y - 40, kind === "enc" ? (at as { icon?: string }).icon ?? "!" : kind === "arena" ? "⚔" : kind === "rumor" ? "…" : kind === "cook" ? "♨" : kind === "smith" ? "⚒" : kind === "bank" ? "$" : kind === "bags" ? "▣" : "!", { ...label, fontSize: "10px", color: "#ffd84a" }).setOrigin(0.5, 1).setDepth(DEPTH.top - 5);
     this.time.addEvent({ delay: 2600 + Math.random() * 800, loop: true, callback: () => s.active && s.setFrame(Math.random() < 0.5 ? 0 : 24) });
     this.npcExtras = [shadow, nameT, mark];
     this.npcs.push({ sprite: s, kind, id, name });
@@ -497,6 +499,7 @@ export class GameScene extends Phaser.Scene {
     else if (n.kind === "cook") this.hud.cook.open(n.id);
     else if (n.kind === "smith") this.hud.smith.open();
     else if (n.kind === "bank") this.hud.bank.open();
+    else if (n.kind === "bags") this.hud.bags.open();
     else if (n.kind === "quest") this.hud.quest.open(n.id!);
     else if (n.kind === "stone") this.hud.tp.open(this.pos);
     else if (n.kind === "rumor") this.hud.rumor.open(n.id!, n.name!);
