@@ -20,7 +20,7 @@ import { EncounterUI } from "./encounter";
 import { CookUI, foodTip } from "./cook";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
-import { MOUNTS, MOUNT_IDS } from "../../../shared/mounts";
+import { MOUNTS, MOUNT_IDS, mountSprite } from "../../../shared/mounts";
 import { PETS, PET_IDS, petUnitId } from "../../../shared/pets";
 import { MATERIALS } from "../../../shared/upgrade";
 import { FOOD, foodOf } from "../../../shared/food";
@@ -155,6 +155,7 @@ export class Hud {
       n.on("chat", (l) => this.chatLine(l));
       n.on("toast", (t) => this.toast(t));
       n.on("mountcast", (m) => this.mountCast(m.ms, m.name));
+      n.on("air", (m) => this.airBar(m.air, m.max));
       n.on("arena:info", () => this.applyFrame());
       n.on("market:prices", (m: Record<string, number>) => {
         this.prices = m;
@@ -217,7 +218,8 @@ export class Hud {
     while (this.chatLog.children.length > 80) this.chatLog.firstElementChild!.remove();
     if (atBottom) this.chatLog.scrollTop = this.chatLog.scrollHeight;
   }
-  showZone(name: string, sub: string) {
+  showZone(name: string, sub: string, color = "") {
+    this.zoneBanner.style.color = color;
     this.zoneBanner.innerHTML = `${esc(name)}<small>${esc(sub)}</small>`;
     this.zoneBanner.classList.add("show");
     clearTimeout(this.zoneTimer);
@@ -241,11 +243,11 @@ export class Hud {
     mk("settings", "win-settings", "Настройки");
     this.buildSettings(this.wins.settings.querySelector(".body")!);
   }
-  /** Нижняя панель меню: иконка, клавиша, подсказка. */
+  /** Меню под мини-картой: текстовые пункты с горячей клавишей справа. */
   private buildMenu() {
-    const items: [string, string, string, string][] = [["char", "🛡", "C", "Герой"], ["inv", "🎒", "I", "Сумка"], ["skills", "✨", "K", "Умения"], ["arena", "⚔", "P", "Арена"], ["bestiary", "📖", "B", "Бестиарий"], ["map", "🗺", "M", "Карта: свернуть или развернуть"], ["settings", "⚙", "", "Настройки"]];
-    for (const [k, ic, key, label] of items) {
-      const b = el("button", "btn mbtn", `<span class="mi">${ic}</span><kbd>${key || "&nbsp;"}</kbd>`);
+    const items: [string, string, string, string][] = [["char", "Герой", "C", "Герой"], ["inv", "Сумка", "I", "Сумка"], ["skills", "Умения", "K", "Умения"], ["arena", "Арена", "P", "Арена"], ["bestiary", "Бестиарий", "B", "Бестиарий"], ["map", "Карта", "M", "Карта: свернуть или развернуть"], ["settings", "Настройки", "", "Настройки"]];
+    for (const [k, text, key, label] of items) {
+      const b = el("button", "btn mbtn", `<span class="ml">${text}</span><kbd>${key}</kbd>`);
       b.title = key ? `${label} (${key})` : label;
       b.setAttribute("aria-label", label);
       b.onclick = () => (k === "map" ? this.toggleMinimap() : this.toggle(k));
@@ -261,6 +263,7 @@ export class Hud {
     body.innerHTML = `<div class="set-row"><label for="set-scale">Масштаб интерфейса</label><input id="set-scale" type="range" min="80" max="150" step="5"><output id="set-scale-v"></output></div>
       <div class="set-row"><label for="set-chat">Размер шрифта чата</label><input id="set-chat" type="range" min="14" max="22" step="1"><output id="set-chat-v"></output></div>
       <div class="set-row"><label for="set-vol">Громкость звуков</label><input id="set-vol" type="range" min="0" max="100" step="5"><output id="set-vol-v"></output></div>
+      <div class="set-row"><label for="set-music">Громкость музыки</label><input id="set-music" type="range" min="0" max="100" step="5"><output id="set-music-v"></output></div>
       <div class="set-row"><label for="set-mute">Без звука</label><input id="set-mute" type="checkbox"></div>
       <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Горячие клавиши</h3>
       <dl class="keys">${keys.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>`;
@@ -273,6 +276,10 @@ export class Hud {
     vol.value = String(Math.round(sfx.getVolume() * 100));
     volV.textContent = vol.value + "%";
     mute.checked = sfx.isMuted();
+    const mus = body.querySelector<HTMLInputElement>("#set-music")!, musV = body.querySelector<HTMLOutputElement>("#set-music-v")!;
+    mus.value = String(Math.round(sfx.getMusicVolume() * 100));
+    musV.textContent = mus.value + "%";
+    mus.oninput = () => { sfx.setMusicVolume(Number(mus.value) / 100); musV.textContent = mus.value + "%"; };
     vol.oninput = () => { sfx.setVolume(Number(vol.value) / 100); volV.textContent = vol.value + "%"; sfx.play("hit"); };
     mute.onchange = () => sfx.setMuted(mute.checked);
     this.settingsBody = body;
@@ -320,7 +327,6 @@ export class Hud {
   openShop() {
     this.ctx.net.send("market:get", {});
     this.wins.shop.hidden = false;
-    this.wins.inv.hidden = false;
     if (this.ctx.net.self) this.renderSelf(this.ctx.net.self);
   }
   private body(id: string) {
@@ -395,7 +401,7 @@ export class Hud {
   // ---------- личное состояние ----------
   renderSelf(s: SelfState) {
     this.bestiary.update(s);
-    this.adminBtn ??= this.menuBar.appendChild(Object.assign(el("button", "btn mbtn", `<span class="mi">🛠</span><kbd>F10</kbd>`), { title: "Админ-панель (F10)", onclick: () => this.toggle("admin") }));
+    this.adminBtn ??= this.menuBar.appendChild(Object.assign(el("button", "btn mbtn", `<span class="ml">Админ</span><kbd>F10</kbd>`), { title: "Админ-панель (F10)", onclick: () => this.toggle("admin") }));
     this.adminBtn.hidden = !s.isAdmin;
     if (!s.isAdmin) this.admin.close();
     if (!s) return;
@@ -616,6 +622,22 @@ export class Hud {
   }
 
   /** Полоса призыва маунта над панелью умений. */
+  /** Шкала воздуха под водой (air < 0 — скрыть). */
+  private airBar(air: number, max: number) {
+    let box = document.getElementById("air-bar");
+    if (air < 0) return void box?.remove();
+    if (!box) {
+      box = el("div", "", `<div style="font-size:13px;color:#cfeaff;text-shadow:0 1px 0 #000;text-align:center">Воздух</div><div style="height:8px;background:#06121c;border:1px solid #4a7a9a;margin-top:2px"><i style="display:block;height:100%;width:100%;background:#4ab8ff;transition:width .4s linear"></i></div>`);
+      box.id = "air-bar";
+      box.style.cssText = "position:fixed;left:50%;bottom:150px;width:200px;transform:translateX(-50%);z-index:20;pointer-events:none";
+      document.body.append(box);
+    }
+    const bar = box.querySelector("i") as HTMLElement;
+    const k = Math.max(0, Math.min(1, air / max));
+    bar.style.width = `${k * 100}%`;
+    bar.style.background = k < 0.25 ? "#ff5a4a" : "#4ab8ff";
+  }
+
   private mountCast(ms: number, name?: string) {
     let box = document.getElementById("mount-cast");
     if (!ms) return void box?.remove();
@@ -628,46 +650,75 @@ export class Hud {
     requestAnimationFrame(() => requestAnimationFrame(() => (bar.style.width = "100%")));
   }
 
+  private shopTab: "buy" | "sell" = "buy";
   private renderShop(s: SelfState) {
     const b = this.body("shop");
-    b.innerHTML = `<p class="muted">«Зелья свежие, цены честные. Ненужное снаряжение тоже возьму.» Клик по предмету в сумке — продать.</p>`;
-    for (const base of ["hp_potion", "mp_potion"]) {
-      const def = BASE_ITEMS[base];
-      const row = el("div", "shoprow", `<img src="${icon(def.icon)}" alt=""><div>${def.name}<br><span class="muted">${base === "hp_potion" ? "45% здоровья" : "50% маны"}</span></div>`);
-      for (const q of [1, 5]) {
-        const btn = el("button", "btn small", `×${q} · <span class="gold">${(def.price ?? 0) * q} з</span>`);
-        btn.disabled = s.gold < (def.price ?? 0) * q;
-        btn.onclick = () => this.ctx.net.send("buy", { base, qty: q });
-        row.append(btn);
+    b.innerHTML = "";
+    b.classList.add("shop");
+    const tabs = el("div", "shop-tabs");
+    for (const [k, t] of [["buy", "Купить"], ["sell", "Продать"]] as const) {
+      const tb = el("button", `btn${this.shopTab === k ? " on" : ""}`, t);
+      tb.onclick = () => { this.shopTab = k; this.renderShop(s); };
+      tabs.append(tb);
+    }
+    const list = el("div", "shop-list");
+    const foot = el("div", "shop-foot", `<span class="muted">«Зелья свежие, цены честные.»</span><span>Золото: <b class="gold">${s.gold} з</b></span>`);
+    b.append(tabs, list, foot);
+    // карточка товара: иконка в ячейке, название, описание, кнопки с ценой
+    let grid: HTMLElement = list;
+    const row = (pic: string, name: string, desc: string, btns: [string, number, boolean, () => void][]) => {
+      const r = el("div", "shop-card", `<div class="sc-top"><span class="sc-icon">${pic}</span><div class="si-text"><b>${name}</b><span class="muted">${desc}</span></div></div>`);
+      const bx = el("div", "si-btns");
+      for (const [label, price, locked, buy] of btns) {
+        const btn = el("button", "btn small", `${label}<span class="gold">${price} з</span>`);
+        btn.disabled = locked || s.gold < price;
+        btn.onclick = buy;
+        bx.append(btn);
       }
-      b.append(row);
+      r.append(bx);
+      grid.append(r);
+    };
+    const head = (t: string) => { list.append(el("div", "shop-head", t)); grid = list.appendChild(el("div", "shop-grid")); };
+    const sprite = (key: string) => `<img src="${icon(key)}" alt="">`;
+    if (this.shopTab === "buy") {
+      head("Зелья");
+      for (const base of ["hp_potion", "mp_potion"]) {
+        const def = BASE_ITEMS[base], p = def.price ?? 0;
+        row(`<img src="${icon(def.icon)}" alt="">`, def.name, base === "hp_potion" ? "+45% здоровья" : "+50% маны",
+          [1, 5, 20].map((q) => [`×${q} `, p * q, false, () => this.ctx.net.send("buy", { base, qty: q })] as [string, number, boolean, () => void]));
+      }
+      const mounts = MOUNT_IDS.filter((id) => MOUNTS[id].price > 0 && !s.mounts?.includes(id));
+      if (mounts.length) head("Ездовые животные");
+      for (const id of mounts) {
+        const m = MOUNTS[id];
+        row(sprite(mountSprite(id)), m.name, `Скорость ×${m.speed}, с ${m.level} ур.`, [["Купить ", m.price, s.level < m.level, () => this.ctx.net.send("mount:buy", { id })]]);
+      }
+      const pets = PET_IDS.filter((id) => PETS[id].price > 0 && !s.pets?.[id]);
+      if (pets.length) head("Питомцы");
+      for (const id of pets) {
+        const d = PETS[id];
+        row(sprite(d.sprite), d.name, `С ${d.level} ур.: ${d.skills.map((k) => k.name).join(", ")}`, [["Купить ", d.price, s.level < d.level, () => this.ctx.net.send("pet:buy", { id })]]);
+      }
+    } else {
+      list.append(el("p", "muted", "Клик по вещи — продать. Цена падает, если такие вещи часто продают."));
+      const grid = el("div", "sell-grid");
+      let any = false;
+      s.inventory.forEach((it, i) => {
+        if (!it) return;
+        any = true;
+        const c = el("button", `sell-cell r${it.rarity}`, `<img src="${icon(iconFor(it))}" alt="">${it.qty && it.qty > 1 ? `<span class="qty">${it.qty}</span>` : ""}<span class="sp">${this.sellInfo(it).price}</span>`);
+        c.onclick = () => this.ctx.net.send("sell", { index: i });
+        this.tipFor(c, () => this.itemTip(it, s));
+        grid.append(c);
+      });
+      list.append(any ? grid : el("p", "muted", "Сумка пуста."));
+      const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
+      const junkSum = junk.reduce((a, [it]) => a + this.sellInfo(it!).price * (it!.qty ?? 1), 0);
+      const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · <span class="gold">~${junkSum} з</span>`);
+      sellAll.disabled = !junk.length;
+      sellAll.onclick = () => junk.slice().reverse().forEach(([, i]) => this.ctx.net.send("sell", { index: i }));
+      list.append(sellAll);
     }
-    for (const id of MOUNT_IDS) {
-      const m = MOUNTS[id];
-      if (m.price <= 0 || s.mounts?.includes(id)) continue;
-      const row = el("div", "shoprow", `<div>${m.name}<br><span class="muted">Маунт ×${m.speed} · ур. ${m.level}</span></div>`);
-      const btn = el("button", "btn small", `<span class="gold">${m.price} з</span>`);
-      btn.disabled = s.gold < m.price || s.level < m.level;
-      btn.onclick = () => this.ctx.net.send("mount:buy", { id });
-      row.append(btn);
-      b.append(row);
-    }
-    for (const id of PET_IDS) {
-      const d = PETS[id];
-      if (d.price <= 0 || s.pets?.[id]) continue;
-      const row = el("div", "shoprow", `<div>${d.name}<br><span class="muted">Питомец · ур. ${d.level} · ${d.skills.map((k) => k.name).join(", ")}</span></div>`);
-      const btn = el("button", "btn small", `<span class="gold">${d.price} з</span>`);
-      btn.disabled = s.gold < d.price || s.level < d.level;
-      btn.onclick = () => this.ctx.net.send("pet:buy", { id });
-      row.append(btn);
-      b.append(row);
-    }
-    const junk = s.inventory.map((it, i) => [it, i] as const).filter(([it]) => it && it.rarity === 0 && BASE_ITEMS[it.base].slot !== "consumable");
-    const junkSum = junk.reduce((a, [it]) => a + this.sellInfo(it!).price * (it!.qty ?? 1), 0);
-    const sellAll = el("button", "btn", `Продать все обычные вещи (${junk.length}) · ~<span class="gold">${junkSum} з</span>`);
-    sellAll.disabled = !junk.length;
-    sellAll.onclick = () => junk.slice().reverse().forEach(([, i]) => this.ctx.net.send("sell", { index: i }));
-    b.append(sellAll, el("p", "muted", `Золото: <b class="gold">${s.gold}</b>`));
   }
 
   // ---------- мини-карта ----------

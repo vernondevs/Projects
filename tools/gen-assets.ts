@@ -44,6 +44,14 @@ for (const id of Object.keys(SKILL_ICONS)) {
   buildSkillIcon(id).save(path.join(OUT, `icons/${id}.png`));
   manifest.icons.push(id);
 }
+// иконки маунтов и питомцев для магазина: первый кадр их спрайт-листа
+for (const id of Object.keys(UNIT_ART).filter((u) => u.startsWith("mount_") || u.startsWith("pet_"))) {
+  const sheet = PNG.sync.read(fs.readFileSync(path.join(OUT, `units/${id}.png`)));
+  const fr = UNIT_ART[id].frame, ic = new PNG({ width: fr, height: fr });
+  PNG.bitblt(sheet, ic, 0, 0, fr, fr, 0, 0);
+  fs.writeFileSync(path.join(OUT, `icons/${id}.png`), PNG.sync.write(ic));
+  manifest.icons.push(id);
+}
 for (const [id, art] of Object.entries(FX_ART)) {
   art().save(path.join(OUT, `fx/${id}.png`));
   manifest.fx.push(id);

@@ -590,9 +590,13 @@ export function generateMap(seed: number): WorldMap {
 
   // Точки появления мобов.
   const spawns: SpawnPoint[] = [];
-  const quota: Record<number, number> = { [Zone.Meadow]: 76, [Zone.Forest]: 64, [Zone.Swamp]: 62, [Zone.Ashlands]: 30, [Zone.Dungeon]: 30, [Zone.Desert]: 40, [Zone.Snow]: 40, [Zone.Volcano]: 34, [Zone.Underwater]: 34 };
-  const rs = rng(seed + 555);
   const taken: { x: number; y: number }[] = [];
+  // два прохода: прежние зоны (порядок не меняется) и биомы Неизведанных земель
+  for (const pass of [0, 1]) {
+  const quota: Record<number, number> = pass === 0
+    ? { [Zone.Meadow]: 76, [Zone.Forest]: 64, [Zone.Swamp]: 62, [Zone.Ashlands]: 30, [Zone.Dungeon]: 30 }
+    : { [Zone.Desert]: 40, [Zone.Snow]: 40, [Zone.Volcano]: 34, [Zone.Underwater]: 34 };
+  const rs = rng(seed + 555 + pass * 1000);
   let guard = 0;
   while (Object.values(quota).some((q) => q > 0) && guard++ < 300000) {
     const x = 2 + Math.floor(rs() * (w - 4)), y = 2 + Math.floor(rs() * (h - 4));
@@ -623,6 +627,7 @@ export function generateMap(seed: number): WorldMap {
     spawns.push({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, mob: mobs[idx], level });
     taken.push({ x, y });
     quota[z]--;
+  }
   }
 
   return {

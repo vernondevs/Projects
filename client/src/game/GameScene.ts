@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { MERCHANT_RANGE, PICKUP_RANGE, PLAYER_RADIUS, PLAYER_SPEED, TILE } from "../../../shared/constants";
-import { generateMap, moveWithCollision, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
+import { generateMap, moveWithCollision, terrainSpeedMul, zoneAtPx, ZONES, type WorldMap, Zone } from "../../../shared/map";
+import { ENV } from "../../../shared/biomes";
+import * as sfx from "./sfx";
 import { Anim, BUFF_STEALTH, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, UnitKind, type LootBag } from "../../../shared/protocol";
 import { activeSkills, SKILLS } from "../../../shared/skills";
 import { RUMOR_NPCS } from "../../../shared/rumors";
@@ -20,6 +22,12 @@ import { FONT, UnitView } from "./UnitView";
 type NpcKind = "shop" | "arena" | "rumor" | "cook" | "smith" | "bank" | "enc";
 type Npc = { sprite: Phaser.GameObjects.Sprite; kind: NpcKind; id?: string; name?: string; objs?: Phaser.GameObjects.GameObject[] };
 
+const AMBIENCE: Partial<Record<Zone, string>> = {
+  [Zone.Town]: "town", [Zone.Meadow]: "meadow", [Zone.Forest]: "forest", [Zone.Swamp]: "swamp", [Zone.Ashlands]: "ash", [Zone.Dungeon]: "dungeon", [Zone.Arena]: "ash",
+  [Zone.Desert]: "desert", [Zone.Snow]: "snow", [Zone.Volcano]: "volcano", [Zone.Underwater]: "water", [Zone.Frontier]: "meadow",
+};
+const ZONE_COLOR: Partial<Record<Zone, string>> = { [Zone.Desert]: "#f0c070", [Zone.Snow]: "#bfe4ff", [Zone.Volcano]: "#ff8a4a", [Zone.Underwater]: "#7ad0ff", [Zone.Swamp]: "#a8d890", [Zone.Forest]: "#a8e080" };
+
 export class GameScene extends Phaser.Scene {
   map!: WorldMap;
   world!: WorldView;
@@ -37,6 +45,9 @@ export class GameScene extends Phaser.Scene {
   /** NPC города (только в мире): торговка и распорядитель арены. */
   npcs: Npc[] = [];
   pendingNpc: Npc | null = null;
+  /** Узлы добычи: исчерпанные и узел, к которому идём. */
+  depletedNodes = new Set<number>();
+  pendingGather: number | null = null;
   private npcExtras: Phaser.GameObjects.GameObject[] = [];
   private cleanup: (() => void)[] = [];
   bubbles: { t: Phaser.GameObjects.Text; id: string; until: number }[] = [];
@@ -85,6 +96,10 @@ export class GameScene extends Phaser.Scene {
     this.cleanup.push(() => this.scale.off("resize", fitZoom));
 
     this.fx = new Effects(this, (id) => this.units.get(id), net.id, (id, text) => this.say(id, text));
+    this.cleanup.push(
+      net.on("node", (m) => { this.world.setNode(m.id, m.up); if (m.up) this.depletedNodes.delete(m.id); else this.depletedNodes.add(m.id); }),
+      net.on("nodes", (m) => { for (const id of m.depleted) { this.depletedNodes.add(id); this.world.setNode(id, false); } }),
+    );
     this.cleanup.push(net.on("fx", (list) => this.fx.play(list)), net.on("loot", (bags) => this.syncBags(bags)));
 
     // NPC — декоративные, проверки дальности делает сервер
@@ -185,6 +200,11 @@ export class GameScene extends Phaser.Scene {
     mk("leaves", "fx_leaf", { frequency: 260, lifespan: 6000, speedX: { min: -14, max: 14 }, speedY: { min: 10, max: 22 }, rotate: { start: 0, end: 360 }, alpha: { start: 0.9, end: 0 }, tint: [0x8ac850, 0xd09a34, 0x6aa040] });
     mk("fireflies", "fx_spark", { frequency: 220, lifespan: 4000, speed: { min: 4, max: 14 }, scale: { start: 0.35, end: 0.1 }, alpha: { values: [0, 1, 0.3, 1, 0] } as any, tint: 0xc8ff6a, blendMode: Phaser.BlendModes.ADD });
     mk("embers", "fx_ember", { frequency: 120, lifespan: 3500, speedY: { min: -30, max: -12 }, speedX: { min: -8, max: 8 }, alpha: { start: 1, end: 0 }, scale: { start: 1, end: 0.3 }, blendMode: Phaser.BlendModes.ADD });
+    mk("snow", "fx_spark", { frequency: 40, lifespan: 5000, speedX: { min: -20, max: 10 }, speedY: { min: 30, max: 60 }, scale: { min: 0.15, max: 0.35 }, alpha: { start: 0.9, end: 0.2 }, tint: 0xffffff });
+    mk("sand", "fx_smoke", { frequency: 90, lifespan: 2600, speedX: { min: 120, max: 220 }, speedY: { min: -10, max: 10 }, scale: { start: 0.35, end: 0.8 }, alpha: { start: 0.18, end: 0 }, tint: 0xe0b878 });
+    mk("ash", "fx_smoke", { frequency: 120, lifespan: 5000, speedX: { min: -10, max: 12 }, speedY: { min: 14, max: 30 }, scale: { start: 0.18, end: 0.1 }, alpha: { start: 0.55, end: 0 }, tint: 0x6a6460 });
+    mk("fog", "fx_smoke", { frequency: 420, lifespan: 7000, speedX: { min: 6, max: 14 }, scale: { start: 2.2, end: 3.4 }, alpha: { values: [0, 0.14, 0.14, 0] } as any, tint: 0x9ab8a0 });
+    mk("bubbles", "fx_bubble", { frequency: 100, lifespan: 4000, speedY: { min: -50, max: -25 }, speedX: { min: -8, max: 8 }, scale: { start: 0.8, end: 1.6 }, alpha: { start: 0.8, end: 0 } });
     mk("pollen", "fx_spark", { frequency: 500, lifespan: 5000, speedX: { min: 4, max: 14 }, speedY: { min: -4, max: 4 }, scale: 0.2, alpha: { start: 0.8, end: 0 }, tint: 0xfff6c0 });
     this.dust = this.add.particles(0, 0, "fx_smoke", { emitting: false, lifespan: 420, speed: { min: 4, max: 12 }, angle: { min: 200, max: 340 }, scale: { start: 0.45, end: 0.1 }, alpha: { start: 0.45, end: 0 }, tint: 0xc8b898 });
     this.dust.setDepth(DEPTH.ground + 4);
@@ -194,7 +214,11 @@ export class GameScene extends Phaser.Scene {
   private updateAmbient(z: Zone) {
     const cam = this.cameras.main;
     const v = cam.worldView;
-    const want: Record<string, boolean> = { leaves: z === Zone.Forest, fireflies: z === Zone.Swamp, embers: z === Zone.Ashlands || z === Zone.Dungeon || z === Zone.Arena, pollen: z === Zone.Meadow || z === Zone.Town };
+    const want: Record<string, boolean> = {
+      leaves: z === Zone.Forest, fireflies: z === Zone.Swamp, fog: z === Zone.Swamp,
+      embers: z === Zone.Ashlands || z === Zone.Dungeon || z === Zone.Arena || z === Zone.Volcano, ash: z === Zone.Volcano,
+      pollen: z === Zone.Meadow || z === Zone.Town, snow: z === Zone.Snow, sand: z === Zone.Desert, bubbles: z === Zone.Underwater,
+    };
     for (const [k, e] of Object.entries(this.ambient)) {
       e.setPosition(v.x - 40, v.y - (k === "leaves" ? 60 : 0));
       (e.emitZones[0] as any)?.source?.setSize?.(v.width + 80, v.height + 40);
@@ -306,6 +330,13 @@ export class GameScene extends Phaser.Scene {
           return;
         }
       }
+      // узлы добычи (кактус, кристалл, обсидиан, жемчуг)
+      for (const n of this.map.nodes) {
+        if (this.depletedNodes.has(n.id) || Math.hypot(n.x - wx, n.y - 16 - wy) > 24) continue;
+        this.pendingGather = n.id;
+        if (Math.hypot(n.x - this.pos.x, n.y - 14 - this.pos.y) > ENV.gatherRange - 12) net.send("moveTo", { x: n.x, y: n.y + 26 });
+        return;
+      }
       // NPC
       for (const n of this.npcs) if (Math.hypot(n.sprite.x - wx, n.sprite.y - 14 - wy) < 18) return this.talk(n);
       // правый клик по другому игроку — меню обмена
@@ -322,6 +353,7 @@ export class GameScene extends Phaser.Scene {
       this.setTarget(null);
       this.pendingPickup = null;
       this.pendingNpc = null;
+      this.pendingGather = null;
       net.send("moveTo", { x: wx, y: wy });
       this.clickMark.setPosition(wx, wy).setVisible(true).setAlpha(1).setScale(0.9);
       this.tweens.add({ targets: this.clickMark, alpha: 0, scale: 0.4, duration: 500 });
@@ -510,7 +542,7 @@ export class GameScene extends Phaser.Scene {
       const blocked = u.buffs & (BUFF_STUN | BUFF_ROOT) || u.anim === Anim.Dead;
       if ((mx || my) && !blocked) {
         const len = Math.hypot(mx, my);
-        const sp = PLAYER_SPEED * (MOUNTS[u.mount]?.speed ?? 1) * (u.buffs & BUFF_SLOW ? 0.55 : 1) * dt;
+        const sp = PLAYER_SPEED * (MOUNTS[u.mount]?.speed ?? 1) * (u.buffs & BUFF_SLOW ? 0.55 : 1) * terrainSpeedMul(this.map, this.pos.x, this.pos.y) * dt;
         const n = moveWithCollision(this.map, this.pos.x, this.pos.y, (mx / len) * sp, (my / len) * sp, PLAYER_RADIUS);
         this.pos.x = n.x;
         this.pos.y = n.y;
@@ -539,6 +571,14 @@ export class GameScene extends Phaser.Scene {
         this.pendingPickup = null;
       }
     }
+    if (this.pendingGather !== null) {
+      const n = this.map.nodes.find((q) => q.id === this.pendingGather);
+      if (!n || this.depletedNodes.has(n.id)) this.pendingGather = null;
+      else if (Math.hypot(n.x - this.pos.x, n.y - 14 - this.pos.y) < ENV.gatherRange - 12) {
+        this.pendingGather = null;
+        net.send("gather", { id: n.id });
+      }
+    }
     if (this.pendingNpc) {
       const n = this.pendingNpc;
       if (Math.hypot(n.sprite.x - this.pos.x, n.sprite.y - this.pos.y) < MERCHANT_RANGE - 10) {
@@ -560,11 +600,17 @@ export class GameScene extends Phaser.Scene {
     if (z !== this.zone) {
       this.zone = z;
       if (z === Zone.Arena) this.hud.showZone(`Арена · ${MODE_NAMES[net.arena?.mode ?? "1v1"]}`, "Победит тот, кто устоит");
-      else this.hud.showZone(ZONES[z].name, ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`));
+      else this.hud.showZone(ZONES[z].name, ZONES[z].note ?? (ZONES[z].safe ? "Безопасная зона" : `Уровни ${ZONES[z].levels[0]}–${ZONES[z].levels[1]}`), ZONE_COLOR[z]);
     }
     const cam = this.cameras.main;
-    const target = zoneTint(z).dark;
+    const tint = zoneTint(z);
+    const target = tint.dark;
     const dark = this.world.dark;
+    dark.setFillStyle(tint.color, 1);
+    const cs = this.world.caustics;
+    cs.setSize(cam.width, cam.height).setAlpha(cs.alpha + ((z === Zone.Underwater ? 0.3 : 0) - cs.alpha) * Math.min(1, dt * 2));
+    cs.setTilePosition(now * 0.02, now * 0.012);
+    sfx.setAmbience(AMBIENCE[z] ?? null);
     dark.setSize(cam.width / cam.zoom + 4, cam.height / cam.zoom + 4).setPosition(-2, -2);
     dark.setAlpha(dark.alpha + (target - dark.alpha) * Math.min(1, dt * 2));
     dark.setDisplayOrigin(0, 0);

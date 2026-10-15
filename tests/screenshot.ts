@@ -109,6 +109,25 @@ async function main() {
       await sleep(1500);
       await page.evaluate((sprite) => { const n = (window as any).__net; n.room.state.mobs.forEach((m: any, k: string) => { if (m.sprite === sprite) n.send("dbg", { op: "mobhp", id: k, v: 0.5 }); }); }, id);
       for (let i = 1; i <= 8; i++) { await sleep(900); await page.screenshot({ path: path.join(OUT, `shot-boss${i}.png`) }); }
+    } else if (scenario === "biomes") {
+      // биомы: телепорт в каждый, скриншот
+      const { generateMap, walkable } = await import("../shared/map");
+      const { MAP_SEED } = await import("../shared/constants");
+      const map = generateMap(MAP_SEED);
+      const spot = (tx: number, ty: number) => {
+        for (let r = 0; r < 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          const x = (tx + dx) * 32 + 16, y = (ty + dy) * 32 + 16;
+          if (walkable(map, x, y, 10)) return { x, y };
+        }
+        return { x: tx * 32, y: ty * 32 };
+      };
+      await dbg({ op: "god" });
+      for (const [name, tx, ty] of [["forest", 130, 60], ["swamp", 150, 190], ["desert", 24, 152], ["desert2", 30, 90], ["snow", 112, 18], ["snow2", 180, 14], ["volcano", 290, 62], ["volcano2", 292, 186], ["water", 170, 222], ["water2", 130, 214]] as const) {
+        const p = spot(tx, ty);
+        await dbg({ op: "tp", x: p.x, y: p.y });
+        await sleep(3500);
+        await page.screenshot({ path: path.join(OUT, `shot-biome-${name}.png`) });
+      }
     } else if (scenario === "wins") {
       await dbg({ op: "level", v: 12 });
       await dbg({ op: "item", base: "sword", ilvl: 12, rarity: 2 });
@@ -119,11 +138,19 @@ async function main() {
         await page.screenshot({ path: path.join(OUT, `shot-win-${name}.png`) });
         await page.keyboard.press("Escape");
       }
-      await page.click(".mbtn:last-child");
+      await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".mbtn")].find((b) => b.textContent?.includes("Настройки"))!.click());
       await sleep(300);
       await page.evaluate(() => { const r = document.getElementById("set-scale") as HTMLInputElement; r.value = "120"; r.dispatchEvent(new Event("input")); });
       await sleep(300);
       await page.screenshot({ path: path.join(OUT, "shot-win-settings.png") });
+      await page.keyboard.press("Escape");
+      await dbg({ op: "gold", v: 3000 });
+      await page.evaluate(() => (window as any).__game.scene.getScene("game").hud.openShop());
+      await sleep(600);
+      await page.screenshot({ path: path.join(OUT, "shot-win-shop.png") });
+      await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".shop-tabs .btn")][1].click());
+      await sleep(400);
+      await page.screenshot({ path: path.join(OUT, "shot-win-shop-sell.png") });
     } else if (scenario === "ui") {
       await dbg({ op: "level", v: 12 });
       await dbg({ op: "item", base: "sword", ilvl: 12, rarity: 2 });
