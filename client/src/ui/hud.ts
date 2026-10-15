@@ -166,6 +166,17 @@ export class Hud {
     document.addEventListener("mousemove", (e) => this.moveTip(e));
   }
 
+  /** Выход из мира (смена героя): закрыть окна и очистить чат прошлого героя. */
+  reset() {
+    this.gameMenu.close();
+    this.bank.close();
+    for (const w of Object.values(this.wins)) w.hidden = true;
+    this.chatLog.replaceChildren();
+    this.death.hidden = true;
+    this.tip.hidden = true;
+    this.targetBox.hidden = true;
+  }
+
   /** Вызывается при каждом запуске сцены (мир или арена); подписки на сеть — один раз. */
   bind(ctx: HudCtx) {
     this.ctx = ctx;
@@ -740,8 +751,11 @@ export class Hud {
         line.setAttribute("y1", String(a.top + a.height / 2 - tr.top));
         line.setAttribute("x2", String(c.left + c.width / 2 - tr.left));
         line.setAttribute("y2", String(c.top + c.height / 2 - tr.top));
-        line.setAttribute("stroke", ok ? "#f0c050" : "#4d3f4a");
+        // золотая — оба умения изучены; пунктир — следующее уже доступно; тёмная — закрыто
+        const learned = (s.skills[def.id] || 0) > 0;
+        line.setAttribute("stroke", learned && ok ? "#f0c050" : ok ? "#8a7350" : "#4d3f4a");
         line.setAttribute("stroke-width", "3");
+        if (ok && !learned) line.setAttribute("stroke-dasharray", "6 5");
         svg.append(line);
       }
       tree.prepend(svg);
