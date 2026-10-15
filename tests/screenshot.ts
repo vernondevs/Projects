@@ -39,6 +39,7 @@ async function login(page: Page, name: string, cls: string) {
   await page.click("#login-new");
   await page.waitForSelector(".cs-create input[name=name]", { timeout: 10000 });
   await page.type(".cs-create input[name=name]", name);
+  if (["deathknight", "bloodweaver", "darkranger", "warlock", "reaver"].includes(cls)) { await page.$eval(`.cs-create [data-faction="umbrath"]`, (b) => (b as HTMLElement).click()); await sleep(200); }
   await page.$eval(`.cs-create [data-cls="${cls}"]`, (b) => (b as HTMLElement).click());
   await page.$eval(`.cs-create [data-look="2"]`, (b) => (b as HTMLElement).click());
   await sleep(300);
@@ -113,6 +114,32 @@ async function main() {
       await dbg(at(0, -15));
       await sleep(2500);
       await page.screenshot({ path: path.join(OUT, "shot-town-night.png") });
+    } else if (scenario === "gear") {
+      // внешность по снаряжению (задача 56): наборы вещей разной редкости и легендарные сеты, крупный план героя
+      await dbg({ op: "god" });
+      await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(5));
+      const umb = ["deathknight", "bloodweaver", "darkranger", "warlock", "reaver"].includes(cls);
+      const wbase = ({ warrior: "sword", deathknight: "sword", mage: "staff", bloodweaver: "staff", warlock: "staff", healer: "scepter", ranger: "bow", darkranger: "bow", rogue: "dagger", reaver: "axe" } as Record<string, string>)[cls];
+      const L = umb ? { weapon: wbase === "sword" ? "doom_blade" : wbase === "axe" ? "dawn_eater" : wbase === "bow" ? "night_bow" : "soul_staff", helmet: "void_horns" } : { weapon: wbase === "sword" ? "storm_blade" : wbase === "staff" ? "nova_staff" : wbase === "bow" ? "winter_bow" : wbase === "scepter" ? "sun_scepter" : wbase === "dagger" ? "shadow_fang" : "", helmet: "ember_helm" };
+      const two = cls === "warrior" || cls === "deathknight";
+      const std = (r: number, plus = 0) => ({ weapon: { base: wbase, r, plus }, helmet: { r, plus }, armor: { r, plus }, boots: { r, plus }, ...(two ? { offhand: cls === "deathknight" && r === 2 ? { base: "sword", r, plus } : { base: "shield", r, plus } } : {}) });
+      const sets: [string, Record<string, unknown>][] = [
+        ["nude", { weapon: null, helmet: null, armor: null, boots: null }], ["rags", { weapon: { base: wbase, r: 0 }, helmet: null, armor: { rags: true }, boots: { rags: true } }], ["common", std(0)], ["rare", std(1, 2)], ["epic", std(2, 5)], ["epic-plus9", std(2, 9)],
+        ["leg", { ...std(3, 3), weapon: L.weapon ? { leg: L.weapon, plus: 3 } : { base: wbase, r: 3 }, helmet: { leg: L.helmet, plus: 3 } }],
+        ["leg-plus10", { ...std(3, 10), weapon: L.weapon ? { leg: L.weapon, plus: 10 } : { base: wbase, r: 3, plus: 10 }, helmet: { leg: L.helmet, plus: 10 }, armor: { leg: umb ? "thorn_plate" : "arcane_mantle", plus: 10 }, boots: { leg: "hunter_treads", plus: 10 } }],
+      ];
+      const faction = umb ? "umbrath" : "solgard";
+      const shot = async (name: string) => page.screenshot({ path: path.join(OUT, `shot-gear-${cls}-${name}.png`), clip: { x: 580, y: 300, width: 200, height: 200 } });
+      for (const [name, slots] of sets) {
+        await dbg({ op: "gear", slots, faction });
+        await sleep(500);
+        await shot(name + "-down");
+        await page.keyboard.down("w"); await sleep(350); await page.keyboard.up("w"); await sleep(150);
+        await shot(name + "-up");
+        await page.keyboard.down("d"); await sleep(350); await page.keyboard.up("d"); await sleep(150);
+        await shot(name + "-side");
+        await page.keyboard.down("s"); await sleep(500); await page.keyboard.up("s"); await sleep(100);
+      }
     } else if (scenario === "world") {
       // новая карта (задача 47): столицы фракций, мост, деревня, лагерь, руины, указатель, карта мира
       const { CITIES } = await import("../shared/cities");

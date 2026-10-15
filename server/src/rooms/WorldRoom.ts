@@ -11,6 +11,7 @@ import { buyPet, selectPet, togglePet } from "../game/Pet";
 import { MERCHANT_RANGE, PLAYER_RADIUS } from "../../../shared/constants";
 import { MAP_VERSION, walkable } from "../../../shared/map";
 import { makeItem, makeUnique, Rarity } from "../../../shared/items";
+import { makeLegendary } from "../../../shared/legendary";
 import type { JoinOptions } from "../../../shared/protocol";
 import { canLearn, SKILLS } from "../../../shared/skills";
 import { Parties } from "../arena/party";
@@ -514,6 +515,12 @@ export class WorldRoom extends Room<WorldState> {
     on<{ op: string; [k: string]: unknown }>("dbg", (p, m) => {
       switch (m.op) {
         case "tp": p.unit.x = Number(m.x); p.unit.y = Number(m.y); p.moveTo = null; break;
+        case "gear": { // тест внешности: {slots:{helmet:{r,plus,leg}}} — надевает без проверок
+          const sl = (m.slots || {}) as Record<string, { base?: string; r?: number; plus?: number; leg?: string; rags?: boolean } | null>;
+          for (const [k, v] of Object.entries(sl)) { if (!v) { (p.save.equip as Record<string, unknown>)[k] = null; continue; } const it = v.leg ? makeLegendary(v.leg) : makeItem(v.base || k, 20, (v.r || 0) as Rarity); it.plus = v.plus || 0; if (v.rags) it.rags = true; (p.save.equip as Record<string, unknown>)[k] = it; }
+          if (m.faction) { p.save.faction = String(m.faction) as typeof p.save.faction; p.unit.faction = String(m.faction); }
+          p.recalc(); break;
+        }
         case "xp": gainXp(w(), p, Number(m.v)); break;
         case "level": { const lv = Number(m.v); while (p.level < lv) gainXp(w(), p, xpToNext(p.level) - p.save.xp); break; }
         case "gold": p.save.gold += Number(m.v); p.selfDirty = true; break;

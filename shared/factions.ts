@@ -27,6 +27,8 @@ export const FACTION_IDS = Object.keys(FACTIONS) as FactionId[];
 export const isFactionId = (v: unknown): v is FactionId => typeof v === "string" && v in FACTIONS;
 export const factionOf = classFaction;
 export const enemyFaction = (f: FactionId): FactionId => (f === "solgard" ? "umbrath" : "solgard");
+/** Цвет врага (героя противоположной фракции): ник, полоска здоровья, чат, мини-карта. */
+export const FOE_COLOR = "#ff3030";
 export const factionColor = (f: FactionId | string | undefined) => FACTIONS[(f as FactionId) ?? "solgard"]?.color ?? "#a8e0ff";
 /** Класс принадлежит фракции. */
 export const classInFaction = (cls: ClassId, f: FactionId) => CLASSES[cls]?.faction === f;
@@ -46,7 +48,7 @@ export function pvpPlace(m: WorldMap, px: number, py: number): PvpPlace {
     if (c?.capital) return "pvp";
     return c && NEUTRAL_CITIES.has(c.id) ? "neutral" : "peace";
   }
-  return isPvpZone(z) ? "pvp" : "peace";
+  return "pvp"; // вне городов фракции враждуют везде (isPvpZone — только справочный список)
 }
 /** Враждебны ли два героя мира (вне арены): разные фракции и оба в спорной зоне или оба в нейтральном городе (там удар — нарушение). */
 export function factionsHostile(m: WorldMap, fa: string, ax: number, ay: number, fb: string, bx: number, by: number): boolean {

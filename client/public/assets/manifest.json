@@ -149,6 +149,36 @@
   },
   "ashlord": {
    "frame": 64
+  },
+  "nude_warrior": {
+   "frame": 32
+  },
+  "nude_mage": {
+   "frame": 32
+  },
+  "nude_ranger": {
+   "frame": 32
+  },
+  "nude_healer": {
+   "frame": 32
+  },
+  "nude_rogue": {
+   "frame": 32
+  },
+  "nude_deathknight": {
+   "frame": 32
+  },
+  "nude_bloodweaver": {
+   "frame": 32
+  },
+  "nude_darkranger": {
+   "frame": 32
+  },
+  "nude_warlock": {
+   "frame": 32
+  },
+  "nude_reaver": {
+   "frame": 32
   }
  },
  "objects": {
@@ -580,6 +610,12 @@
   "axe_0",
   "axe_1",
   "axe_2",
+  "mace_0",
+  "mace_1",
+  "mace_2",
+  "shield_0",
+  "shield_1",
+  "shield_2",
   "staff_0",
   "staff_1",
   "staff_2",
@@ -659,6 +695,14 @@
   "lg_arcane_mantle",
   "lg_thorn_plate",
   "lg_hunter_treads",
+  "lg_doom_blade",
+  "lg_dawn_eater",
+  "lg_soul_staff",
+  "lg_night_bow",
+  "lg_void_horns",
+  "lg_ember_helm",
+  "lg_sun_scepter",
+  "lg_shadow_fang",
   "potion_red",
   "potion_blue",
   "gold",

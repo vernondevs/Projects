@@ -1,5 +1,6 @@
 /** Отображение одного юнита: спрайт с анимациями, тень, имя, полоска здоровья, эффекты состояния. */
 import Phaser from "phaser";
+import { overlay } from "./overlay";
 import { BUFF_BLEED, BUFF_CURSE, BUFF_STEALTH, BUFF_BURN, BUFF_ENRAGE, BUFF_HASTE, BUFF_POISON, BUFF_ROOT, BUFF_SLOW, BUFF_STUN, BUFF_WARCRY, Anim, Dir, UnitKind } from "../../../shared/protocol";
 import { RARITY_COLORS } from "../../../shared/items";
 import { LEGENDARIES } from "../../../shared/legendary";
@@ -8,7 +9,8 @@ import { rankById } from "../../../shared/arena";
 import { DEPTH } from "./terrain";
 import { nightLevel } from "../../../shared/daynight";
 import { mountSprite } from "../../../shared/mounts";
-import { factionColor } from "../../../shared/factions";
+import { FOE_COLOR } from "../../../shared/factions";
+import { GearLayers, parseGear } from "./GearLayers";
 
 export const FONT = '"Rubik", "Trebuchet MS", sans-serif';
 const MELEE = new Set(["guard", "guard_desert", "guard_snow", "pet_wolf", "pet_turtle", "warrior", "deathknight", "reaver", "goblin", "skeleton", "skeleton_knight", "wolf", "boar", "spider", "drowned", "golem", "ent", "ashlord"]);
@@ -31,6 +33,9 @@ export class UnitView {
   private torchGlow?: Phaser.GameObjects.Image;
   private gearGlow?: Phaser.GameObjects.Image;
   private gearGfx?: Phaser.GameObjects.Graphics;
+  private layers?: GearLayers;
+  private seed = 0;
+  private sid: string;
   stepAt = 0;
   private mountId = "";
   private lastTitle = "";
@@ -60,7 +65,9 @@ export class UnitView {
     this.x = u.x;
     this.y = u.y;
     this.npc = u.kind === UnitKind.Guard || u.kind === UnitKind.Citizen;
-    const tex = scene.textures.exists(`u_${u.sprite}`) ? `u_${u.sprite}` : "u_slime";
+    // герои рисуются голым телом, одежда — слоями экипировки (GearLayers)
+    this.sid = u.kind === UnitKind.Player && scene.textures.exists(`u_nude_${u.sprite}`) ? `nude_${u.sprite}` : u.sprite;
+    const tex = scene.textures.exists(`u_${this.sid}`) ? `u_${this.sid}` : "u_slime";
     this.frame = scene.textures.get(tex).get(0).width;
     const big = this.frame > 32;
     this.shadow = scene.add.image(u.x, u.y, "fx_shadow_blob").setScale(big ? 2.2 : 1, big ? 2 : 1).setDepth(DEPTH.ground + 5);
@@ -114,7 +121,7 @@ export class UnitView {
   private showDead(instant: boolean) {
     this.dead = true;
     const row = rowOf(this.u.dir);
-    const key = `${this.u.sprite}-death-${row}`;
+    const key = `${this.sid}-death-${row}`;
     if (instant || !this.scene.anims.exists(key)) this.sprite.setFrame(row * 12 + 11);
     else this.sprite.play(key);
     this.sprite.setFlipX(this.u.dir === Dir.Left);
@@ -168,10 +175,10 @@ export class UnitView {
       if (u.aseq !== this.lastAseq) {
         this.lastAseq = u.aseq;
         this.attacking = true;
-        this.sprite.play(`${u.sprite}-attack-${row}`);
+        this.sprite.play(`${this.sid}-attack-${row}`);
         if (MELEE.has(u.sprite)) this.slash(u.dir);
       } else if (!this.attacking && (anim !== this.lastAnim || row !== this.lastRow)) {
-        if (anim === Anim.Walk) this.sprite.play(`${u.sprite}-walk-${row}`, true);
+        if (anim === Anim.Walk) this.sprite.play(`${this.sid}-walk-${row}`, true);
         else {
           this.sprite.stop();
           this.sprite.setFrame(row * 12);
@@ -200,14 +207,14 @@ export class UnitView {
     this.sprite.setPosition(Math.round(this.x), Math.round(this.y) + bob - lift).setDepth(this.y);
     this.shadow.setPosition(Math.round(this.x), Math.round(this.y) - 2);
     this.ring.setPosition(Math.round(this.x), Math.round(this.y) - 1).setVisible(this.selected && !this.dead);
-    const top = this.y - (this.frame > 32 ? 58 : u.kind === UnitKind.Pet ? 22 : 27) - lift;
+    const top = this.y - (this.frame > 32 ? 58 : u.kind === UnitKind.Pet ? 22 : 27) - lift - this.gearTop();
     this.label.setPosition(Math.round(this.x), Math.round(top - 4));
     const lt = this.labelText();
     if (lt !== this.lastLabel) { this.lastLabel = lt; this.label.setText(lt); }
     // на арене: союзники зелёные, враги красные; в мире герои противоположной фракции — в цвете своей фракции
     if (u.kind === UnitKind.Player) {
       const foe = !this.isSelf && !!u.faction && !!net.self && u.faction !== net.self.faction;
-      const color = this.isSelf ? "#ffe9a8" : net.kind === "arena" && u.team ? (u.team === net.arena?.team ? "#9ae07a" : "#ff8a7a") : u.outlaw ? "#ff5a4a" : foe ? factionColor(u.faction) : "#a8e0ff";
+      const color = this.isSelf ? "#ffe9a8" : net.kind === "arena" && u.team ? (u.team === net.arena?.team ? "#9ae07a" : "#ff8a7a") : u.outlaw ? "#ff5a4a" : foe ? FOE_COLOR : "#a8e0ff";
       if (color !== this.lastColor) { this.lastColor = color; this.label.setColor(color); }
     }
     if (u.title !== this.lastTitle) { this.lastTitle = u.title; this.titleText.setText(u.title ? `«${u.title.replace(/ \(.*\)$/, "")}»` : ""); }
@@ -226,6 +233,7 @@ export class UnitView {
       this.wasStealth = false;
       if (!this.dead) { this.sprite.setAlpha(1); this.shadow.setAlpha(1); this.label.setVisible(true); }
     }
+    if (!(this.isSelf ? overlay.selfNames : overlay.names)) this.label.setVisible(false);
     const showName = !this.dead && this.label.visible;
     this.titleText.setVisible(showName && !!u.title).setPosition(Math.round(this.x), Math.round(top - 13));
     this.frameGfx.clear();
@@ -274,10 +282,17 @@ export class UnitView {
       this.stun.setVisible(true).setPosition(this.x + Math.sin(this.scene.time.now / 120) * 3, top - 14);
     } else this.stun?.setVisible(false);
 
-    this.gearFx(u.kind === UnitKind.Player && !!u.weapon && !this.dead && !(b & BUFF_STEALTH));
+    const gearOn = u.kind === UnitKind.Player && !this.dead && !(b & BUFF_STEALTH) && this.frame === 32;
+    this.gearFx(gearOn && !!u.weapon);
+    if (gearOn) {
+      if (!this.layers) { this.layers = new GearLayers(this.scene); for (let k = 0; k < this.id.length; k++) this.seed = (this.seed * 31 + this.id.charCodeAt(k)) % 97; }
+      const row = rowOf(u.dir), fr = Number(this.sprite.frame.name) || 0;
+      this.layers.setDepth(this.y);
+      this.layers.draw({ cls: u.sprite, faction: u.faction, gear: u.gear, weapon: u.weapon, view: row, flip: u.dir === Dir.Left, col: row * 12 <= fr ? fr % 12 : 0, ox: this.sprite.x - 16, oy: this.sprite.y - 30, t: this.scene.time.now, seed: this.seed });
+    } else this.layers?.hide();
 
     // полоска здоровья
-    const showBar = !this.dead && !this.npc && (u.kind !== UnitKind.Player || u.hp < u.maxHp || this.isSelf);
+    const showBar = (this.isSelf ? overlay.selfBars : overlay.bars) && !this.dead && !this.npc && (u.kind !== UnitKind.Player || u.hp < u.maxHp || this.isSelf);
     if (!showBar) this.bar.clear();
     else if (u.hp !== this.lastHp || true) {
       this.lastHp = u.hp;
@@ -288,13 +303,21 @@ export class UnitView {
       this.bar.fillStyle(u.elite ? 0xf0c040 : 0x0a0608, 0.9).fillRect(bx - 1, by - 1, w + 2, 4);
       if (u.elite) this.bar.fillStyle(0x0a0608, 1).fillRect(bx, by, w, 2);
       const foeBar = u.kind === UnitKind.Player && !this.isSelf && !!net.self && !!u.faction && u.faction !== net.self.faction && net.kind !== "arena";
-      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : foeBar ? Phaser.Display.Color.HexStringToColor(factionColor(u.faction)).color : 0x4ab0ff) : u.kind === UnitKind.Pet ? 0x6ad06a : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
+      const col = u.kind === UnitKind.Player ? (this.isSelf ? 0x5ad04a : foeBar ? Phaser.Display.Color.HexStringToColor(FOE_COLOR).color : 0x4ab0ff) : u.kind === UnitKind.Pet ? 0x6ad06a : k > 0.5 ? 0xd8443a : k > 0.25 ? 0xe0902a : 0xff3a2a;
       this.bar.fillStyle(col, 1).fillRect(bx, by, Math.round(w * k), 2);
       if (u.kind === UnitKind.Player && u.weapon) {
         const r = Number(u.weapon.split(":")[1] || 0);
         if (r > 0) this.bar.fillStyle(Phaser.Display.Color.HexStringToColor(RARITY_COLORS[r]).color, 1).fillRect(bx - 4, by, 2, 2);
       }
     }
+  }
+
+  /** Насколько шлем (рога, гребень, пламя) выше головы: имя и полоска поднимаются над ним. */
+  private gearTop(): number {
+    if (this.u.kind !== UnitKind.Player || !this.u.gear) return 0;
+    const h = parseGear(this.u.gear)[0];
+    if (h.r < 0) return 0;
+    return h.leg ? 12 : h.r >= 2 ? 6 : 0;
   }
 
   /** Свечение и искры снаряжения: цвет редкости (у легендарных — свой оттенок), яркость растёт с заточкой. */
@@ -373,5 +396,6 @@ export class UnitView {
     this.torchGlow?.destroy();
     this.gearGlow?.destroy();
     this.gearGfx?.destroy();
+    this.layers?.destroy();
   }
 }

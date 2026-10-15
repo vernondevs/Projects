@@ -7,7 +7,7 @@
     "base": { "str": 10, "agi": 5, "int": 3, "vit": 9 }, "perLevel": { "str": 1, "vit": 1 },
     "mainStat": "str", "mainK": 0.025, "attackRange": 50, "attackCd": 1.0,
     "attack": { "melee": true, "hit": "phys" }, "threat": 2,
-    "weaponTypes": ["sword", "axe"], "startWeapon": "sword"
+    "weaponTypes": ["sword", "axe", "mace"], "startWeapon": "sword"
   },
   "healer": {
     "name": "Клирик", "faction": "solgard", "role": "healer",
@@ -53,7 +53,7 @@
     "base": { "str": 10, "agi": 4, "int": 4, "vit": 9 }, "perLevel": { "str": 1, "vit": 1 },
     "mainStat": "str", "mainK": 0.025, "attackRange": 50, "attackCd": 1.05,
     "attack": { "melee": true, "hit": "frost" }, "threat": 2,
-    "weaponTypes": ["sword", "axe"], "startWeapon": "sword"
+    "weaponTypes": ["sword", "axe", "mace"], "startWeapon": "sword"
   },
   "bloodweaver": {
     "name": "Кровотворец", "faction": "umbrath", "role": "healer",

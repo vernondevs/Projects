@@ -14,6 +14,8 @@ export interface LegendaryDef {
   lore: string;
   effect: { type: string; [k: string]: number | string };
   desc: string;
+  /** Внешность на герое: второй цвет, форма шлема/наплечников, эффект частиц. */
+  look: { c2: string; helm: string; pauld: string; fx: string };
 }
 export const LEGENDARIES: Record<string, LegendaryDef> = Object.fromEntries(
   Object.entries(data as Record<string, Omit<LegendaryDef, "id">>).map(([id, d]) => [id, { id, ...d } as LegendaryDef]),

@@ -22,6 +22,8 @@ export function newSave(cls: ClassId, spawn: { x: number; y: number }): PlayerSa
   const equip = Object.fromEntries(SLOTS.map((s) => [s, null])) as Record<Slot, Item | null>;
   equip.weapon = makeItem(CLASSES[cls].startWeapon, 1, Rarity.Common);
   equip.weapon.name = "Потёртый " + equip.weapon.name.toLowerCase();
+  equip.armor = { ...makeItem("armor", 1, Rarity.Common), name: "Лохмотья", stats: { armor: 1 }, req: 1, rags: true };
+  equip.boots = { ...makeItem("boots", 1, Rarity.Common), name: "Обмотки", stats: { armor: 1 }, req: 1, rags: true };
   return {
     cls,
     faction: classFaction(cls),
@@ -93,6 +95,8 @@ export class Player {
   /** Сейчас во вражеской столице (стража бьёт). */
   intruder = false;
   guardHitAt = 0;
+  /** Ударов стражи подряд (каждый следующий сильнее). */
+  guardHits = 0;
   /** Последний рубеж: действует до / откат до. */
   lastStandUntil = 0;
   lastStandReady = 0;
@@ -161,6 +165,7 @@ export class Player {
       send("toast", { text: "Умения воина изменены — очки возвращены", kind: "info" });
     }
     save.faction ??= classFaction(save.cls);
+    save.equip.offhand ??= null; // старые сохранения без второй руки
     const u = this.unit;
     u.kind = UnitKind.Player;
     u.name = name;
@@ -228,6 +233,7 @@ export class Player {
     const w = this.save.equip.weapon;
     const maxPlus = Math.max(0, ...Object.values(this.save.equip).map((e) => (e && e.plus) || 0));
     u.weapon = w ? `${w.base}:${w.rarity}:${maxPlus}:${w.legendary || ""}` : "";
+    u.gear = (["helmet", "armor", "boots", "offhand"] as const).map((k) => { const e = this.save.equip[k]; return e ? `${e.rarity}:${e.plus || 0}:${e.legendary || ""}:${e.rags ? 1 : ""}:${e.base}` : ""; }).join("|");
     this.selfDirty = true;
   }
 

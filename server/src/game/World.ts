@@ -418,8 +418,15 @@ export class World {
   }
 
   /** Лечение p; `by` — кто лечит (для статистики арены), по умолчанию сам p. Возвращает реально восстановленное. */
+  /** Урон стражи по нарушителю: растёт с каждым ударом подряд. */
+  guardDamage(p: Player): number {
+    const k = 1 + OUTLAW.escalate * Math.min(p.guardHits, OUTLAW.escalateMax);
+    p.guardHits++;
+    return Math.max(1, Math.round(p.unit.maxHp * OUTLAW.pctMaxHp * k));
+  }
   heal(p: Player, v: number, show = true, by?: Player): number {
     if (p.dead || v <= 0) return 0;
+    if (p.outlawUntil > this.time || p.intruder) v = Math.max(1, Math.round(v * OUTLAW.healMul)); // клеймо нарушителя режет лечение
     const before = p.unit.hp;
     p.unit.hp = Math.min(p.unit.maxHp, p.unit.hp + v);
     const got = p.unit.hp - before;
@@ -592,16 +599,17 @@ export class World {
       }
       u.outlaw = intruder || p.outlawUntil > t ? 1 : 0;
     }
+    if (!intruder && p.outlawUntil <= t) p.guardHits = 0;
     if (intruder && t >= p.guardHitAt) {
       p.guardHitAt = t + OUTLAW.hitMs;
-      this.town?.punish(p, Math.max(1, Math.round(u.maxHp * OUTLAW.pctMaxHp)));
+      this.town?.punish(p, this.guardDamage(p));
     }
     // нарушитель мира: стража бьёт, пока он в нейтральном городе
     if (p.outlawUntil > 0) {
       if (p.outlawUntil <= t) { p.outlawUntil = 0; u.outlaw = intruder ? 1 : 0; }
       else if (t >= p.guardHitAt && this.inNeutral(u.x, u.y)) {
         p.guardHitAt = t + OUTLAW.hitMs;
-        this.town?.punish(p, Math.max(1, Math.round(u.maxHp * OUTLAW.pctMaxHp)));
+        this.town?.punish(p, this.guardDamage(p));
       }
     }
 

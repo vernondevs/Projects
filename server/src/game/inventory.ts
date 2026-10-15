@@ -1,7 +1,7 @@
 /** Инвентарь, экипировка, зелья, торговец, подбор добычи. Каждая операция проверяется на сервере. */
 import { COOKS, FOOD, foodOf, type Dish } from "../../../shared/food";
 import { MERCHANT_RANGE, PICKUP_RANGE } from "../../../shared/constants";
-import { BASE_ITEMS, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
+import { BASE_ITEMS, ONEHAND, canEquip, iconFor, itemValue, makeItem, Rarity, SLOTS, type Item, type Slot } from "../../../shared/items";
 import { MATERIALS } from "../../../shared/upgrade";
 import { RESOURCES } from "../../../shared/biomes";
 import { isQuestItem, QUEST_ITEM_MSG } from "../../../shared/quests";
@@ -49,7 +49,9 @@ export function equip(w: World, p: Player, index: unknown) {
   if (!it) return;
   const why = canEquip(it, p.cls, p.level);
   if (why) return err(p, why);
-  const slot = BASE_ITEMS[it.base].slot as Slot;
+  let slot = BASE_ITEMS[it.base].slot as Slot;
+  // Рыцарь смерти: второй одноручный клинок идёт во вторую руку
+  if (slot === "weapon" && p.cls === "deathknight" && ONEHAND.includes(it.base) && p.save.equip.weapon && ONEHAND.includes(p.save.equip.weapon.base) && !p.save.equip.offhand) slot = "offhand";
   const prev = p.save.equip[slot];
   p.save.equip[slot] = it;
   p.save.inventory[index] = prev;

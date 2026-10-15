@@ -39,7 +39,7 @@ export function gainXp(w: World, p: Player, xp: number) {
 function pickBase(p: Player): string {
   const weapons = CLASSES[p.cls].weaponTypes;
   if (Math.random() < 0.3) return weapons[Math.floor(Math.random() * weapons.length)];
-  const armor = EQUIP_BASES.filter((b) => BASE_ITEMS[b].slot !== "weapon");
+  const armor = EQUIP_BASES.filter((b) => BASE_ITEMS[b].slot !== "weapon" && (!BASE_ITEMS[b].classes || BASE_ITEMS[b].classes!.includes(p.cls)));
   return armor[Math.floor(Math.random() * armor.length)];
 }
 

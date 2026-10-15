@@ -2,11 +2,12 @@
 import { gold, goldify } from "./gold";
 import { initWindowDrag, resetWindowPositions } from "./drag";
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
-import { FACTIONS, factionColor } from "../../../shared/factions";
+import { FACTIONS, FOE_COLOR } from "../../../shared/factions";
 import * as sfx from "../game/sfx";
+import { overlay, setOverlay } from "../game/overlay";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
 import { LEGENDARIES } from "../../../shared/legendary";
-import { BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
+import { OFFHAND_CLASSES, BASE_ITEMS, iconFor, canEquip, isBound, effStats, ITEM_STAT_NAMES, itemName, itemValue, baseSellValue, RARITY_NAMES, SLOT_NAMES, SLOTS, UNIQUES, type Item, type ItemStatKey } from "../../../shared/items";
 import { isTownZone, T, Zone, ZONES, zoneAtPx, type WorldMap } from "../../../shared/map";
 import { CITIES, CITY_WALL } from "../../../shared/cities";
 import { TOWN, WALL } from "../../../shared/town";
@@ -153,6 +154,11 @@ export class Hud {
     this.mini.innerHTML = `<div class="zn" id="mini-zone"></div>`;
     this.mini.prepend(this.miniCanvas);
     this.mini.append(this.menuBar);
+    const miniBtn = el("button", "mini-toggle", "▣");
+    miniBtn.title = "Свернуть или развернуть мини-карту";
+    miniBtn.setAttribute("aria-label", "Свернуть или развернуть мини-карту");
+    miniBtn.onclick = () => this.toggleMinimap();
+    this.mini.append(miniBtn);
     this.buildMenu();
     this.makeWindows();
     this.arena = new ArenaUI(root, (text, kind) => this.toast({ text, kind }));
@@ -283,8 +289,8 @@ export class Hud {
     if (l.html) d.innerHTML = l.html;
     else if (l.sys) d.innerHTML = goldify(esc(l.text));
     else if (l.foreign) {
-      // противоположная фракция: имя и «чужой язык» в цвете её фракции
-      const c = factionColor(l.faction);
+      // противоположная фракция: имя и «чужой язык» красным
+      const c = FOE_COLOR;
       d.className = "foreign";
       d.title = `${FACTIONS[l.faction ?? "solgard"]?.name ?? ""}: чужой язык`;
       d.innerHTML = `<b style="color:${c}">${esc(l.from)}:</b> <i style="color:${c}">${esc(l.text)}</i>`;
@@ -328,6 +334,10 @@ export class Hud {
     w.hidden = false;
     drawWorldMap(w.querySelector("canvas")!, this.ctx.map, this.miniBase, this.lastPos, this.ctx.net.self?.cities, this.ctx.net.self?.faction);
   }
+  toggleWorldMap() {
+    if (this.wins.worldmap.hidden) this.openWorldMap();
+    else this.wins.worldmap.hidden = true;
+  }
   /** Esc: закрыть верхнее окно; иначе снять цель; иначе открыть/закрыть меню. */
   escape(hasTarget: boolean, clearTarget: () => void) {
     if (this.gameMenu.close()) return;
@@ -357,12 +367,12 @@ export class Hud {
   }
   /** Меню под мини-картой: текстовые пункты с горячей клавишей справа. */
   private buildMenu() {
-    const items: [string, string, string, string][] = [["inv", "Сумка", "I", "Сумка"], ["skills", "Умения", "K", "Умения"], ["map", "Карта", "M", "Карта: свернуть или развернуть"], ["menu", "Меню", "Esc", "Игровое меню"]];
+    const items: [string, string, string, string][] = [["inv", "Сумка", "I", "Сумка"], ["skills", "Умения", "K", "Умения"], ["map", "Карта", "M", "Карта мира"], ["menu", "Меню", "Esc", "Игровое меню"]];
     for (const [k, text, key, label] of items) {
       const b = el("button", "btn mbtn", `<span class="ml">${text}</span><kbd>${key}</kbd>`);
       b.title = key ? `${label} (${key})` : label;
       b.setAttribute("aria-label", label);
-      b.onclick = () => (k === "map" ? this.toggleMinimap() : k === "menu" ? this.gameMenu.toggle() : this.toggle(k));
+      b.onclick = () => (k === "map" ? this.toggleWorldMap() : k === "menu" ? this.gameMenu.toggle() : this.toggle(k));
       this.menuBar.append(b);
     }
   }
@@ -377,6 +387,10 @@ export class Hud {
       <div class="set-row"><label for="set-vol">Громкость звуков</label><input id="set-vol" type="range" min="0" max="100" step="5"><output id="set-vol-v"></output></div>
       <div class="set-row"><label for="set-music">Громкость музыки</label><input id="set-music" type="range" min="0" max="100" step="5"><output id="set-music-v"></output></div>
       <div class="set-row"><label for="set-mute">Без звука</label><input id="set-mute" type="checkbox"></div>
+      <div class="set-row"><label for="set-selfNames">Мой ник над персонажем</label><input id="set-selfNames" type="checkbox"></div>
+      <div class="set-row"><label for="set-selfBars">Моя полоска здоровья</label><input id="set-selfBars" type="checkbox"></div>
+      <div class="set-row"><label for="set-names">Ники всех остальных</label><input id="set-names" type="checkbox"></div>
+      <div class="set-row"><label for="set-bars">Полоски здоровья всех остальных</label><input id="set-bars" type="checkbox"></div>
       <div class="set-row"><button class="btn" id="set-resetwin">Сбросить расположение окон</button></div>
       <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Горячие клавиши</h3>
       <dl class="keys">${keys.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>`;
@@ -396,6 +410,11 @@ export class Hud {
     mus.oninput = () => { sfx.setMusicVolume(Number(mus.value) / 100); musV.textContent = mus.value + "%"; };
     vol.oninput = () => { sfx.setVolume(Number(vol.value) / 100); volV.textContent = vol.value + "%"; sfx.play("hit"); };
     mute.onchange = () => sfx.setMuted(mute.checked);
+    for (const key of ["selfNames", "selfBars", "names", "bars"] as const) {
+      const c = body.querySelector<HTMLInputElement>("#set-" + key)!;
+      c.checked = overlay[key];
+      c.onchange = () => setOverlay(key, c.checked);
+    }
     this.settingsBody = body;
   }
   private settingsBody: Element | null = null;
@@ -714,8 +733,9 @@ export class Hud {
     b.innerHTML = `<div class="equip"></div><div class="equip extra"></div><p class="muted">${this.bank.isOpen ? "Банк открыт: клик по предмету — положить в банк." : shop ? "Торговец рядом: клик по предмету в сумке — продать." : "Клик — надеть или выпить. Перетащите, чтобы переложить."}</p><div class="grid"></div><p class="muted">Золото: <b>${gold(s.gold)}</b></p>`;
     const eq = b.querySelector(".equip")!;
     for (const slot of SLOTS) {
+      if (slot === "offhand" && !OFFHAND_CLASSES.includes(s.cls)) continue;
       const it = s.equip[slot];
-      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? CLASSES[s.cls].startWeapon : slot;
+      ghostBase[SLOT_NAMES[slot]] = slot === "weapon" ? CLASSES[s.cls].startWeapon : slot === "offhand" ? "shield" : slot;
       const c = this.cell(it, s, "", SLOT_NAMES[slot]);
       if (it) {
         c.onclick = () => this.ctx.net.send("unequip", { slot });
@@ -968,7 +988,7 @@ export class Hud {
       if (v.dead) continue;
       const near = Math.hypot(v.x - info.pos.x, v.y - info.pos.y) < 900;
       if ((v.u.kind === UnitKind.Mob && !near) || v.u.kind === UnitKind.Citizen) continue;
-      const enemy = v.u.kind === UnitKind.Player && this.ctx.net.kind === "arena" && v.u.team !== this.ctx.net.arena?.team;
+      const enemy = v.u.kind === UnitKind.Player && (this.ctx.net.kind === "arena" ? v.u.team !== this.ctx.net.arena?.team : !!v.u.faction && v.u.faction !== this.ctx.net.self?.faction);
       g.fillStyle = v.u.kind === UnitKind.Guard ? "#7a9cc8" : v.u.kind === UnitKind.Player ? (enemy ? "#ff6a5a" : "#6ac8ff") : v.u.kind === UnitKind.Boss ? "#ff3a1a" : "#e84a4a";
       const s = v.u.kind === UnitKind.Boss ? 3 : dot;
       g.fillRect(Math.floor(X(v.x)), Math.floor(Y(v.y)), s, s);

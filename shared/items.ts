@@ -3,10 +3,15 @@ import { FOOD } from "./food";
 import { RESOURCES } from "./biomes";
 import { MATERIALS, PLUS_BONUS } from "./upgrade";
 
-export type Slot = "weapon" | "helmet" | "armor" | "boots" | "ring" | "amulet";
-export const SLOTS: Slot[] = ["weapon", "helmet", "armor", "boots", "ring", "amulet"];
+export type Slot = "weapon" | "offhand" | "helmet" | "armor" | "boots" | "ring" | "amulet";
+export const SLOTS: Slot[] = ["weapon", "offhand", "helmet", "armor", "boots", "ring", "amulet"];
+/** Вторая рука (щит или второй клинок) — только у Храмовника и Рыцаря смерти. */
+export const OFFHAND_CLASSES: ClassId[] = ["warrior", "deathknight"];
+/** Одноручное оружие: у Рыцаря смерти может занять вторую руку. */
+export const ONEHAND = ["sword", "axe", "mace"];
 export const SLOT_NAMES: Record<Slot, string> = {
   weapon: "Оружие",
+  offhand: "Вторая рука",
   helmet: "Шлем",
   armor: "Доспех",
   boots: "Сапоги",
@@ -53,6 +58,8 @@ export interface Item {
   bound?: boolean;
   /** Уровень улучшения 0..10. */
   plus?: number;
+  /** Стартовые лохмотья: на герое рисуются рваной тканью. */
+  rags?: boolean;
 }
 
 export interface BaseItem {
@@ -72,6 +79,8 @@ const r1 = (v: number) => Math.round(v);
 export const BASE_ITEMS: Record<string, BaseItem> = {
   sword: { id: "sword", name: "Меч", slot: "weapon", icon: "sword", weaponType: "sword", classes: ["warrior", "deathknight"], roll: (l) => ({ dmgMin: r1(4 + l * 1.8), dmgMax: r1(8 + l * 2.6) }) },
   axe: { id: "axe", name: "Топор", slot: "weapon", icon: "axe", weaponType: "axe", classes: ["warrior", "deathknight", "reaver"], roll: (l) => ({ dmgMin: r1(3 + l * 1.5), dmgMax: r1(10 + l * 3.1) }) },
+  mace: { id: "mace", name: "Булава", slot: "weapon", icon: "mace", weaponType: "mace", classes: ["warrior", "deathknight"], roll: (l) => ({ dmgMin: r1(5 + l * 1.6), dmgMax: r1(9 + l * 2.7) }) },
+  shield: { id: "shield", name: "Щит", slot: "offhand", icon: "shield", classes: ["warrior", "deathknight"], roll: (l) => ({ armor: r1(3 + l * 2), hp: r1(l * 1.5) }) },
   staff: { id: "staff", name: "Посох", slot: "weapon", icon: "staff", weaponType: "staff", classes: ["mage", "healer", "warlock", "bloodweaver"], roll: (l) => ({ dmgMin: r1(4 + l * 1.7), dmgMax: r1(8 + l * 2.6), int: r1(1 + l * 0.2) }) },
   scepter: { id: "scepter", name: "Жезл", slot: "weapon", icon: "scepter", weaponType: "scepter", classes: ["healer", "bloodweaver"], roll: (l) => ({ dmgMin: r1(4 + l * 1.6), dmgMax: r1(7 + l * 2.4), int: r1(1 + l * 0.25) }) },
   dagger: { id: "dagger", name: "Кинжалы", slot: "weapon", icon: "dagger", weaponType: "dagger", classes: ["rogue", "reaver"], roll: (l) => ({ dmgMin: r1(3 + l * 1.3), dmgMax: r1(5 + l * 1.9), agi: r1(1 + l * 0.2) }) },
@@ -102,6 +111,8 @@ const EPIC_PREFIX = ["Древний", "Пылающий", "Звёздный", "
 const EPIC_PREFIX_N = ["Древнее", "Пылающее", "Звёздное", "Проклятое", "Королевское", "Сумеречное", "Громовое"];
 const NEUTER = new Set(["ring"]);
 const PLURAL = new Set(["boots"]);
+const FEM = new Set(["mace"]);
+const EPIC_PREFIX_F = ["Древняя", "Пылающая", "Звёздная", "Проклятая", "Королевская", "Сумеречная", "Громовая"];
 const EPIC_PREFIX_P = ["Древние", "Пылающие", "Звёздные", "Проклятые", "Королевские", "Сумеречные", "Громовые"];
 
 let uidCounter = 0;
@@ -133,7 +144,7 @@ export function makeItem(baseId: string, ilvl: number, rarity: Rarity, rand: () 
   if (rarity === Rarity.Rare && picked.length) name = `${base.name} ${SUFFIX[picked[0]]}`;
   if (rarity === Rarity.Epic) {
     const i = Math.floor(rand() * EPIC_PREFIX.length);
-    const pre = PLURAL.has(baseId) ? EPIC_PREFIX_P[i] : NEUTER.has(baseId) ? EPIC_PREFIX_N[i] : EPIC_PREFIX[i];
+    const pre = PLURAL.has(baseId) ? EPIC_PREFIX_P[i] : FEM.has(baseId) ? EPIC_PREFIX_F[i] : NEUTER.has(baseId) ? EPIC_PREFIX_N[i] : EPIC_PREFIX[i];
     name = `${pre} ${base.name.toLowerCase()}${picked[0] ? " " + SUFFIX[picked[0]] : ""}`;
   }
   return { uid: newUid(), base: baseId, name, rarity, ilvl, req: Math.max(1, ilvl - 2), stats };

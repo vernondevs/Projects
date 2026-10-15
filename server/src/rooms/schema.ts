@@ -23,6 +23,8 @@ export class Unit extends Schema {
   @type("uint8") phase = 0;
   /** Игрок: "база:редкость" оружия, для подсветки. */
   @type("string") weapon = "";
+  /** Игрок: шлем|доспех|сапоги как "редкость:заточка:легендарка". */
+  @type("string") gear = "";
   @type("string") target = "";
   /** Арена: номер команды; титул и рамка за сезонные награды. */
   @type("uint8") team = 0;

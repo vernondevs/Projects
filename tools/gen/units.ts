@@ -746,6 +746,10 @@ export const UNIT_ART: Record<string, UnitArt> = {
   ashlord: humanoidArt(SPECS.ashlord, 2),
 };
 
+/** Голое тело класса (кожа, волосы, лицо): вся одежда и оружие рисуются слоями экипировки (client GearLayers). Превью выбора класса остаётся на одетых спрайтах. */
+const nude = (s: HSpec): HSpec => ({ skin: s.skin, hair: s.hair, hairStyle: s.hairStyle, torso: s.skin, legs: s.skin, boots: s.skin, ears: s.ears, eye: s.eye, glowEyes: s.glowEyes, beard: s.beard, bodyW: s.bodyW, weapon: "none" });
+for (const c of ["warrior", "mage", "ranger", "healer", "rogue", "deathknight", "bloodweaver", "darkranger", "warlock", "reaver"]) UNIT_ART["nude_" + c] = humanoidArt(nude(SPECS[c]));
+
 /** Смерть «бесформенных» мобов: сплющивание к земле и потемнение. */
 function squashFrames(base: PC): PC[] {
   return [0.75, 0.5, 0.3, 0.2].map((sy, i) => {

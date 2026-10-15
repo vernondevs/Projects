@@ -61,6 +61,23 @@ function draw(kind: string, v: V, r: number): PC {
       if (r === 2) { c.set(17, 6, GEM[2][4]); c.set(17, 26, GEM[2][4]); }
       break;
     }
+    case "mace": {
+      c.line(8, 27, 21, 10, P.wood[2], 2); c.line(9, 27, 22, 10, P.wood[1], 1);
+      c.shadedEllipse(22, 8, 5, 5, P.steel);
+      for (const [x, y] of [[22, 2], [28, 8], [22, 14], [16, 8]]) c.line(22, 8, x, y, P.steel[3], 2);
+      if (r) { c.rect(12, 20, 5, 2, trim[3]); gemDot(22, 8, 1.8); }
+      if (r === 2) { for (const [x, y] of [[26, 3], [17, 3], [27, 13]]) c.set(x, y, GEM[2][4]); }
+      break;
+    }
+    case "shield": {
+      c.poly([[5, 5], [27, 5], [26, 17], [16, 29], [6, 17]], (x) => P.steel[x < 12 ? 3 : x > 20 ? 1 : 2]);
+      c.poly([[8, 8], [24, 8], [23, 16], [16, 25], [9, 16]], v === "mage" ? P.cloth.purple[2] : P.cloth.red[2]);
+      c.line(16, 8, 16, 25, trim[2], 2); c.line(8, 14, 24, 14, trim[2], 2);
+      c.shadedEllipse(16, 14, 3, 3, r ? gem : P.steel);
+      if (r) c.line(5, 5, 27, 5, trim[3], 1);
+      if (r === 2) { for (const [x, y] of [[6, 6], [26, 6], [16, 27]]) c.set(x, y, GEM[2][4]); }
+      break;
+    }
     case "helmet": {
       if (v === "warrior") {
         c.shadedEllipse(16, 16, 10, 9, P.steel); c.rect(6, 17, 20, 9, P.steel[1]); c.rect(8, 17, 16, 2, P.steel[3]);

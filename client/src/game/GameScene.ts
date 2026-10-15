@@ -352,7 +352,7 @@ export class GameScene extends Phaser.Scene {
       else if (code === "KeyP") this.hud.toggle("arena");
       else if (code === "KeyB") this.hud.toggle("bestiary");
       else if (code === "F10") { e.preventDefault(); this.hud.toggle("admin"); }
-      else if (code === "KeyM") this.hud.toggleMinimap();
+      else if (code === "KeyM") this.hud.toggleWorldMap();
       else if (code === "Escape") this.hud.escape(!!this.targetId, () => this.setTarget(null));
       else if (code === "KeyI" || code === "KeyC" || code === "KeyK") this.hud.toggle(code === "KeyI" ? "inv" : code === "KeyC" ? "char" : "skills");
       else if (code === "Enter") { e.preventDefault(); this.hud.focusChat(); }

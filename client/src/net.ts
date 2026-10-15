@@ -100,6 +100,7 @@ export interface UnitState {
   buffs: number;
   phase: number;
   weapon: string;
+  gear: string;
   target: string;
   team: number;
   title: string;

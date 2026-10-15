@@ -1,10 +1,402 @@
 {
-  "storm_blade": { "name": "Клинок Грозового Предела", "base": "sword", "variant": "warrior", "ilvl": 32, "tint": "#ffd84a", "stats": { "str": 26, "vit": 12, "crit": 6 }, "lore": "Выкован из молнии, что ударила в вершину мира.", "effect": { "type": "chain", "chance": 0.15, "jumps": 3, "mult": 0.6 }, "desc": "15% шанс: удар молнии перескакивает на 3 ближайших врагов." },
-  "blood_reaper": { "name": "Жнец Багровой Жатвы", "base": "axe", "variant": "warrior", "ilvl": 32, "tint": "#d02040", "stats": { "str": 24, "vit": 14, "crit": 5 }, "lore": "Он никогда не бывает сыт.", "effect": { "type": "lifeburst", "chance": 0.12, "pct": 0.08 }, "desc": "12% шанс при ударе: восстанавливает 8% максимального здоровья." },
-  "nova_staff": { "name": "Жезл Рождённой Звезды", "base": "staff", "variant": "mage", "ilvl": 32, "tint": "#ff6a20", "stats": { "int": 28, "vit": 10, "crit": 6 }, "lore": "В навершии бьётся крохотное солнце.", "effect": { "type": "novacrit", "r": 100, "mult": 0.9 }, "desc": "Критический удар вызывает огненную нову вокруг цели." },
-  "winter_bow": { "name": "Лук Вечной Зимы", "base": "bow", "variant": "ranger", "ilvl": 32, "tint": "#70d8ff", "stats": { "agi": 26, "vit": 8, "crit": 7 }, "lore": "Тетива покрыта инеем, которого не растопить.", "effect": { "type": "frost", "chance": 0.3, "slow": 40, "ms": 2500 }, "desc": "30% шанс: замедляет цель на 40% на 2,5 сек." },
-  "twin_string": { "name": "Двойная Тетива Эйры", "base": "bow", "variant": "ranger", "ilvl": 32, "tint": "#a0f070", "stats": { "agi": 24, "int": 8, "crit": 8 }, "lore": "Эйра утверждала, что стрела всегда летит не одна.", "effect": { "type": "extra", "chance": 0.25, "mult": 0.7 }, "desc": "25% шанс: выпускает дополнительную стрелу (70% урона)." },
-  "arcane_mantle": { "name": "Мантия Тихого Предела", "base": "armor", "variant": "mage", "ilvl": 32, "tint": "#8a7aff", "stats": { "int": 22, "vit": 14, "hp": 120 }, "lore": "Ткань хранит память о тысяче чародеев.", "effect": { "type": "manashield", "pct": 0.3 }, "desc": "30% получаемого урона поглощается маной (1 к 1)." },
-  "thorn_plate": { "name": "Терновый Панцирь Кроны", "base": "armor", "variant": "warrior", "ilvl": 32, "tint": "#5fc040", "stats": { "str": 14, "vit": 22, "hp": 160 }, "lore": "Каждый шип помнит своего обидчика.", "effect": { "type": "thorns", "pct": 0.25 }, "desc": "Враги, ударившие вас, получают 25% нанесённого урона обратно." },
-  "hunter_treads": { "name": "Поступь Вечного Охотника", "base": "boots", "variant": "ranger", "ilvl": 32, "tint": "#ffb040", "stats": { "agi": 20, "vit": 12, "crit": 4 }, "lore": "Следы затягиваются раньше, чем добыча поймёт, что она добыча.", "effect": { "type": "killhaste", "haste": 30, "ms": 5000 }, "desc": "После убийства: скорость атаки +30% на 5 сек." }
+ "storm_blade": {
+  "name": "Клинок Грозового Предела",
+  "base": "sword",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#ffd84a",
+  "stats": {
+   "str": 26,
+   "vit": 12,
+   "crit": 6
+  },
+  "lore": "Выкован из молнии, что ударила в вершину мира.",
+  "effect": {
+   "type": "chain",
+   "chance": 0.15,
+   "jumps": 3,
+   "mult": 0.6
+  },
+  "desc": "15% шанс: удар молнии перескакивает на 3 ближайших врагов.",
+  "look": {
+   "c2": "#ffffff",
+   "helm": "crown",
+   "pauld": "bolts",
+   "fx": "spark"
+  }
+ },
+ "blood_reaper": {
+  "name": "Жнец Багровой Жатвы",
+  "base": "axe",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#d02040",
+  "stats": {
+   "str": 24,
+   "vit": 14,
+   "crit": 5
+  },
+  "lore": "Он никогда не бывает сыт.",
+  "effect": {
+   "type": "lifeburst",
+   "chance": 0.12,
+   "pct": 0.08
+  },
+  "desc": "12% шанс при ударе: восстанавливает 8% максимального здоровья.",
+  "look": {
+   "c2": "#ff6a50",
+   "helm": "horns",
+   "pauld": "spikes",
+   "fx": "drip"
+  }
+ },
+ "nova_staff": {
+  "name": "Жезл Рождённой Звезды",
+  "base": "staff",
+  "variant": "mage",
+  "ilvl": 32,
+  "tint": "#ff6a20",
+  "stats": {
+   "int": 28,
+   "vit": 10,
+   "crit": 6
+  },
+  "lore": "В навершии бьётся крохотное солнце.",
+  "effect": {
+   "type": "novacrit",
+   "r": 100,
+   "mult": 0.9
+  },
+  "desc": "Критический удар вызывает огненную нову вокруг цели.",
+  "look": {
+   "c2": "#ffe060",
+   "helm": "flame",
+   "pauld": "flame",
+   "fx": "ember"
+  }
+ },
+ "winter_bow": {
+  "name": "Лук Вечной Зимы",
+  "base": "bow",
+  "variant": "ranger",
+  "ilvl": 32,
+  "tint": "#70d8ff",
+  "stats": {
+   "agi": 26,
+   "vit": 8,
+   "crit": 7
+  },
+  "lore": "Тетива покрыта инеем, которого не растопить.",
+  "effect": {
+   "type": "frost",
+   "chance": 0.3,
+   "slow": 40,
+   "ms": 2500
+  },
+  "desc": "30% шанс: замедляет цель на 40% на 2,5 сек.",
+  "look": {
+   "c2": "#ffffff",
+   "helm": "crown",
+   "pauld": "crystal",
+   "fx": "snow"
+  }
+ },
+ "twin_string": {
+  "name": "Двойная Тетива Эйры",
+  "base": "bow",
+  "variant": "ranger",
+  "ilvl": 32,
+  "tint": "#a0f070",
+  "stats": {
+   "agi": 24,
+   "int": 8,
+   "crit": 8
+  },
+  "lore": "Эйра утверждала, что стрела всегда летит не одна.",
+  "effect": {
+   "type": "extra",
+   "chance": 0.25,
+   "mult": 0.7
+  },
+  "desc": "25% шанс: выпускает дополнительную стрелу (70% урона).",
+  "look": {
+   "c2": "#e8ffc0",
+   "helm": "wings",
+   "pauld": "crystal",
+   "fx": "leaf"
+  }
+ },
+ "arcane_mantle": {
+  "name": "Мантия Тихого Предела",
+  "base": "armor",
+  "variant": "mage",
+  "ilvl": 32,
+  "tint": "#8a7aff",
+  "stats": {
+   "int": 22,
+   "vit": 14,
+   "hp": 120
+  },
+  "lore": "Ткань хранит память о тысяче чародеев.",
+  "effect": {
+   "type": "manashield",
+   "pct": 0.3
+  },
+  "desc": "30% получаемого урона поглощается маной (1 к 1).",
+  "look": {
+   "c2": "#e0c8ff",
+   "helm": "halo",
+   "pauld": "crystal",
+   "fx": "orbit"
+  }
+ },
+ "thorn_plate": {
+  "name": "Терновый Панцирь Кроны",
+  "base": "armor",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#5fc040",
+  "stats": {
+   "str": 14,
+   "vit": 22,
+   "hp": 160
+  },
+  "lore": "Каждый шип помнит своего обидчика.",
+  "effect": {
+   "type": "thorns",
+   "pct": 0.25
+  },
+  "desc": "Враги, ударившие вас, получают 25% нанесённого урона обратно.",
+  "look": {
+   "c2": "#c8f0a0",
+   "helm": "horns",
+   "pauld": "spikes",
+   "fx": "leaf"
+  }
+ },
+ "hunter_treads": {
+  "name": "Поступь Вечного Охотника",
+  "base": "boots",
+  "variant": "ranger",
+  "ilvl": 32,
+  "tint": "#ffb040",
+  "stats": {
+   "agi": 20,
+   "vit": 12,
+   "crit": 4
+  },
+  "lore": "Следы затягиваются раньше, чем добыча поймёт, что она добыча.",
+  "effect": {
+   "type": "killhaste",
+   "haste": 30,
+   "ms": 5000
+  },
+  "desc": "После убийства: скорость атаки +30% на 5 сек.",
+  "look": {
+   "c2": "#fff0a0",
+   "helm": "wings",
+   "pauld": "spikes",
+   "fx": "ember"
+  }
+ },
+ "doom_blade": {
+  "name": "Плакальщик Бездны",
+  "base": "sword",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#9a50ff",
+  "stats": {
+   "str": 26,
+   "vit": 12,
+   "crit": 6
+  },
+  "lore": "Каждая душа в клинке кричит одним голосом.",
+  "effect": {
+   "type": "lifeburst",
+   "chance": 0.12,
+   "pct": 0.08
+  },
+  "desc": "12% шанс при ударе: восстанавливает 8% максимального здоровья.",
+  "look": {
+   "c2": "#7ad8ff",
+   "helm": "horns",
+   "pauld": "spikes",
+   "fx": "souls"
+  }
+ },
+ "dawn_eater": {
+  "name": "Пожиратель Рассвета",
+  "base": "axe",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#ff3a3a",
+  "stats": {
+   "str": 24,
+   "vit": 14,
+   "crit": 5
+  },
+  "lore": "Он рубит свет так же легко, как плоть.",
+  "effect": {
+   "type": "chain",
+   "chance": 0.15,
+   "jumps": 3,
+   "mult": 0.6
+  },
+  "desc": "15% шанс: удар перескакивает на 3 ближайших врагов.",
+  "look": {
+   "c2": "#ffb060",
+   "helm": "horns",
+   "pauld": "flame",
+   "fx": "ember"
+  }
+ },
+ "soul_staff": {
+  "name": "Жезл Багровой Жатвы",
+  "base": "staff",
+  "variant": "mage",
+  "ilvl": 32,
+  "tint": "#e0304a",
+  "stats": {
+   "int": 28,
+   "vit": 10,
+   "crit": 6
+  },
+  "lore": "Внутри бьётся чужое сердце.",
+  "effect": {
+   "type": "novacrit",
+   "r": 100,
+   "mult": 0.9
+  },
+  "desc": "Критический удар вызывает нову вокруг цели.",
+  "look": {
+   "c2": "#ffb0b8",
+   "helm": "crown",
+   "pauld": "crystal",
+   "fx": "drip"
+  }
+ },
+ "night_bow": {
+  "name": "Лук Беззвёздной Ночи",
+  "base": "bow",
+  "variant": "ranger",
+  "ilvl": 32,
+  "tint": "#b070ff",
+  "stats": {
+   "agi": 26,
+   "vit": 8,
+   "crit": 7
+  },
+  "lore": "Стрелы из него не отбрасывают тени.",
+  "effect": {
+   "type": "frost",
+   "chance": 0.3,
+   "slow": 40,
+   "ms": 2500
+  },
+  "desc": "30% шанс: замедляет цель на 40% на 2,5 сек.",
+  "look": {
+   "c2": "#e0b0ff",
+   "helm": "wings",
+   "pauld": "crystal",
+   "fx": "souls"
+  }
+ },
+ "void_horns": {
+  "name": "Рога Пустоты",
+  "base": "helmet",
+  "variant": "mage",
+  "ilvl": 32,
+  "tint": "#6aff5a",
+  "stats": {
+   "int": 22,
+   "vit": 14,
+   "hp": 120
+  },
+  "lore": "Корона того, кто заглянул за край и остался смотреть.",
+  "effect": {
+   "type": "manashield",
+   "pct": 0.3
+  },
+  "desc": "30% получаемого урона поглощается маной (1 к 1).",
+  "look": {
+   "c2": "#d8ffb0",
+   "helm": "horns",
+   "pauld": "spikes",
+   "fx": "souls"
+  }
+ },
+ "ember_helm": {
+  "name": "Шлем Пылающего Рога",
+  "base": "helmet",
+  "variant": "warrior",
+  "ilvl": 32,
+  "tint": "#ff7a20",
+  "stats": {
+   "str": 14,
+   "vit": 22,
+   "hp": 160
+  },
+  "lore": "Рог раскалён изнутри, но не обжигает владельца.",
+  "effect": {
+   "type": "thorns",
+   "pct": 0.25
+  },
+  "desc": "Враги, ударившие вас, получают 25% нанесённого урона обратно.",
+  "look": {
+   "c2": "#ffe060",
+   "helm": "flame",
+   "pauld": "flame",
+   "fx": "ember"
+  }
+ },
+ "sun_scepter": {
+  "name": "Жезл Негаснущего Рассвета",
+  "base": "scepter",
+  "variant": "healer",
+  "ilvl": 32,
+  "tint": "#ffe070",
+  "stats": {
+   "int": 26,
+   "vit": 14,
+   "hp": 100
+  },
+  "lore": "Свет в нём не гаснет, даже когда гаснет надежда.",
+  "effect": {
+   "type": "lifeburst",
+   "chance": 0.12,
+   "pct": 0.08
+  },
+  "desc": "12% шанс при ударе: восстанавливает 8% максимального здоровья.",
+  "look": {
+   "c2": "#ffffff",
+   "helm": "halo",
+   "pauld": "crystal",
+   "fx": "orbit"
+  }
+ },
+ "shadow_fang": {
+  "name": "Клык Безлунной Ночи",
+  "base": "dagger",
+  "variant": "ranger",
+  "ilvl": 32,
+  "tint": "#40e0a0",
+  "stats": {
+   "agi": 26,
+   "vit": 8,
+   "crit": 8
+  },
+  "lore": "Ни разу не блеснул — и ни разу не промахнулся.",
+  "effect": {
+   "type": "killhaste",
+   "haste": 30,
+   "ms": 5000
+  },
+  "desc": "После убийства: скорость атаки +30% на 5 сек.",
+  "look": {
+   "c2": "#b0ffd8",
+   "helm": "wings",
+   "pauld": "spikes",
+   "fx": "drip"
+  }
+ }
 }
