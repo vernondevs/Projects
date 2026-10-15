@@ -29,7 +29,7 @@ import { DODGE_CAP, STAT_K } from "../../../shared/formulas";
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const icon = (name: string) => `/assets/icons/${name}.png`;
 const CLASS_COLOR: Record<string, string> = { warrior: "#ff9a7a", mage: "#c8a0ff", ranger: "#9ae07a", healer: "#ffe9a0", rogue: "#b8a0e0" };
-const TERRAIN_COLORS = ["#2a5a9e", "#e05412", "#d0b07e", "#3c432c", "#463e40", "#86593a", "#4f873c", "#2f5336", "#746e7a", "#3a3444"];
+const TERRAIN_COLORS = ["#2a5a9e", "#e05412", "#d0b07e", "#3c432c", "#463e40", "#86593a", "#4f873c", "#2f5336", "#746e7a", "#3a3444", "#e8eef4", "#a8d4ec", "#2a2230", "#d8b878", "#3a6a7a"];
 
 export interface HudCtx {
   net: Net;
@@ -679,7 +679,7 @@ export class Hud {
     const g = c.getContext("2d")!;
     const img = g.createImageData(m.w, m.h);
     for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
-      let col = TERRAIN_COLORS[m.vtx[y * (m.w + 1) + x]];
+      let col = TERRAIN_COLORS[m.vtx[y * (m.w + 1) + x]] ?? "#4f873c";
       const blocked = m.cell[y * m.w + x] & 1 && m.vtx[y * (m.w + 1) + x] !== T.Water && m.vtx[y * (m.w + 1) + x] !== T.Lava;
       if (m.cell[y * m.w + x] & 2) col = "#1c1822";
       else if (blocked && m.zone[y * m.w + x] === Zone.Town) {

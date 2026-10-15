@@ -3,6 +3,8 @@ import { PC, hash01, hex, mix, rng, shade, withA, type RGBA, type Ramp } from ".
 import { P } from "./palette";
 import { FOOD } from "../../shared/food";
 import { TOWN_ART } from "./town";
+import { BIOME_ART, resourceIcon } from "./biomes";
+import { RESOURCE_IDS } from "../../shared/biomes";
 
 type Art = () => PC;
 
@@ -289,6 +291,7 @@ export const OBJECT_ART: Record<string, Art> = {
   mushrooms: mushrooms(false), mushrooms_glow: mushrooms(true), lilypad, bones, ember_vent: emberVent, crystal,
   bag: bag(false), bag_boss: bag(true),
   ...TOWN_ART,
+  ...BIOME_ART,
 };
 
 // ---------------- иконки 32×32 ----------------
@@ -321,6 +324,7 @@ function foodIcon(shape: string, color: string): PC {
   return c.outline();
 }
 function itemIcon(kind: string): PC {
+  if (kind.startsWith("res_")) return resourceIcon(kind);
   if (kind.startsWith("food_")) {
     const d = FOOD[kind.slice(5)];
     return foodIcon(d.shape, d.color);
@@ -426,7 +430,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
   return c;
 }
 
-export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust"];
+export const ITEM_ICONS = ["sword", "axe", "staff", "bow", "helmet", "armor", "boots", "ring", "amulet", "potion_red", "potion_blue", "gold", ...Object.keys(FOOD).map((id) => `food_${id}`), "mat_ash_ore", "mat_star_dust", ...RESOURCE_IDS.map((id) => `res_${id}`)];
 const R = P.cloth.red, B = P.cloth.blue, Pu = P.cloth.purple, G = P.cloth.green, Br = P.cloth.brown;
 export const SKILL_ICONS: Record<string, [string, Ramp, Ramp]> = {
   sk_taunt: ["taunt", R, P.gold], sk_shieldblock: ["shieldblock", B, P.steel], sk_quake: ["quake", Br, P.gold], sk_unbending: ["unbending", P.cloth.black, P.steel], sk_laststand: ["laststand", R, P.gold],

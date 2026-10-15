@@ -269,6 +269,8 @@ export function generateArenaMap(): WorldMap {
     objects,
     spawns: [],
     bosses: [],
+    nodes: [],
+    vents: [],
     playerSpawn: { x: 4.5 * TILE, y: cy * TILE },
     merchant: { x: -1000, y: -1000 },
   };

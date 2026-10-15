@@ -87,6 +87,30 @@
   "golem": {
    "frame": 32
   },
+  "jackal": {
+   "frame": 32
+  },
+  "scorpion": {
+   "frame": 32
+  },
+  "frost_wolf": {
+   "frame": 32
+  },
+  "ice_golem": {
+   "frame": 32
+  },
+  "magma_slime": {
+   "frame": 32
+  },
+  "lava_hound": {
+   "frame": 32
+  },
+  "sea_crab": {
+   "frame": 32
+  },
+  "jellyfish": {
+   "frame": 32
+  },
   "sapling": {
    "frame": 32
   },
@@ -272,6 +296,86 @@
   "hay": {
    "w": 32,
    "h": 32
+  },
+  "cactus": {
+   "w": 32,
+   "h": 44
+  },
+  "cactus_small": {
+   "w": 32,
+   "h": 28
+  },
+  "palm": {
+   "w": 64,
+   "h": 80
+  },
+  "dry_bush": {
+   "w": 32,
+   "h": 32
+  },
+  "sandstone": {
+   "w": 32,
+   "h": 28
+  },
+  "snow_pine": {
+   "w": 48,
+   "h": 64
+  },
+  "snow_rock": {
+   "w": 32,
+   "h": 28
+  },
+  "ice_spike": {
+   "w": 32,
+   "h": 48
+  },
+  "snow_bush": {
+   "w": 32,
+   "h": 32
+  },
+  "obsidian_spire": {
+   "w": 32,
+   "h": 56
+  },
+  "basalt": {
+   "w": 32,
+   "h": 28
+  },
+  "coral_a": {
+   "w": 32,
+   "h": 40
+  },
+  "coral_b": {
+   "w": 32,
+   "h": 32
+  },
+  "kelp": {
+   "w": 32,
+   "h": 56
+  },
+  "shell": {
+   "w": 32,
+   "h": 32
+  },
+  "air_vent": {
+   "w": 32,
+   "h": 32
+  },
+  "node_cactus": {
+   "w": 32,
+   "h": 40
+  },
+  "node_ice": {
+   "w": 32,
+   "h": 40
+  },
+  "node_obsidian": {
+   "w": 32,
+   "h": 32
+  },
+  "node_pearl": {
+   "w": 32,
+   "h": 32
   }
  },
  "icons": [
@@ -371,8 +475,13 @@
   "food_roast",
   "food_trout",
   "food_feast",
+  "food_heat_stew",
   "mat_ash_ore",
   "mat_star_dust",
+  "res_cactus_juice",
+  "res_ice_crystal",
+  "res_obsidian",
+  "res_pearl",
   "sk_taunt",
   "sk_shieldblock",
   "sk_quake",

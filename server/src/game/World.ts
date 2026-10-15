@@ -2,7 +2,8 @@
 import { MAP_SEED, PLAYER_RADIUS, PLAYER_SPEED, RESPAWN_DELAY_MS, TICK_MS } from "../../../shared/constants";
 import { armorReduction } from "../../../shared/formulas";
 import { PVP_DAMAGE_MULT } from "../../../shared/arena";
-import { generateMap, lineClear, moveWithCollision, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
+import { generateMap, lineClear, moveWithCollision, terrainSpeedMul, zoneAtPx, Zone, type WorldMap } from "../../../shared/map";
+import { tickBiomes } from "./biomes";
 import { ELITE } from "../../../shared/elites";
 import { SKILLS } from "../../../shared/skills";
 import { MOBS } from "../../../shared/mobs";
@@ -179,6 +180,7 @@ export class World {
     this.time += dtMs;
     this.runTimers();
     for (const p of this.players.values()) this.updatePlayer(p, dt);
+    tickBiomes(this, dt);
     for (const m of this.mobs.values()) this.updateMob(m, dt);
     for (const pet of [...this.pets.values()]) updatePet(this, pet, dt);
     this.town?.update(dt);
@@ -451,7 +453,7 @@ export class World {
     let s = PLAYER_SPEED * (MOUNTS[p.unit.mount]?.speed ?? 1);
     if (p.slowUntil > this.time) s *= 1 - p.slowPct / 100;
     if (p.stealthUntil > this.time) s *= 0.7;
-    return s;
+    return s * terrainSpeedMul(this.map, p.unit.x, p.unit.y);
   }
 
   private stepToward(p: Player, gx: number, gy: number, dt: number, stopAt: number): boolean {

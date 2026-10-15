@@ -16,6 +16,8 @@ export interface Dish {
   mpPct: number;
   minutes: number;
   stats: ItemStats;
+  /** «Жаропрочный»: защита от жара вулкана. */
+  heat?: boolean;
 }
 
 export const FOOD: Record<string, Dish> = Object.fromEntries(

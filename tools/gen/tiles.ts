@@ -2,10 +2,11 @@
  * Тайлсет поверхностей по схеме dual grid: для каждой поверхности 15 масок углов
  * (TL=1, TR=2, BR=4, BL=8) плюс 3 дополнительных варианта сплошного тайла.
  * Раскладка: строка = индекс поверхности, столбец (mask-1) для масок 1..15, 15..17 — доп. варианты.
- * Строка 10 — стены данжа: 0–1 верх стены, 2–5 лицевая сторона.
+ * Строка TERRAIN_COUNT — стены данжа: 0–1 верх стены, 2–5 лицевая сторона.
  */
 import { PC, hash01, mix, pnoise, rng, shade, withA, type RGBA, type Ramp } from "./canvas";
 import { P } from "./palette";
+import { TERRAIN_COUNT } from "../../shared/map";
 
 export const TILESET_COLS = 18;
 const S = 32;
@@ -168,6 +169,61 @@ function floor(): Texel {
   };
 }
 
+function snow(): Texel {
+  const base = noiseBase(P.snow, 111, 0.35, 0.9);
+  return (x, y, v) => {
+    const h = hash01(x, y, 111 + v);
+    if (interior(x, y) && h < 0.04) return P.snow[1];
+    if (interior(x, y) && h > 0.975) return P.snow[4];
+    const w = pnoise(x, y * 2, 8, S, 113);
+    if (w > 0.8) return P.snow[4];
+    return base(x, y, v);
+  };
+}
+function ice(): Texel {
+  const base = noiseBase(P.ice, 121, 0.2, 0.85);
+  return (x, y, v) => {
+    // трещины и блики
+    const c = pnoise(x, y, 8, S, 123 + (v % 2)), d = pnoise(x, y, 4, S, 125);
+    if (c > 0.47 && c < 0.495 && interior(x, y, 1)) return P.ice[0];
+    if (d > 0.66 && d < 0.69) return P.ice[4];
+    return base(x, y, v);
+  };
+}
+function obsidian(): Texel {
+  const base = noiseBase(P.obsidian, 131, 0.15, 0.85);
+  return (x, y, v) => {
+    const c = pnoise(x, y, 8, S, 133 + (v % 3));
+    if (c > 0.5 && c < 0.525 && interior(x, y, 1)) return v >= 2 ? [220, 90, 30, 255] : P.obsidian[4];
+    const h = hash01(x, y, 135 + v);
+    if (h > 0.97) return P.obsidian[4];
+    return base(x, y, v);
+  };
+}
+function dune(): Texel {
+  const base = noiseBase(P.dune, 141, 0.3, 0.8);
+  return (x, y, v) => {
+    // гребни барханов: тёмная и светлая полоса
+    const w = pnoise(x + y * 0.6, y * 1.5, 16, S, 143 + (v % 2));
+    if (w > 0.6 && w < 0.64) return P.dune[1];
+    if (w > 0.64 && w < 0.69) return P.dune[4];
+    const h = hash01(x, y, 145 + v);
+    if (interior(x, y) && h < 0.03) return P.dune[1];
+    return base(x, y, v);
+  };
+}
+function seabed(): Texel {
+  const base = noiseBase(P.seabed, 151, 0.2, 0.8);
+  return (x, y, v) => {
+    // каустика: светлая сеть линий
+    const a = pnoise(x, y, 8, S, 153 + (v % 2)), b = pnoise(x, y, 8, S, 157);
+    if (Math.abs(a - b) < 0.035) return P.seabed[4];
+    const h = hash01(x, y, 159 + v);
+    if (interior(x, y) && h < 0.03) return P.seabed[0];
+    return base(x, y, v);
+  };
+}
+
 interface TerrainSpec {
   tex: Texel;
   rimIn?: number; // множитель яркости внутренней кромки
@@ -185,6 +241,11 @@ export const TERRAIN_SPECS: TerrainSpec[] = [
   { tex: forest(), rimIn: 0.7, hi: true },
   { tex: cobble(), rimIn: 0.65 },
   { tex: floor(), rimIn: 0.6, rimOut: [20, 12, 14, 170] },
+  { tex: snow(), rimIn: 0.8, rimOut: [200, 220, 240, 120], hi: true },
+  { tex: ice(), rimIn: 0.72, rimOut: [220, 245, 255, 150] },
+  { tex: obsidian(), rimIn: 0.7, rimOut: [10, 8, 14, 170] },
+  { tex: dune(), rimIn: 0.82, rimOut: [90, 60, 30, 120] },
+  { tex: seabed(), rimIn: 0.75, rimOut: [200, 240, 255, 150] },
 ];
 
 /** Покрытие тайла маской углов с шумной границей. */
@@ -251,14 +312,14 @@ function wallFace(v: number): PC {
 }
 
 export function buildTileset(): PC {
-  const out = new PC(TILESET_COLS * S, 11 * S);
+  const out = new PC(TILESET_COLS * S, (TERRAIN_COUNT + 1) * S);
   for (let t = 1; t < TERRAIN_SPECS.length; t++) {
     for (let mask = 1; mask <= 15; mask++) out.blit(terrainTile(t, mask, 0), (mask - 1) * S, t * S);
     for (let v = 1; v <= 3; v++) out.blit(terrainTile(t, 15, v), (14 + v) * S, t * S);
   }
-  out.blit(wallTop(0), 0, 10 * S);
-  out.blit(wallTop(1), S, 10 * S);
-  for (let v = 0; v < 4; v++) out.blit(wallFace(v), (2 + v) * S, 10 * S);
+  out.blit(wallTop(0), 0, TERRAIN_COUNT * S);
+  out.blit(wallTop(1), S, TERRAIN_COUNT * S);
+  for (let v = 0; v < 4; v++) out.blit(wallFace(v), (2 + v) * S, TERRAIN_COUNT * S);
   return out;
 }
 

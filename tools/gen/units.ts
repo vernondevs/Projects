@@ -407,12 +407,12 @@ function quadruped(o: { body: Ramp; belly?: Ramp; tusk?: boolean; ears?: "point"
   return c.outline();
 }
 
-function spider(pose: Pose): PC {
+function spider(pose: Pose, bodyR: Ramp = P.cloth.purple, mark: RGBA = P.cloth.red[2], eye: RGBA = hex("#ff3040"), tail = false): PC {
   const c = new PC(32, 32);
   const walk = pose.kind === "walk" ? pose.i : 0;
   const atk = pose.kind === "attack" ? pose.i : -1;
   const lunge = atk >= 0 ? [-1, 3, 2, 0][atk] : 0;
-  const body = ramp4(P.cloth.purple);
+  const body = ramp4(bodyR);
   const bx = 13 + lunge * 0.5, by = 20;
   for (let i = 0; i < 4; i++) {
     const ph = ((walk + i) % 2 ? 1.5 : -1.5) * (pose.kind === "walk" ? 1 : 0.3);
@@ -424,31 +424,35 @@ function spider(pose: Pose): PC {
     }
   }
   c.shadedEllipse(bx - 2, by - 1, 6.5, 5.5, body);
-  c.line(bx - 4, by - 4, bx - 1, by - 5, P.cloth.red[2], 1);
-  c.line(bx - 4, by - 2, bx, by - 2, P.cloth.red[2], 1);
+  c.line(bx - 4, by - 4, bx - 1, by - 5, mark, 1);
+  c.line(bx - 4, by - 2, bx, by - 2, mark, 1);
+  if (tail) {
+    // изогнутый хвост с жалом
+    for (let t = 0; t <= 1; t += 0.1) c.rect(bx - 8 - t * 3, by - 3 - Math.sin(t * Math.PI * 0.9) * 10, 2, 2, body[2]);
+    c.poly([[bx - 12, by - 12], [bx - 9, by - 13], [bx - 10, by - 8]], mark);
+  }
   c.shadedEllipse(bx + 5.5 + lunge * 0.5, by + 1, 3.8, 3.2, body);
-  for (const [ex, ey] of [[7, 0], [8.5, 0.5], [7.5, 1.6]]) c.set(Math.round(bx + ex + lunge * 0.5), Math.round(by + ey), hex("#ff3040"));
+  for (const [ex, ey] of [[7, 0], [8.5, 0.5], [7.5, 1.6]]) c.set(Math.round(bx + ex + lunge * 0.5), Math.round(by + ey), eye);
   if (atk === 1 || atk === 2) c.line(bx + 8 + lunge, by + 3, bx + 9.5 + lunge, by + 4.5, P.bone[3], 1);
   return c.outline();
 }
 const ramp4 = (r: Ramp) => r;
 
-function golem(pose: Pose, k = 1): PC {
+function golem(pose: Pose, k = 1, stone: Ramp = P.stone, vein: Ramp = P.lava): PC {
   const c = new PC(32 * k, 32 * k);
   const L = (n: number) => n * k;
   const walk = pose.kind === "walk" ? pose.i : 0;
   const atk = pose.kind === "attack" ? pose.i : -1;
   const bob = [0, -1, 0, -1][walk];
   const armUp = atk >= 0 ? [-6, -8, 2, 0][atk] : [0, 1, 0, -1][walk];
-  const stone = P.stone;
   for (const s of [-1, 1]) {
     const lift = (walk === 1 && s < 0) || (walk === 3 && s > 0) ? 1 : 0;
     c.shadedRect(L(16 + s * 4 - 2.5), L(23 + bob - lift), L(5), L(7 - bob + lift - lift), stone, 1);
   }
   c.shadedEllipse(L(16), L(17 + bob), L(9.5), L(7.5), stone);
-  for (const [a, b, d, e] of [[11, 14, 14, 18], [18, 13, 20, 19], [14, 20, 18, 21]]) c.line(L(a), L(b + bob), L(d), L(e + bob), P.lava[3], k);
+  for (const [a, b, d, e] of [[11, 14, 14, 18], [18, 13, 20, 19], [14, 20, 18, 21]]) c.line(L(a), L(b + bob), L(d), L(e + bob), vein[3], k);
   c.shadedEllipse(L(16), L(8.5 + bob), L(4.5), L(3.8), stone);
-  for (const s of [-1, 1]) c.rect(L(16 + s * 1.8 - 0.5), L(8.5 + bob), L(1.2), L(1), P.lava[4]);
+  for (const s of [-1, 1]) c.rect(L(16 + s * 1.8 - 0.5), L(8.5 + bob), L(1.2), L(1), vein[4]);
   for (const s of [-1, 1]) {
     const ax = 16 + s * 10.5, ay = 14 + bob + (s > 0 ? armUp : -armUp * 0.3);
     c.shadedEllipse(L(ax), L(ay), L(3.5), L(5), stone);
@@ -673,6 +677,15 @@ export const UNIT_ART: Record<string, UnitArt> = {
   wolf: sideOnly((p) => quadruped({ body: ramp_("#3a3c48", "#5c606e", "#8a8f9c", "#b4b8c4"), belly: P.bone, ears: "point", tail: "bushy" }, p)),
   spider: sideOnly(spider),
   golem: sideOnly((p) => golem(p)),
+  // биомы Неизведанных земель
+  jackal: sideOnly((p) => quadruped({ body: ramp_("#5a3c1c", "#8a6030", "#c0904c", "#e8c078"), belly: P.bone, ears: "point", tail: "thin" }, p)),
+  scorpion: sideOnly((p) => spider(p, ramp_("#5a3a14", "#8a5c20", "#c08a34", "#e8b858"), hex("#f2d070"), hex("#ffe040"), true)),
+  frost_wolf: sideOnly((p) => quadruped({ body: ramp_("#5a7088", "#8aa4bc", "#c0d8ec", "#f0faff"), belly: P.snow, ears: "point", tail: "bushy", mane: ramp_("#8aa4bc", "#b0c8e0", "#d8ecfa", "#ffffff") }, p)),
+  ice_golem: sideOnly((p) => golem(p, 1, P.ice, ramp_("#a0e0ff", "#c8f0ff", "#e0faff", "#ffffff", "#ffffff"))),
+  magma_slime: sideOnly((p) => slime(ramp_("#6a1a08", "#c03a10", "#f07a1c", "#ffd060"), p, 1, true)),
+  lava_hound: sideOnly((p) => quadruped({ body: ramp_("#2a1814", "#4a2418", "#7a3a20", "#a85a2c"), belly: ramp_("#c03a10", "#f06a1a", "#ff9a2a", "#ffd060"), ears: "point", tail: "bushy", mane: ramp_("#c03a10", "#f06a1a", "#ff9a2a", "#ffd060") }, p)),
+  sea_crab: sideOnly((p) => spider(p, ramp_("#6a1a14", "#a8301e", "#d8503a", "#f88a6c"), hex("#ffd0c0"), hex("#101018"))),
+  jellyfish: sideOnly((p) => slime(ramp_("#4a2a8a", "#7a52c8", "#b08af0", "#e8d8ff"), p, 1, true)),
   sapling: sideOnly(sapling),
   ent: sideOnly(ent, 64, false),
   witch: humanoidArt(SPECS.witch, 2),

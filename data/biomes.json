@@ -1,0 +1,42 @@
+{
+  "env": {
+    "snowSpeed": 0.8,
+    "lavaBurnPctPerSec": 5,
+    "heatDotPctPerSec": 0.6,
+    "airSeconds": 30,
+    "drownPctPerSec": 8,
+    "gatherMs": 2000,
+    "nodeRespawnSec": 90,
+    "gatherRange": 70
+  },
+  "resources": {
+    "cactus_juice": {
+      "name": "Кактусовый сок",
+      "price": 14,
+      "node": "node_cactus",
+      "zone": "Пустыня Миражей",
+      "color": "green"
+    },
+    "ice_crystal": {
+      "name": "Ледяной кристалл",
+      "price": 22,
+      "node": "node_ice",
+      "zone": "Снежные пики",
+      "color": "blue"
+    },
+    "obsidian": {
+      "name": "Обсидиан",
+      "price": 30,
+      "node": "node_obsidian",
+      "zone": "Пылающий вулкан",
+      "color": "black"
+    },
+    "pearl": {
+      "name": "Жемчуг",
+      "price": 45,
+      "node": "node_pearl",
+      "zone": "Затонувшая бухта",
+      "color": "white"
+    }
+  }
+}

@@ -36,7 +36,7 @@ for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
   for (let j = 0; j < 32; j++) for (let i = 0; i < 32; i++) out.set(x * 32 + i, y * 32 + j, water.get((x * 32 + i) % 64, (y * 32 + j) % 64)!);
   const c = [V(cx, cy), V(cx + 1, cy), V(cx + 1, cy + 1), V(cx, cy + 1)];
   const lowest = Math.min(...c);
-  for (let t = 1; t <= T.Floor; t++) {
+  for (let t = 1; t < 15; t++) {
     if (!c.includes(t)) continue;
     const mask = t === lowest ? 15 : (c[0] >= t ? 1 : 0) | (c[1] >= t ? 2 : 0) | (c[2] >= t ? 4 : 0) | (c[3] >= t ? 8 : 0);
     let col = mask - 1;

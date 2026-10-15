@@ -1,13 +1,141 @@
 {
-  "cook": { "name": "Повар Борщан", "sprite": "merchant", "tint": "0xffd0a0", "color": "#ffc080", "greeting": "«Садись, герой! Горячее и сытное — на любой кошелёк. Но помни: одно блюдо за раз, новое вытесняет старое.»" },
+  "cook": {
+    "name": "Повар Борщан",
+    "sprite": "merchant",
+    "tint": "0xffd0a0",
+    "color": "#ffc080",
+    "greeting": "«Садись, герой! Горячее и сытное — на любой кошелёк. Но помни: одно блюдо за раз, новое вытесняет старое.»"
+  },
   "dishes": {
-    "bread":     { "name": "Хлеб с салом",       "shape": "loaf", "color": "brown",  "price": 12,  "req": 1,  "hpPct": 20, "mpPct": 0,  "minutes": 10, "stats": { "vit": 2 } },
-    "porridge":  { "name": "Гречневая каша",     "shape": "bowl", "color": "brown",  "price": 20,  "req": 1,  "hpPct": 15, "mpPct": 15, "minutes": 10, "stats": { "str": 2, "hp": 20 } },
-    "fish_soup": { "name": "Уха из щуки",        "shape": "bowl", "color": "blue",   "price": 45,  "req": 6,  "hpPct": 25, "mpPct": 10, "minutes": 20, "stats": { "agi": 3, "crit": 2 } },
-    "pie":       { "name": "Пирог с вишней",     "shape": "pie",  "color": "purple", "price": 55,  "req": 6,  "hpPct": 10, "mpPct": 30, "minutes": 20, "stats": { "int": 4, "hp": 20 } },
-    "borsch":    { "name": "Борщ по-борщански",  "shape": "bowl", "color": "red",    "price": 90,  "req": 12, "hpPct": 35, "mpPct": 10, "minutes": 30, "stats": { "vit": 5, "hp": 60 } },
-    "roast":     { "name": "Жаркое из кабана",   "shape": "meat", "color": "red",    "price": 110, "req": 12, "hpPct": 30, "mpPct": 0,  "minutes": 30, "stats": { "str": 6, "crit": 2 } },
-    "trout":     { "name": "Форель на углях",    "shape": "fish", "color": "green",  "price": 180, "req": 20, "hpPct": 35, "mpPct": 20, "minutes": 30, "stats": { "agi": 8, "crit": 4, "hp": 40 } },
-    "feast":     { "name": "Пир горой",          "shape": "meat", "color": "black",  "price": 300, "req": 28, "hpPct": 50, "mpPct": 30, "minutes": 30, "stats": { "str": 6, "agi": 6, "int": 6, "vit": 6, "hp": 100 } }
+    "bread": {
+      "name": "Хлеб с салом",
+      "shape": "loaf",
+      "color": "brown",
+      "price": 12,
+      "req": 1,
+      "hpPct": 20,
+      "mpPct": 0,
+      "minutes": 10,
+      "stats": {
+        "vit": 2
+      }
+    },
+    "porridge": {
+      "name": "Гречневая каша",
+      "shape": "bowl",
+      "color": "brown",
+      "price": 20,
+      "req": 1,
+      "hpPct": 15,
+      "mpPct": 15,
+      "minutes": 10,
+      "stats": {
+        "str": 2,
+        "hp": 20
+      }
+    },
+    "fish_soup": {
+      "name": "Уха из щуки",
+      "shape": "bowl",
+      "color": "blue",
+      "price": 45,
+      "req": 6,
+      "hpPct": 25,
+      "mpPct": 10,
+      "minutes": 20,
+      "stats": {
+        "agi": 3,
+        "crit": 2
+      }
+    },
+    "pie": {
+      "name": "Пирог с вишней",
+      "shape": "pie",
+      "color": "purple",
+      "price": 55,
+      "req": 6,
+      "hpPct": 10,
+      "mpPct": 30,
+      "minutes": 20,
+      "stats": {
+        "int": 4,
+        "hp": 20
+      }
+    },
+    "borsch": {
+      "name": "Борщ по-борщански",
+      "shape": "bowl",
+      "color": "red",
+      "price": 90,
+      "req": 12,
+      "hpPct": 35,
+      "mpPct": 10,
+      "minutes": 30,
+      "stats": {
+        "vit": 5,
+        "hp": 60
+      }
+    },
+    "roast": {
+      "name": "Жаркое из кабана",
+      "shape": "meat",
+      "color": "red",
+      "price": 110,
+      "req": 12,
+      "hpPct": 30,
+      "mpPct": 0,
+      "minutes": 30,
+      "stats": {
+        "str": 6,
+        "crit": 2
+      }
+    },
+    "trout": {
+      "name": "Форель на углях",
+      "shape": "fish",
+      "color": "green",
+      "price": 180,
+      "req": 20,
+      "hpPct": 35,
+      "mpPct": 20,
+      "minutes": 30,
+      "stats": {
+        "agi": 8,
+        "crit": 4,
+        "hp": 40
+      }
+    },
+    "feast": {
+      "name": "Пир горой",
+      "shape": "meat",
+      "color": "black",
+      "price": 300,
+      "req": 28,
+      "hpPct": 50,
+      "mpPct": 30,
+      "minutes": 30,
+      "stats": {
+        "str": 6,
+        "agi": 6,
+        "int": 6,
+        "vit": 6,
+        "hp": 100
+      }
+    },
+    "heat_stew": {
+      "name": "Жаропрочное рагу",
+      "shape": "bowl",
+      "color": "red",
+      "price": 120,
+      "req": 20,
+      "hpPct": 20,
+      "mpPct": 10,
+      "minutes": 20,
+      "stats": {
+        "vit": 4,
+        "hp": 40
+      },
+      "heat": true
+    }
   }
 }

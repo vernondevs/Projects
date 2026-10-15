@@ -488,8 +488,8 @@ export class GameScene extends Phaser.Scene {
   override update(_time: number, deltaMs: number) {
     const dt = Math.min(0.05, deltaMs / 1000);
     this.world.update(this.cameras.main);
-    this.world.water.tilePositionX += dt * 6;
-    this.world.water.tilePositionY += dt * 3;
+    this.world.drift.x += dt * 6;
+    this.world.drift.y += dt * 3;
 
     // движение своего героя: предсказание + мягкая сверка с сервером
     const me = this.me;

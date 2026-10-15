@@ -14,6 +14,9 @@ type Events = {
   chat: ChatLine;
   toast: ToastMsg;
   mountcast: { ms: number; name?: string };
+  air: { air: number; max: number };
+  node: { id: number; up: boolean };
+  nodes: { depleted: number[] };
   loot: LootBag[];
   cd: CooldownMsg;
   leave: number;
@@ -142,6 +145,7 @@ export class Net {
     room.onMessage("chat", (l: ChatLine) => this.emit("chat", l));
     room.onMessage("toast", (t: ToastMsg) => this.emit("toast", t));
     room.onMessage("mountcast", (m: { ms: number; name?: string }) => this.emit("mountcast", m));
+    for (const t of ["air", "node", "nodes"] as const) room.onMessage(t, (m: any) => this.emit(t, m));
     room.onMessage("loot", (b: LootBag[]) => {
       this.bags = b;
       this.emit("loot", b);

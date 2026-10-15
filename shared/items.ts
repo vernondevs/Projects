@@ -1,5 +1,6 @@
 import type { ClassId, StatKey } from "./classes";
 import { FOOD } from "./food";
+import { RESOURCES } from "./biomes";
 import { MATERIALS, PLUS_BONUS } from "./upgrade";
 
 export type Slot = "weapon" | "helmet" | "armor" | "boots" | "ring" | "amulet";
@@ -83,6 +84,7 @@ export const BASE_ITEMS: Record<string, BaseItem> = {
   hp_potion: { id: "hp_potion", name: "Зелье здоровья", slot: "consumable", icon: "potion_red", price: 15, stack: 20 },
   mp_potion: { id: "mp_potion", name: "Зелье маны", slot: "consumable", icon: "potion_blue", price: 15, stack: 20 },
   ...Object.fromEntries(Object.values(MATERIALS).map((m) => [m.id, { id: m.id, name: m.name, slot: "consumable", icon: m.icon, price: m.price, stack: 99 } as BaseItem])),
+  ...Object.fromEntries(Object.values(RESOURCES).map((r) => [r.id, { id: r.id, name: r.name, slot: "consumable", icon: r.icon, price: r.price, stack: 99 } as BaseItem])),
   ...Object.fromEntries(Object.values(FOOD).map((d) => [`food_${d.id}`, { id: `food_${d.id}`, name: d.name, slot: "consumable", icon: d.icon, price: d.price, stack: 20 } as BaseItem])),
 };
 export const EQUIP_BASES = Object.values(BASE_ITEMS).filter((b) => b.slot !== "consumable").map((b) => b.id);

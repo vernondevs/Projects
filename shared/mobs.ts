@@ -38,6 +38,15 @@ export const MOBS: Record<string, MobDef> = {
   skeleton_knight: { id: "skeleton_knight", name: "Рыцарь-скелет", sprite: "skeleton_knight", size: 1, hp: 1.4, dmg: 1.25, armor: 1.6, xp: 1.3, speed: 80, aggro: 200, range: 40, attackCd: 1.3, radius: 11, color: "#b8b4c8" },
   bandit: { id: "bandit", name: "Разбойник с большой дороги", sprite: "rogue", size: 1, hp: 1, dmg: 1.1, armor: 0.9, xp: 1.1, speed: 90, aggro: 260, range: 36, attackCd: 1.2, radius: 10, color: "#b0805a" },
   bandit_leader: { id: "bandit_leader", name: "Главарь засады", sprite: "warrior", size: 1, hp: 1.8, dmg: 1.3, armor: 1.3, xp: 1.8, speed: 85, aggro: 260, range: 38, attackCd: 1.3, radius: 12, color: "#d04a3a" },
+  // Биомы Неизведанных земель
+  jackal: { id: "jackal", name: "Шакал пустыни", sprite: "jackal", size: 1, hp: 0.9, dmg: 1.1, armor: 0.7, xp: 1, speed: 115, aggro: 200, range: 36, attackCd: 1.0, radius: 11, color: "#c8a060" },
+  scorpion: { id: "scorpion", name: "Песчаный скорпион", sprite: "scorpion", size: 1, hp: 1.1, dmg: 1.3, armor: 1.2, xp: 1.15, speed: 80, aggro: 150, range: 38, attackCd: 1.4, radius: 11, color: "#d0a050" },
+  frost_wolf: { id: "frost_wolf", name: "Ледяной волк", sprite: "frost_wolf", size: 1, hp: 1.1, dmg: 1.2, armor: 0.9, xp: 1.1, speed: 115, aggro: 210, range: 38, attackCd: 1.1, radius: 12, color: "#bfe4ff" },
+  ice_golem: { id: "ice_golem", name: "Ледяной голем", sprite: "ice_golem", size: 1, hp: 1.9, dmg: 1.3, armor: 1.7, xp: 1.5, speed: 52, aggro: 150, range: 42, attackCd: 2.0, radius: 13, color: "#8ad0ff" },
+  magma_slime: { id: "magma_slime", name: "Магмовый слизень", sprite: "magma_slime", size: 1, hp: 1.2, dmg: 1.3, armor: 1.0, xp: 1.2, speed: 62, aggro: 150, range: 34, attackCd: 1.5, radius: 11, color: "#ff7a2a" },
+  lava_hound: { id: "lava_hound", name: "Лавовый пёс", sprite: "lava_hound", size: 1, hp: 1.3, dmg: 1.4, armor: 1.1, xp: 1.4, speed: 118, aggro: 220, range: 190, attackCd: 1.7, projectile: "fire", radius: 12, color: "#ff5a1a" },
+  sea_crab: { id: "sea_crab", name: "Бухтовый краб", sprite: "sea_crab", size: 1, hp: 1.5, dmg: 1.1, armor: 1.7, xp: 1.3, speed: 70, aggro: 140, range: 38, attackCd: 1.5, radius: 12, color: "#e0604a" },
+  jellyfish: { id: "jellyfish", name: "Светящаяся медуза", sprite: "jellyfish", size: 1, hp: 0.8, dmg: 1.2, armor: 0.5, xp: 1.1, speed: 60, aggro: 190, range: 170, attackCd: 1.9, projectile: "frost", radius: 11, color: "#b080ff" },
   sapling: { id: "sapling", name: "Саженец", sprite: "sapling", size: 1, hp: 0.45, dmg: 0.7, armor: 0.5, xp: 0.25, speed: 75, aggro: 400, range: 34, attackCd: 1.3, radius: 10, color: "#6fae4a" },
 
   ent: {

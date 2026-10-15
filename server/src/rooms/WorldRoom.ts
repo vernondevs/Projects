@@ -19,6 +19,7 @@ import { sendPrices, setMarketDb } from "../game/market";
 import { buyMaterial, upgradeItem } from "../game/smith";
 import { registerAdmin } from "../game/admin";
 import { registerEncounters } from "../game/encounters";
+import { registerBiomes, sendNodes } from "../game/biomes";
 import { addItem, buy, buyFood, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
 import { newSave, Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
@@ -68,6 +69,7 @@ export class WorldRoom extends Room<WorldState> {
     this.registerArena(on);
     registerAdmin(this, on);
     registerEncounters(on, () => this.world);
+    registerBiomes(on, () => this.world);
     if (process.env.TEST_MODE === "1") this.registerDebug(on);
     this.clock.setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
     this.clock.setInterval(() => this.queue.tick(), 1000);
@@ -108,6 +110,7 @@ export class WorldRoom extends Room<WorldState> {
     p.admin = WorldRoom.db.isAdmin(p.name);
     this.world.addPlayer(p, auth.fromArena ? `${p.name} возвращается с арены.` : undefined);
     client.send("welcome", { id: client.sessionId, seed: this.world.map.seed, created: auth.created });
+    sendNodes(this.world, p);
     if (auth.created) client.send("toast", { text: "Добро пожаловать в Пепельный Предел!", kind: "level" });
     deliverArenaRewards(p);
     const key = p.name.toLowerCase();

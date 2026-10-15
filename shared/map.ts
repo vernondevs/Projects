@@ -4,6 +4,7 @@
  * Внутри только целочисленный хэш и арифметика (никаких Math.sin/pow), чтобы
  * результат был побитово одинаковым в браузере и в Node.
  */
+import { ENV, resourceOfNode, type MapNode } from "./biomes";
 import { MAP_H, MAP_W, TILE } from "./constants";
 import { BUILDINGS, inTownRect, isGate, STALLS, TOWERS, TOWN, TOWN_HALF, townGround, WALL } from "./town";
 
@@ -21,9 +22,14 @@ export enum T {
   Forest,
   Cobble,
   Floor,
+  Snow,
+  Ice,
+  Obsidian,
+  Dune,
+  Seabed,
 }
-export const TERRAIN_COUNT = 10;
-export const TERRAIN_KEYS = ["water", "lava", "sand", "bog", "ash", "dirt", "grass", "forest", "cobble", "floor"];
+export const TERRAIN_COUNT = 15;
+export const TERRAIN_KEYS = ["water", "lava", "sand", "bog", "ash", "dirt", "grass", "forest", "cobble", "floor", "snow", "ice", "obsidian", "dune", "seabed"];
 const BLOCKING = new Set<T>([T.Water, T.Lava]);
 
 export enum Zone {
@@ -35,6 +41,10 @@ export enum Zone {
   Dungeon,
   Arena,
   Frontier,
+  Desert,
+  Snow,
+  Volcano,
+  Underwater,
 }
 export interface ZoneInfo {
   name: string;
@@ -53,10 +63,15 @@ export const ZONES: ZoneInfo[] = [
   { name: "Пепельные чертоги", levels: [26, 30], safe: false, mobs: ["skeleton_knight", "imp", "golem"] },
   { name: "Арена", levels: [0, 0], safe: false, mobs: [] },
   { name: "Неизведанные земли", levels: [0, 0], safe: false, mobs: [], note: "Дикие края, сюда ещё не добрались" },
+  // Биомы Неизведанных земель (уровни не выше капа 30, продолжают прогрессию)
+  { name: "Пустыня Миражей", levels: [18, 24], safe: false, mobs: ["jackal", "scorpion"] },
+  { name: "Снежные пики", levels: [20, 26], safe: false, mobs: ["frost_wolf", "ice_golem"] },
+  { name: "Пылающий вулкан", levels: [26, 30], safe: false, mobs: ["magma_slime", "lava_hound"] },
+  { name: "Затонувшая бухта", levels: [22, 28], safe: false, mobs: ["jellyfish", "sea_crab"] },
 ];
 
 /** Версия раскладки мира: при смене позиции из старых сохранений сбрасываются к точке появления. */
-export const MAP_VERSION = 2;
+export const MAP_VERSION = 3;
 
 export const CELL_BLOCK = 1;
 export const CELL_WALL = 2;
@@ -91,6 +106,9 @@ export interface WorldMap {
   objects: MapObject[];
   spawns: SpawnPoint[];
   bosses: BossSpawn[];
+  /** Узлы добычи ресурсов (id — индекс в objects) и воздушные пузыри под водой (пиксели). */
+  nodes: MapNode[];
+  vents: { x: number; y: number }[];
   playerSpawn: { x: number; y: number };
   merchant: { x: number; y: number };
 }
@@ -125,6 +143,20 @@ export const OBJECT_FOOTPRINT: Record<string, { w: number; h: number } | undefin
   dummy: { w: 1, h: 1 },
   weapon_rack: { w: 1, h: 1 },
   hay: { w: 1, h: 1 },
+  cactus: { w: 1, h: 1 },
+  palm: { w: 1, h: 1 },
+  sandstone: { w: 1, h: 1 },
+  snow_pine: { w: 1, h: 1 },
+  snow_rock: { w: 1, h: 1 },
+  ice_spike: { w: 1, h: 1 },
+  obsidian_spire: { w: 1, h: 1 },
+  basalt: { w: 1, h: 1 },
+  coral_a: { w: 1, h: 1 },
+  coral_b: { w: 1, h: 1 },
+  node_cactus: { w: 1, h: 1 },
+  node_ice: { w: 1, h: 1 },
+  node_obsidian: { w: 1, h: 1 },
+  node_pearl: { w: 1, h: 1 },
 };
 
 /** Сдвиг данжа относительно прежней карты 180×140 (данж нарисован вручную и не масштабируется). */
@@ -163,7 +195,26 @@ const ROADS: [number, number][][] = [
   [[TOWN.x - TOWN_HALF.x, TOWN.y + 0.5], [40, 122], [3, 120]],
   [[TOWN.x + 0.5, TOWN.y - TOWN_HALF.y], [88, 70], [92, 3]],
   [[TOWN.x + 0.5, TOWN.y + TOWN_HALF.y + 1], [88, 175], [91, 237]],
+  // дороги в биомы: пустыня (оазис), снега (долина), вулкан (две ветки), подводная бухта
+  [[40, 122], [31, 138], [24, 151]],
+  [[89, 40], [102, 26], [111, 19]],
+  [[201, 65], [238, 40], [276, 50], [306, 64]],
+  [[201, 179], [240, 204], [280, 196], [306, 184]],
+  [[172, 168], [169, 200], [171, 224]],
 ];
+/** Ровные площадки под будущие города (центр в тайлах, r — радиус свободной зоны). */
+export const CITY_SITES = [
+  { id: "oasis", name: "Оазис Миражей", biome: Zone.Desert, x: 24, y: 152, r: 10 },
+  { id: "snow_valley", name: "Снежная долина", biome: Zone.Snow, x: 112, y: 18, r: 10 },
+];
+/** Расстояние до ближайшей площадки в долях её радиуса (меньше 1 — внутри). */
+function siteDist(x: number, y: number): number {
+  let best = 1e9;
+  for (const s of CITY_SITES) best = Math.min(best, Math.hypot(x - s.x, y - s.y) / s.r);
+  return best;
+}
+/** Пруд оазиса (центр в тайлах). */
+const OASIS_POND = { x: CITY_SITES[0].x - 14, y: CITY_SITES[0].y };
 export const BOSS_SPAWNS: BossSpawn[] = [
   { id: "ent", x: 234 * TILE, y: 60 * TILE, arena: 10 * TILE },
   { id: "witch", x: 234 * TILE, y: 181 * TILE, arena: 10 * TILE },
@@ -233,11 +284,22 @@ function bossNear(x: number, y: number, extra: number): BossSpawn | null {
   return null;
 }
 
+/** Биом Неизведанных земель: запад — пустыня, север — снега, восток — вулкан, юг — подводная бухта между ними. */
+function frontierZone(x: number, y: number, seed: number): Zone {
+  const n = (fbm(x, y, seed + 29) - 0.5) * 0.4;
+  const l = (CORE.x0 - x) / 52 + n, r = (x - CORE.x1) / 52 - n, t = (CORE.y0 - y) / 36, b = (y - CORE.y1) / 36;
+  const m = Math.max(l, r, t, b);
+  if (m === b) return Math.abs(x - 170 + n * 30) < 62 ? Zone.Underwater : x < 170 ? Zone.Desert : Zone.Volcano;
+  if (m === l) return Zone.Desert;
+  if (m === t) return Zone.Snow;
+  return Zone.Volcano;
+}
+
 export function zoneAt(x: number, y: number, seed: number): Zone {
   if (inDungeon(x, y)) return Zone.Dungeon;
   if (inTownRect(Math.floor(x) - TOWN.x, Math.floor(y) - TOWN.y)) return Zone.Town;
   const e = (fbm(x, y, seed + 17) - 0.5) * 16;
-  if (x < CORE.x0 + e || x > CORE.x1 - e || y < CORE.y0 + e || y > CORE.y1 - e) return Zone.Frontier;
+  if (x < CORE.x0 + e || x > CORE.x1 - e || y < CORE.y0 + e || y > CORE.y1 - e) return frontierZone(x, y, seed);
   const w = (fbm(x, y, seed + 5) - 0.5) * 30 * S;
   if (x + w > sx(98) && y + w * 0.5 > sy(44) && y + w * 0.5 < sy(97)) return Zone.Ashlands;
   if (x > sx(54) + w * 0.5 && y + w < sy(44)) return Zone.Forest;
@@ -250,7 +312,7 @@ function terrainAt(x: number, y: number, seed: number): T {
   const z = zoneAt(x, y, seed);
   const edge = Math.min(x, y, MAP_W - x, MAP_H - y) + (n - 0.5) * 8;
   if (z !== Zone.Dungeon && edge < 2.6) return T.Water;
-  if (z !== Zone.Dungeon && edge < 4.6) return T.Sand;
+  if (z !== Zone.Dungeon && edge < 4.6) return z === Zone.Snow ? T.Ice : z === Zone.Volcano ? T.Obsidian : z === Zone.Underwater ? T.Seabed : T.Sand;
   if (z === Zone.Dungeon) {
     for (const [lx, ly, r] of LAVA_POOLS) {
       const ddx = x - lx, ddy = y - ly;
@@ -303,6 +365,33 @@ function terrainAt(x: number, y: number, seed: number): T {
       if (road > 3 && fbm(x, y, seed + 80) < 0.17) return T.Lava;
       return T.Ash;
     }
+    case Zone.Desert: {
+      if (road < roadW) return T.Dirt;
+      if (siteDist(x, y) < 1.1) return T.Dune;
+      const pd = Math.hypot(x - OASIS_POND.x, y - OASIS_POND.y);
+      if (pd < 2.4 + (n - 0.5) * 2) return T.Water;
+      if (pd < 4.2) return T.Sand;
+      const p = fbm(x, y, seed + 41);
+      if (p > 0.68) return T.Sand;
+      if (p < 0.18 && road > 3) return T.Dirt;
+      return T.Dune;
+    }
+    case Zone.Snow: {
+      if (road < roadW) return T.Dirt;
+      if (siteDist(x, y) < 1.1) return T.Snow;
+      const p = fbm(x, y, seed + 43);
+      if (road > 4 && p < 0.15) return T.Water;
+      if (p < 0.25) return T.Ice;
+      return T.Snow;
+    }
+    case Zone.Volcano: {
+      if (road < roadW) return T.Dirt;
+      if (road > 3 && fbm(x, y, seed + 82) < 0.2) return T.Lava;
+      if (fbm(x, y, seed + 83) > 0.6) return T.Obsidian;
+      return T.Ash;
+    }
+    case Zone.Underwater:
+      return fbm(x, y, seed + 47) > 0.64 ? T.Sand : T.Seabed;
   }
   return T.Grass;
 }
@@ -380,7 +469,7 @@ export function generateMap(seed: number): WorldMap {
     let f = 0;
     if (BLOCKING.has(terrainAt(cx, cy, seed))) f |= CELL_BLOCK;
     if (z === Zone.Dungeon && !inRooms(x, y)) f |= CELL_BLOCK | CELL_WALL;
-    if (z === Zone.Town || roadDist(cx, cy) < 2.2 || bossNear(cx, cy, 1) || townDist(cx, cy) < 3) f |= CELL_RESERVED;
+    if (z === Zone.Town || roadDist(cx, cy) < 2.2 || siteDist(cx, cy) < 1.15 || bossNear(cx, cy, 1) || townDist(cx, cy) < 3) f |= CELL_RESERVED;
     cell[i] = f;
   }
 
@@ -398,6 +487,15 @@ export function generateMap(seed: number): WorldMap {
   };
 
   buildTown(seed, w, cell, vtx, objects, place);
+  const nodes: MapNode[] = [];
+  const vents: { x: number; y: number }[] = [];
+  const placeNode = (kind: string, x: number, y: number) => {
+    const res = resourceOfNode(kind);
+    if (!res) return;
+    nodes.push({ id: objects.length, kind, res: res.id, x: (x + 0.5) * TILE, y: (y + 1) * TILE - 2 });
+    place(kind, x, y);
+  };
+  const deco = (kind: string, x: number, y: number, jit: number, dy = 30) => objects.push({ kind, x: x * TILE + 16 + jit, y: y * TILE + dy });
 
   // Природа по зонам.
   const r = rng(seed + 99);
@@ -443,6 +541,39 @@ export function generateMap(seed: number): WorldMap {
       else if (roll < 0.075) objects.push({ kind: "bones", x: x * TILE + 16 + jit, y: y * TILE + 28 });
       else if (roll < 0.1) objects.push({ kind: "ember_vent", x: x * TILE + 16 + jit, y: y * TILE + 28 });
       else if (roll < 0.12) objects.push({ kind: "crystal", x: x * TILE + 16 + jit, y: y * TILE + 30 });
+    } else if (z === Zone.Desert) {
+      const pd = Math.hypot(x - OASIS_POND.x, y - OASIS_POND.y);
+      if (pd < 9 && pd > 3.5 && roll < 0.2) place("palm", x, y, jit);
+      else if (roll < 0.03) place("cactus", x, y, jit);
+      else if (roll < 0.06) deco("cactus_small", x, y, jit);
+      else if (roll < 0.075) place("sandstone", x, y);
+      else if (roll < 0.1) deco("dry_bush", x, y, jit);
+      else if (roll < 0.11) deco("bones", x, y, jit, 28);
+      else if (roll < 0.1125) placeNode("node_cactus", x, y);
+    } else if (z === Zone.Snow) {
+      if (roll < 0.07 && t === T.Snow) place("snow_pine", x, y, jit);
+      else if (roll < 0.09) place("snow_rock", x, y);
+      else if (roll < 0.105) place("ice_spike", x, y);
+      else if (roll < 0.14) deco("snow_bush", x, y, jit);
+      else if (roll < 0.147) deco("bones", x, y, jit, 28);
+      else if (roll < 0.1495) placeNode("node_ice", x, y);
+    } else if (z === Zone.Volcano) {
+      if (roll < 0.03) place("obsidian_spire", x, y, jit);
+      else if (roll < 0.055) place("basalt", x, y);
+      else if (roll < 0.075) deco("ember_vent", x, y, jit, 28);
+      else if (roll < 0.088) place("dead_tree", x, y, jit);
+      else if (roll < 0.1) deco("crystal", x, y, jit);
+      else if (roll < 0.108) deco("bones", x, y, jit, 28);
+      else if (roll < 0.1105) placeNode("node_obsidian", x, y);
+    } else if (z === Zone.Underwater) {
+      if (x % 24 === 10 && y % 16 === 8) {
+        deco("air_vent", x, y, 0, 28);
+        vents.push({ x: x * TILE + 16, y: y * TILE + 16 });
+      } else if (roll < 0.05) place("coral_a", x, y, jit);
+      else if (roll < 0.09) place("coral_b", x, y, jit);
+      else if (roll < 0.16) deco("kelp", x, y, jit);
+      else if (roll < 0.2) deco("shell", x, y, jit, 28);
+      else if (roll < 0.2035) placeNode("node_pearl", x, y);
     } else if (z === Zone.Dungeon) {
       if (roll < 0.012) objects.push({ kind: "bones", x: x * TILE + 16 + jit, y: y * TILE + 28 });
       else if (roll < 0.018 && !bossNear(x, y, 2)) place("crate", x, y);
@@ -459,7 +590,7 @@ export function generateMap(seed: number): WorldMap {
 
   // Точки появления мобов.
   const spawns: SpawnPoint[] = [];
-  const quota: Record<number, number> = { [Zone.Meadow]: 76, [Zone.Forest]: 64, [Zone.Swamp]: 62, [Zone.Ashlands]: 30, [Zone.Dungeon]: 30 };
+  const quota: Record<number, number> = { [Zone.Meadow]: 76, [Zone.Forest]: 64, [Zone.Swamp]: 62, [Zone.Ashlands]: 30, [Zone.Dungeon]: 30, [Zone.Desert]: 40, [Zone.Snow]: 40, [Zone.Volcano]: 34, [Zone.Underwater]: 34 };
   const rs = rng(seed + 555);
   const taken: { x: number; y: number }[] = [];
   let guard = 0;
@@ -472,14 +603,19 @@ export function generateMap(seed: number): WorldMap {
     if (bossNear(x, y, 4)) continue;
     // вокруг стен — полоса без мобов (стражи и так их не пустят)
     const dt = townDist(x + 0.5, y + 0.5);
-    if (dt < 11) continue;
+    if (dt < 11 || siteDist(x + 0.5, y + 0.5) < 1.6) continue;
     if (taken.some((p) => (p.x - x) ** 2 + (p.y - y) ** 2 < 16)) continue;
     const info = ZONES[z];
     const [lo, hi] = info.levels;
     let k: number;
     if (z === Zone.Meadow) k = Math.min(1, (dt - 11) / 58);
     else if (z === Zone.Dungeon) k = (x - DUNGEON.x0) / (156 - 120);
+    else if (z === Zone.Desert) k = (CORE.x0 - x) / CORE.x0;
+    else if (z === Zone.Snow) k = (CORE.y0 - y) / CORE.y0;
+    else if (z === Zone.Volcano) k = (x - CORE.x1) / (MAP_W - CORE.x1);
+    else if (z === Zone.Underwater) k = (y - CORE.y1) / (MAP_H - CORE.y1);
     else k = Math.min(1, Math.max(0, (x - sx(54)) / (110 * S)));
+    k = Math.min(1, Math.max(0, k));
     const level = Math.max(lo, Math.min(hi, Math.round(lo + (hi - lo) * k + (rs() - 0.5) * 2)));
     const mobs = info.mobs;
     // первый моб в списке зоны слабее и чаще ближе к началу
@@ -499,6 +635,8 @@ export function generateMap(seed: number): WorldMap {
     objects,
     spawns,
     bosses: BOSS_SPAWNS,
+    nodes,
+    vents,
     playerSpawn: { x: TOWN.x * TILE + 16, y: (TOWN.y + 3) * TILE + 16 },
     // торговка Марфа — за прилавком на рынке (прилавок STALLS[2])
     merchant: { x: (TOWN.x + 5) * TILE, y: (TOWN.y - 5) * TILE + 8 },
@@ -515,6 +653,30 @@ export function zoneAtPx(m: WorldMap, px: number, py: number): Zone {
   const x = Math.floor(px / TILE), y = Math.floor(py / TILE);
   if (x < 0 || y < 0 || x >= m.w || y >= m.h) return Zone.Meadow;
   return m.zone[y * m.w + x] as Zone;
+}
+/** Множитель скорости от поверхности: в снегах вне дорог медленнее. */
+export function terrainSpeedMul(m: WorldMap, px: number, py: number): number {
+  const x = Math.floor(px / TILE), y = Math.floor(py / TILE);
+  if (x < 0 || y < 0 || x >= m.w || y >= m.h) return 1;
+  const i = y * m.w + x;
+  return m.zone[i] === Zone.Snow && !(m.cell[i] & CELL_RESERVED) ? ENV.snowSpeed : 1;
+}
+/** Рядом ли лава (клетка и соседи): обжигает. */
+export function nearLava(m: WorldMap, px: number, py: number): boolean {
+  const x = Math.floor(px / TILE), y = Math.floor(py / TILE);
+  if (x < 1 || y < 1 || x >= m.w - 1 || y >= m.h - 1) return false;
+  for (let j = -1; j <= 2; j++) for (let i = -1; i <= 2; i++) if (m.vtx[(y + j) * (m.w + 1) + x + i] === T.Lava) return true;
+  return false;
+}
+/** Можно ли дышать: вне бухты всегда; под водой — у воздушных пузырей и у мелководья (края бухты). */
+export function breathable(m: WorldMap, px: number, py: number): boolean {
+  if (zoneAtPx(m, px, py) !== Zone.Underwater) return true;
+  for (const v of m.vents) if ((v.x - px) ** 2 + (v.y - py) ** 2 < (3.5 * TILE) ** 2) return true;
+  for (const [dx, dy] of [[7, 0], [-7, 0], [0, -7], [0, 7]]) {
+    const sx = Math.floor(px / TILE) + dx, sy = Math.floor(py / TILE) + dy;
+    if (sx >= 0 && sy >= 0 && sx < m.w && sy < m.h && m.zone[sy * m.w + sx] !== Zone.Underwater) return true;
+  }
+  return false;
 }
 export function walkable(m: WorldMap, px: number, py: number, r: number): boolean {
   return !(
