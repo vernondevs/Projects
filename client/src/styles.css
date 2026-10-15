@@ -115,7 +115,7 @@ button { font: inherit; color: inherit; }
 .hud-chat input { font-size: var(--fs-chat); pointer-events: auto; background: rgba(14, 11, 16, 0.85); border: 1px solid var(--line); color: var(--fg); padding: 6px 8px; border-radius: 4px; font: inherit; opacity: 0.55; }
 .hud-chat input:focus { opacity: 1; }
 
-.toasts { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
+.toasts { position: absolute; top: 142px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
 .toast { background: var(--panel); border: 1px solid var(--line-hi); padding: 6px 14px; border-radius: 4px; animation: toast 3.2s forwards; text-shadow: 0 1px 0 #000; }
 .toast.error { color: var(--bad); }
 .toast.loot { color: var(--gold); }
@@ -496,3 +496,9 @@ img.coin { height: 1em; width: 1em; vertical-align: middle; margin-left: 0.2em; 
 .shop-card .si-btns .btn { flex-direction: column; gap: 1px; padding: 3px 4px; line-height: 1.15; }
 .shop-card .si-btns .btn .q { color: var(--dim); font-size: 14px; }
 .si-text b, .si-text span { overflow-wrap: anywhere; }
+/* системные окна: переподключение, ошибка, вход с другого устройства — поверх всего, даже без HUD */
+.sys-back { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; background: rgba(8, 4, 10, 0.72); padding: 16px; box-sizing: border-box; }
+.sys-back[hidden] { display: none; }
+.sys-back.reconnect { background: rgba(8, 4, 10, 0.5); }
+.sys-panel h2 { font-size: 24px; }
+.sys-text { margin: 0 0 6px; text-align: center; line-height: 1.45; }
