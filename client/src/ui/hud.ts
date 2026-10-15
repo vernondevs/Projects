@@ -1,4 +1,5 @@
 /** Интерфейс поверх игры (DOM): панели, окна, чат, мини-карта, подсказки. */
+import { initWindowDrag, resetWindowPositions } from "./drag";
 import { CLASSES, STAT_HINTS, STAT_NAMES, type StatKey } from "../../../shared/classes";
 import * as sfx from "../game/sfx";
 import { MAX_LEVEL, RESPAWN_DELAY_MS, TILE } from "../../../shared/constants";
@@ -104,6 +105,7 @@ export class Hud {
 
   constructor(readonly root: HTMLElement) {
     root.append(this.player, this.petBox, this.targetBox, this.zoneBanner, this.mini, this.bar, this.chatBox, this.toasts, this.death, this.tip);
+    initWindowDrag(root, () => this.ctx?.net.self?.name ?? "");
     this.targetBox.hidden = true;
     this.petBox.hidden = true;
     this.death.hidden = true;
@@ -273,8 +275,10 @@ export class Hud {
       <div class="set-row"><label for="set-vol">Громкость звуков</label><input id="set-vol" type="range" min="0" max="100" step="5"><output id="set-vol-v"></output></div>
       <div class="set-row"><label for="set-music">Громкость музыки</label><input id="set-music" type="range" min="0" max="100" step="5"><output id="set-music-v"></output></div>
       <div class="set-row"><label for="set-mute">Без звука</label><input id="set-mute" type="checkbox"></div>
+      <div class="set-row"><button class="btn" id="set-resetwin">Сбросить расположение окон</button></div>
       <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Горячие клавиши</h3>
       <dl class="keys">${keys.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>`;
+    body.querySelector<HTMLButtonElement>("#set-resetwin")!.onclick = () => resetWindowPositions();
     const sc = body.querySelector<HTMLInputElement>("#set-scale")!, ch = body.querySelector<HTMLInputElement>("#set-chat")!;
     sc.value = String(this.uiScale);
     ch.value = String(this.chatSize);

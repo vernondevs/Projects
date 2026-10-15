@@ -108,7 +108,7 @@ button { font: inherit; color: inherit; }
 .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 3px; }
 
 .hud-chat { position: absolute; left: 12px; bottom: 12px; width: min(400px, calc(100vw - 24px)); display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
-.hud-chat .log { max-height: 190px; overflow-y: auto; font-size: var(--fs-chat); line-height: 1.35; text-shadow: 0 1px 1px #000, 0 0 3px #000; background: rgba(10,8,12,0.5); border-radius: 4px; padding: 4px 6px; pointer-events: auto; scrollbar-width: thin; }
+.hud-chat .log { max-height: 190px; overflow-y: auto; font-size: var(--fs-chat); line-height: 1.35; text-shadow: 0 1px 1px #000, 0 0 3px #000; background: rgba(10,8,12,0.5); border-radius: 4px; padding: 4px 6px; pointer-events: auto; }
 .hud-chat .log .sys { color: #d8c890; }
 .hud-chat .log .loot { color: var(--gold); }
 .hud-chat .log b { font-weight: 600; }
@@ -131,7 +131,7 @@ button { font: inherit; color: inherit; }
 /* ---------- окна ---------- */
 .win { position: absolute; padding: var(--pad-win); display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 140px); overflow: auto; }
 .win[hidden] { display: none; }
-.win h2 { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: var(--fs-h); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--line); color: var(--gold); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.win h2 { cursor: grab; touch-action: none; user-select: none; margin: 0; font-family: var(--font-head); font-weight: 600; font-size: var(--fs-h); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--line); color: var(--gold); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .win .x { background: #2a2130; border: 1px solid var(--line-hi); border-radius: 4px; color: var(--fg); font-size: 18px; line-height: 1; cursor: pointer; width: 28px; height: 28px; padding: 0; flex: none; }
 .win .x:hover { background: var(--bad); border-color: var(--bad); color: #fff; }
 .win-char { left: 12px; top: 150px; width: 300px; }
@@ -172,7 +172,7 @@ button { font: inherit; color: inherit; }
 .shoprow img { width: 40px; height: 40px; image-rendering: pixelated; }
 .shoprow div { flex: 1; min-width: 0; }
 
-.tip { position: fixed; z-index: 10; max-width: 280px; padding: 8px 10px; pointer-events: none; font-size: 14px; line-height: 1.4; }
+.tip { position: fixed; z-index: 100000; max-width: 280px; padding: 8px 10px; pointer-events: none; font-size: 14px; line-height: 1.4; }
 .tip[hidden] { display: none; }
 .tip .t { font-size: 15px; }
 .tip .r0 { color: var(--common); } .tip .r1 { color: var(--rare); } .tip .r2 { color: var(--epic); } .tip .r3 { color: var(--legend); }
@@ -389,3 +389,17 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .quest-row { display: flex; flex-direction: column; gap: 3px; padding: 6px; border: 1px solid #3a2e24; border-radius: 4px; }
 .quest-row .qt { color: var(--gold); }
 .quest-row .btn { align-self: flex-end; }
+
+/* ---------- полосы прокрутки: тёмное дерево и латунь ---------- */
+@supports not selector(::-webkit-scrollbar) { * { scrollbar-width: thin; scrollbar-color: #9a7a3a #120d12; } }
+.win, .shop-list, .bst-list, .table-wrap, .adm-scroll, .cook-list, .enc-list, .quest-list, .tp-list, .smith-pick, .hud-chat .log, .login, .grid, .bag { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: #120d12; border-left: 1px solid #000; box-shadow: inset 2px 0 4px rgba(0,0,0,.8); border-radius: 6px; }
+::-webkit-scrollbar-corner { background: #120d12; }
+::-webkit-scrollbar-thumb {
+  border: 1px solid #3a2810; border-radius: 6px; min-height: 36px; min-width: 36px;
+  background:
+    repeating-linear-gradient(#0000 0 calc(50% - 5px), rgba(40,25,5,.75) calc(50% - 5px) calc(50% - 4px), #0000 calc(50% - 4px) calc(50% - 1px), rgba(40,25,5,.75) calc(50% - 1px) calc(50% + 0px), #0000 calc(50% + 0px) calc(50% + 3px), rgba(40,25,5,.75) calc(50% + 3px) calc(50% + 4px), #0000 calc(50% + 4px)) no-repeat center / 100% 100%,
+    linear-gradient(90deg, #7a5a24, #d9a840 45%, #b88a30 60%, #6e4f1e);
+}
+::-webkit-scrollbar-thumb:hover { filter: brightness(1.2); }

@@ -46,6 +46,7 @@ async function main() {
   const browser = await puppeteer.launch({
     executablePath: chromePath(),
     headless: true,
+    ignoreDefaultArgs: ["--hide-scrollbars"],
     args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--window-size=1280,800", "--no-sandbox"],
     defaultViewport: { width: 1280, height: 800 },
   });
@@ -165,6 +166,20 @@ async function main() {
         await page.screenshot({ path: path.join(OUT, `shot-win-${name}.png`) });
         await page.keyboard.press("Escape");
       }
+      // drag inventory by header
+      await page.keyboard.press("i");
+      await sleep(400);
+      const hb = await page.evaluate(() => { const r = document.querySelector(".win-inv h2")!.getBoundingClientRect(); return { x: r.left + 40, y: r.top + 10 }; });
+      await page.mouse.move(hb.x, hb.y); await page.mouse.down(); await page.mouse.move(hb.x - 300, hb.y + 120, { steps: 8 }); await page.mouse.up();
+      await sleep(200);
+      await page.screenshot({ path: path.join(OUT, "shot-win-inv-dragged.png") });
+      console.log("inv rect", JSON.stringify(await page.evaluate(() => { const w = document.querySelector<HTMLElement>(".win-inv")!; return [w.style.left, w.style.top, localStorage.getItem("winpos:Скриншот")]; })));
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("b");
+      await sleep(400);
+      await page.evaluate(() => { const l = document.querySelector(".bst-list"); if (l) l.scrollTop = 9999; });
+      await page.screenshot({ path: path.join(OUT, "shot-win-bestiary-scrolled.png") });
+      await page.keyboard.press("Escape");
       await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".mbtn")].find((b) => b.textContent?.includes("Настройки"))!.click());
       await sleep(300);
       await page.evaluate(() => { const r = document.getElementById("set-scale") as HTMLInputElement; r.value = "120"; r.dispatchEvent(new Event("input")); });
