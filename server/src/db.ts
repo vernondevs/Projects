@@ -45,6 +45,17 @@ export interface PlayerSave {
   cities?: string[];
   /** Задания городов. */
   quests?: QuestSave;
+  /** Внешность: индекс оттенка (shared/accounts LOOKS), выбирается при создании героя. */
+  look?: number;
+}
+
+export interface CharRow {
+  name: string;
+  cls: ClassId;
+  level: number;
+  data: string;
+  banned_until: number;
+  ban_reason: string;
 }
 
 export class GameDB {
@@ -94,6 +105,116 @@ export class GameDB {
     if (!cols.includes("admin")) this.db.exec("ALTER TABLE players ADD COLUMN admin INTEGER NOT NULL DEFAULT 0");
     if (!cols.includes("banned_until")) this.db.exec("ALTER TABLE players ADD COLUMN banned_until INTEGER NOT NULL DEFAULT 0");
     if (!cols.includes("ban_reason")) this.db.exec("ALTER TABLE players ADD COLUMN ban_reason TEXT NOT NULL DEFAULT ''");
+    // задача 30: аккаунты (до 6 героев), у героя — account_id
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        login_key TEXT NOT NULL UNIQUE,
+        login     TEXT NOT NULL,
+        salt      TEXT NOT NULL,
+        hash      TEXT NOT NULL,
+        created   INTEGER NOT NULL
+      );
+    `);
+    const acols = (this.db.prepare("PRAGMA table_info(accounts)").all() as { name: string }[]).map((c) => c.name);
+    if (!acols.includes("bank")) this.db.exec("ALTER TABLE accounts ADD COLUMN bank TEXT NOT NULL DEFAULT ''");
+    if (!cols.includes("account_id")) this.db.exec("ALTER TABLE players ADD COLUMN account_id INTEGER NOT NULL DEFAULT 0");
+    this.db.exec("CREATE INDEX IF NOT EXISTS players_account ON players(account_id)");
+    this.migrateAccounts(file);
+  }
+
+  /** Каждый герой без аккаунта становится аккаунтом: логин = имя героя, тот же пароль. Перед переносом — копия базы. */
+  private migrateAccounts(file: string) {
+    const rows = this.db.prepare("SELECT name_key, name, salt, hash, created FROM players WHERE account_id = 0 AND hash != ''").all() as { name_key: string; name: string; salt: string; hash: string; created: number }[];
+    if (!rows.length) return;
+    if (file !== ":memory:") {
+      const d = new Date(), z = (n: number) => String(n).padStart(2, "0");
+      const stamp = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}${z(d.getSeconds())}`;
+      const bak = path.join(path.dirname(file), `${path.basename(file, ".sqlite")}.backup-${stamp}.sqlite`);
+      this.db.exec(`VACUUM INTO '${bak.replace(/'/g, "''")}'`);
+      console.log(`[db] копия базы перед переносом в аккаунты: ${bak}`);
+    }
+    const ins = this.db.prepare("INSERT INTO accounts (login_key, login, salt, hash, created) VALUES (?, ?, ?, ?, ?)");
+    const upd = this.db.prepare("UPDATE players SET account_id = ? WHERE name_key = ?");
+    const taken = this.db.prepare("SELECT 1 AS x FROM accounts WHERE login_key = ?");
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const r of rows) {
+        let key = r.name_key, login = r.name;
+        for (let i = 2; taken.get(key); i++) (key = `${r.name_key}${i}`), (login = `${r.name}${i}`);
+        const id = Number(ins.run(key, login, r.salt, r.hash, r.created).lastInsertRowid);
+        upd.run(id, r.name_key);
+      }
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    console.log(`[db] героев перенесено в аккаунты: ${rows.length}`);
+  }
+
+  // ---------- аккаунты ----------
+  /** Проверка пароля аккаунта. null — аккаунта нет. */
+  accountLogin(login: string, password: string): { ok: true; id: number; login: string } | { ok: false } | null {
+    const row = this.db.prepare("SELECT id, login, salt, hash FROM accounts WHERE login_key = ?").get(GameDB.key(login)) as { id: number; login: string; salt: string; hash: string } | undefined;
+    if (!row) return null;
+    const a = Buffer.from(this.hash(password, row.salt), "hex");
+    const b = Buffer.from(row.hash, "hex");
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false };
+    return { ok: true, id: row.id, login: row.login };
+  }
+  accountExists(login: string): boolean {
+    return !!this.db.prepare("SELECT 1 AS x FROM accounts WHERE login_key = ?").get(GameDB.key(login));
+  }
+  accountCreate(login: string, password: string): number {
+    const salt = randomBytes(16).toString("hex");
+    return Number(this.db.prepare("INSERT INTO accounts (login_key, login, salt, hash, created) VALUES (?, ?, ?, ?, ?)").run(GameDB.key(login), login.trim(), salt, this.hash(password, salt), Date.now()).lastInsertRowid);
+  }
+  /** Герои аккаунта в порядке создания. */
+  charsOf(accountId: number): CharRow[] {
+    return this.db.prepare("SELECT name, cls, level, data, banned_until, ban_reason FROM players WHERE account_id = ? ORDER BY created, rowid").all(accountId) as unknown as CharRow[];
+  }
+  /** Владелец героя (id аккаунта) или null, если героя нет. */
+  ownerOf(name: string): number | null {
+    const r = this.db.prepare("SELECT account_id FROM players WHERE name_key = ?").get(GameDB.key(name)) as { account_id: number } | undefined;
+    return r ? r.account_id : null;
+  }
+  createChar(accountId: number, name: string, save: PlayerSave) {
+    const now = Date.now();
+    this.db
+      .prepare("INSERT INTO players (name_key, name, salt, hash, cls, level, data, created, updated, account_id) VALUES (?, ?, '', '', ?, ?, ?, ?, ?, ?)")
+      .run(GameDB.key(name), name.trim(), save.cls, save.level, JSON.stringify(save), now, now, accountId);
+  }
+  /** Удаление героя вместе с его записями арены. */
+  deleteChar(accountId: number, name: string): boolean {
+    const key = GameDB.key(name);
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const n = Number(this.db.prepare("DELETE FROM players WHERE name_key = ? AND account_id = ?").run(key, accountId).changes);
+      if (n) for (const t of ["arena_ratings", "arena_rewards"]) {
+        try { this.db.prepare(`DELETE FROM ${t} WHERE name_key = ?`).run(key); } catch {}
+      }
+      this.db.exec("COMMIT");
+      return n > 0;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+  }
+  /** Общий склад аккаунта (ячейки) или null, если его ещё нет. */
+  accountBank(accountId: number): (Item | null)[] | null {
+    const r = this.db.prepare("SELECT bank FROM accounts WHERE id = ?").get(accountId) as { bank: string } | undefined;
+    if (!r?.bank) return null;
+    try {
+      const v = JSON.parse(r.bank);
+      return Array.isArray(v) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+  /** Запись общего склада (вызывать в одной транзакции с сохранением героя). */
+  saveAccountBank(accountId: number, cells: (Item | null)[]) {
+    this.db.prepare("UPDATE accounts SET bank = ? WHERE id = ?").run(JSON.stringify(cells), accountId);
   }
 
   isAdmin(name: string): boolean {
@@ -141,18 +262,6 @@ export class GameDB {
     return row || null;
   }
 
-  /** Проверка пароля. null — аккаунта нет. */
-  login(name: string, password: string): { ok: true; name: string; save: PlayerSave } | { ok: false } | null {
-    const row = this.db.prepare("SELECT name, salt, hash, data FROM players WHERE name_key = ?").get(GameDB.key(name)) as
-      | { name: string; salt: string; hash: string; data: string }
-      | undefined;
-    if (!row) return null;
-    const a = Buffer.from(this.hash(password, row.salt), "hex");
-    const b = Buffer.from(row.hash, "hex");
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return { ok: false };
-    return { ok: true, name: row.name, save: JSON.parse(row.data) as PlayerSave };
-  }
-
   /** Сохранение без проверки пароля (для перехода между комнатами на сервере). */
   load(name: string): PlayerSave | null {
     const row = this.db.prepare("SELECT data FROM players WHERE name_key = ?").get(GameDB.key(name)) as { data: string } | undefined;
@@ -161,14 +270,6 @@ export class GameDB {
 
   get raw(): DatabaseSync {
     return this.db;
-  }
-
-  create(name: string, password: string, save: PlayerSave) {
-    const salt = randomBytes(16).toString("hex");
-    const now = Date.now();
-    this.db
-      .prepare("INSERT INTO players (name_key, name, salt, hash, cls, level, data, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(GameDB.key(name), name, salt, this.hash(password, salt), save.cls, save.level, JSON.stringify(save), now, now);
   }
 
   save(name: string, save: PlayerSave) {

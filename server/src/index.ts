@@ -5,6 +5,8 @@ import path from "node:path";
 import { matchMaker, Server } from "@colyseus/core";
 import { WebSocketTransport } from "@colyseus/ws-transport";
 import { ROOM_NAME } from "../../shared/protocol";
+import { accountRouter } from "./accounts";
+import { newSave } from "./game/Player";
 import { ArenaStore } from "./arena/store";
 import { services } from "./arena/registry";
 import { GameDB } from "./db";
@@ -14,6 +16,17 @@ import { WorldRoom } from "./rooms/WorldRoom";
 const PORT = Number(process.env.PORT || 2567);
 
 const app = express();
+app.set("trust proxy", "loopback");
+app.use(
+  "/api",
+  accountRouter({
+    db: () => WorldRoom.db,
+    map: () => WorldRoom.instance?.world.map ?? null,
+    online: (key) => !!WorldRoom.instance?.world.findByName(key),
+    newSave: (cls) => newSave(cls, WorldRoom.instance!.world.map.playerSpawn),
+    test: process.env.TEST_MODE === "1",
+  }),
+);
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });

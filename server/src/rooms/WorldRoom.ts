@@ -1,7 +1,9 @@
 import { matchMaker, Room, ServerError, type Client } from "@colyseus/core";
 import { ARENA_MODES, MODE_NAMES, rankOf, TEAM_SIZE, type ArenaInfo, type ArenaMode, type ModeRating } from "../../../shared/arena";
-import { CLASS_IDS, STAT_NAMES, type ClassId, type StatKey } from "../../../shared/classes";
-import { NAME_RE, PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
+import { STAT_NAMES, type StatKey } from "../../../shared/classes";
+import { PATCH_MS, SAVE_INTERVAL_MS, TICK_MS } from "../../../shared/constants";
+import { LOGOUT_CODE, LOGOUT_COMBAT_MS } from "../../../shared/accounts";
+import { freshChars, sessionOf } from "../accounts";
 import { xpToNext } from "../../../shared/formulas";
 import { MOUNTS } from "../../../shared/mounts";
 import { buyPet, selectPet, togglePet } from "../game/Pet";
@@ -22,7 +24,7 @@ import { registerEncounters } from "../game/encounters";
 import { registerBiomes, sendNodes } from "../game/biomes";
 import { questProgress, registerCities } from "../game/cities";
 import { addItem, buy, buyFood, nearMerchant, equip, pickup, sell, swap, unequip, useItem } from "../game/inventory";
-import { newSave, Player } from "../game/Player";
+import { Player } from "../game/Player";
 import { gainXp } from "../game/rewards";
 import { forgetRumors, rumorFor } from "../game/rumors";
 import { World } from "../game/World";
@@ -38,6 +40,7 @@ interface AuthResult {
   save: PlayerSave;
   created: boolean;
   fromArena?: boolean;
+  accountId?: number;
 }
 
 export class WorldRoom extends Room<WorldState> {
@@ -49,11 +52,14 @@ export class WorldRoom extends Room<WorldState> {
   trade!: TradeManager;
   bank!: BankService;
   static db: GameDB;
+  /** Единственная комната мира (для HTTP API аккаунтов: карта, кто онлайн). */
+  static instance: WorldRoom | null = null;
   db() {
     return WorldRoom.db;
   }
 
   override onCreate() {
+    WorldRoom.instance = this;
     setMarketDb(WorldRoom.db);
     this.setState(new WorldState());
     this.setPatchRate(PATCH_MS);
@@ -76,29 +82,32 @@ export class WorldRoom extends Room<WorldState> {
     if (process.env.TEST_MODE === "1") this.registerDebug(on);
     this.clock.setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
     this.clock.setInterval(() => this.queue.tick(), 1000);
+    this.clock.setInterval(() => this.tickLogouts(), 200);
     this.clock.setInterval(() => this.checkSeason(), 60_000);
     this.checkSeason();
   }
 
+  /** Вход героя аккаунта: токен сессии HTTP API + имя героя (герой должен принадлежать аккаунту). */
   override async onAuth(_client: Client, options: JoinOptions): Promise<AuthResult> {
-    const name = typeof options?.name === "string" ? options.name.trim() : "";
-    const password = typeof options?.password === "string" ? options.password : "";
-    if (!NAME_RE.test(name)) throw new ServerError(400, "Имя: 3–16 букв, цифр или _");
-    if (password.length < 4 || password.length > 64) throw new ServerError(400, "Пароль: от 4 до 64 символов");
-    if (this.world.findByName(GameDB.key(name))) throw new ServerError(409, "Этот персонаж уже в игре");
-    if (inArena.has(GameDB.key(name))) throw new ServerError(409, "Этот персонаж сейчас на арене");
+    const sess = sessionOf(options?.token);
+    if (!sess) throw new ServerError(401, "Сессия истекла, войдите снова");
     const db = WorldRoom.db;
-    const res = db.login(name, password);
-    if (res && !res.ok) throw new ServerError(403, "Неверный пароль");
-    if (res && res.ok) {
-      const ban = db.banOf(res.name);
-      if (ban) throw new ServerError(403, `Аккаунт заблокирован ${ban.until > 4e12 ? "навсегда" : "до " + new Date(ban.until).toLocaleString("ru-RU")}${ban.reason ? ": " + ban.reason : ""}`);
-      return { name: res.name, save: res.save, created: false };
+    const want = typeof options?.character === "string" ? options.character.trim() : "";
+    if (!want || db.ownerOf(want) !== sess.accountId) throw new ServerError(403, "Этот герой не принадлежит аккаунту");
+    const name = db.find(want)!.name;
+    const key = GameDB.key(name);
+    if (this.world.findByName(key)) throw new ServerError(409, "Этот герой уже в игре");
+    if (inArena.has(key)) throw new ServerError(409, "Этот герой сейчас на арене");
+    // на аккаунте одновременно играет один герой
+    for (const c of db.charsOf(sess.accountId)) {
+      const k = GameDB.key(c.name);
+      if (this.world.findByName(k) || inArena.has(k)) throw new ServerError(409, `На аккаунте уже в игре другой герой: ${c.name}`);
     }
-    const cls: ClassId = CLASS_IDS.includes(options.cls as ClassId) ? (options.cls as ClassId) : "warrior";
-    const save = newSave(cls, this.world.map.playerSpawn);
-    db.create(name, password, save);
-    return { name, save, created: true };
+    const ban = db.banOf(name);
+    if (ban) throw new ServerError(403, `Герой заблокирован ${ban.until > 4e12 ? "навсегда" : "до " + new Date(ban.until).toLocaleString("ru-RU")}${ban.reason ? ": " + ban.reason : ""}`);
+    const save = db.load(name);
+    if (!save) throw new ServerError(404, "Герой не найден");
+    return { name, save, created: freshChars.delete(key), accountId: sess.accountId };
   }
 
   override onJoin(client: Client, _options: JoinOptions, auth: AuthResult) {
@@ -111,6 +120,7 @@ export class WorldRoom extends Room<WorldState> {
     s.mapVer = MAP_VERSION;
     const p = new Player(client.sessionId, auth.name, auth.save, (type, msg) => client.send(type, msg));
     p.admin = WorldRoom.db.isAdmin(p.name);
+    p.accountId = auth.accountId ?? WorldRoom.db.ownerOf(p.name) ?? 0;
     this.world.addPlayer(p, auth.fromArena ? `${p.name} возвращается с арены.` : undefined);
     client.send("welcome", { id: client.sessionId, seed: this.world.map.seed, created: auth.created });
     sendNodes(this.world, p);
@@ -126,7 +136,9 @@ export class WorldRoom extends Room<WorldState> {
     const p = this.world.players.get(client.sessionId);
     if (p) {
       forgetRumors(p.id);
+      p.logout = null;
       this.trade.leave(p);
+      this.world.breakMount(p);
       WorldRoom.db.save(p.name, p.toSave(this.world.map.playerSpawn));
       const key = p.name.toLowerCase();
       if (!p.goingToArena) {
@@ -139,6 +151,45 @@ export class WorldRoom extends Room<WorldState> {
 
   override onDispose() {
     this.saveAll();
+    if (WorldRoom.instance === this) WorldRoom.instance = null;
+  }
+
+  // ---------- выход из игры (задача 29) ----------
+  /** Вне боя — сразу; в бою — отсчёт LOGOUT_COMBAT_MS, полученный урон его прерывает. */
+  private requestLogout(p: Player) {
+    if (p.logout) return;
+    if (p.goingToArena) return p.send("logout:cancel", { reason: "Идёт переход на арену" });
+    const t = this.world.time;
+    if (p.inCombat(t)) {
+      p.logout = { start: t, end: t + LOGOUT_COMBAT_MS };
+      p.input = { mx: 0, my: 0 };
+      p.moveTo = null;
+      p.send("logout:wait", { ms: LOGOUT_COMBAT_MS });
+      return;
+    }
+    this.finishLogout(p);
+  }
+  private cancelLogout(p: Player, reason: string) {
+    if (!p.logout) return;
+    p.logout = null;
+    p.send("logout:cancel", { reason });
+    if (reason) p.send("toast", { text: reason, kind: "error" });
+  }
+  private tickLogouts() {
+    const t = this.world.time;
+    for (const p of this.world.players.values()) {
+      if (!p.logout) continue;
+      if (p.hurtAt > p.logout.start) this.cancelLogout(p, "Выход прерван: вы получили урон");
+      else if (t >= p.logout.end) this.finishLogout(p);
+    }
+  }
+  /** Завершение: сохранение, отмена обмена, выход из очереди и группы, питомец и маунт убираются в onLeave. */
+  private finishLogout(p: Player) {
+    p.logout = null;
+    const client = this.clients.find((c) => c.sessionId === p.id);
+    if (!client) return;
+    p.send("logout:ok", {});
+    client.leave(LOGOUT_CODE);
   }
 
   saveAll() {
@@ -278,6 +329,8 @@ export class WorldRoom extends Room<WorldState> {
   private registerMessages(on: On) {
     const w = () => this.world;
     on("respawn", (p) => w().respawn(p));
+    on("logout:request", (p) => this.requestLogout(p));
+    on("logout:cancel", (p) => this.cancelLogout(p, ""));
     on<{ id: unknown }>("mount:select", (p, m) => {
       if (typeof m.id !== "string" || !p.save.mounts?.includes(m.id)) return;
       p.save.mount = m.id;
@@ -373,6 +426,7 @@ export class WorldRoom extends Room<WorldState> {
         case "hurt": w().applyDamage(p, Number(m.v)); break;
         case "qp": questProgress(p, m.kind === "gather" ? "gather" : "kill", String(m.target), Number(m.n || 1)); break;
         case "calm": p.combatAt = -1e9; break;
+        case "fight": p.combatAt = w().time; break;
         case "fill": for (let i = 0; i < p.save.inventory.length; i++) if (!p.save.inventory[i]) p.save.inventory[i] = makeItem("ring", 1, Rarity.Common); break;
         case "rating": services.arena.setRating(p.name.toLowerCase(), p.name, p.cls, m.mode as ArenaMode, Number(m.v)); this.sendArenaInfo(p.name.toLowerCase()); break;
         case "season:end": { const id = services.arena.closeSeasonIfDue(Date.now(), true); if (id !== null) this.onSeasonClosed(id); break; }

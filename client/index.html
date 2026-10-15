@@ -9,20 +9,24 @@
   <body>
     <div id="game"></div>
     <div id="ui"></div>
-    <div id="login" class="screen">
+    <div id="login" class="screen" hidden>
       <form id="login-form" class="panel login" autocomplete="on">
         <h1>Пепельный Предел</h1>
-        <p class="sub">2D MMORPG. Войдите существующим героем или создайте нового: персонаж создаётся при первом входе.</p>
-        <label>Имя героя <input id="login-name" name="username" minlength="3" maxlength="16" required autocomplete="username" /></label>
+        <h2 class="reg-only" id="login-title" hidden>Новый аккаунт</h2>
+        <p class="sub">2D MMORPG. На одном аккаунте — до 6 героев. Герои, созданные раньше: логин — имя героя, пароль прежний.</p>
+        <label>Логин <input id="login-name" name="username" minlength="3" maxlength="16" required autocomplete="username" /></label>
         <label>Пароль <input id="login-pass" name="password" type="password" minlength="4" maxlength="64" required autocomplete="current-password" /></label>
-        <fieldset class="classes" id="login-classes">
-          <legend>Класс нового героя</legend>
-        </fieldset>
-        <button type="submit" class="btn primary" id="login-go">Войти в мир</button>
+        <label class="reg-only" hidden>Повторите пароль <input id="login-pass2" type="password" minlength="4" maxlength="64" autocomplete="new-password" /></label>
+        <div class="login-btns">
+          <button type="submit" class="btn primary" id="login-go">Войти</button>
+          <button type="button" class="btn" id="login-new">Создать аккаунт</button>
+          <button type="button" class="btn reg-only" id="login-back" title="Esc" hidden>← Назад</button>
+        </div>
         <p class="error" id="login-error" role="alert"></p>
         <p class="hint">WASD или клик — идти · клик по врагу — атака · 1–4 умения · Q/E зелья · I, C, K — окна · Enter — чат</p>
       </form>
     </div>
+    <div id="charsel" class="screen" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

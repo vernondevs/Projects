@@ -431,3 +431,59 @@ body:has(.arena-board:not([hidden])) .hud-target { top: 92px; }
 .combat-badge[hidden] { display: none; }
 .gold-amt { color: var(--gold); white-space: nowrap; }
 img.coin { height: 1em; width: 1em; vertical-align: middle; margin-left: 0.2em; image-rendering: pixelated; }
+
+/* ---------- выбор героя ---------- */
+#ui[hidden] { display: none; }
+.login-btns { display: flex; gap: 8px; }
+.login-btns .btn { flex: 1; }
+.login-btns .btn:not(.primary) { font-size: 16px; }
+.btn.danger { background: linear-gradient(#8a2a22, #5e1a16); border-color: var(--bad); }
+.charsel { width: min(980px, 100%); max-height: calc(100vh - 24px); overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cs-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.cs-head h1 { margin: 0; font-family: var(--font-head); font-size: 32px; color: var(--gold); text-shadow: 0 3px 0 #5a2a10; }
+.cs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cs-slot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px 10px; min-height: 236px; background: linear-gradient(#2a2130, #1a1520); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; text-align: center; }
+.cs-slot:hover { border-color: var(--line-hi); }
+.cs-slot:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cs-slot[aria-pressed="true"] { border-color: var(--gold); background: linear-gradient(#4a3824, #2a1e18); box-shadow: 0 0 14px rgba(240, 192, 80, 0.3); }
+.cs-slot .cs-hero { width: 96px; height: 96px; image-rendering: pixelated; filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.45)); }
+.cs-slot .nm { font-size: 18px; font-weight: 600; color: var(--gold); }
+.cs-slot .meta { color: var(--dim); }
+.cs-slot .zone { font-size: 13px; }
+.cs-slot.empty { justify-content: center; color: var(--dim); border-style: dashed; background: rgba(14, 11, 16, 0.6); }
+.cs-slot.empty .plus { font-size: 40px; line-height: 1; color: var(--line-hi); }
+.cs-slot.empty:hover .plus { color: var(--gold); }
+.cs-eq { display: flex; gap: 3px; min-height: 26px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.cs-eq .cell { width: 26px; cursor: default; }
+.cs-banned { color: var(--bad); font-size: 13px; }
+.charsel .error { color: var(--bad); margin: 0; min-height: 1.2em; text-align: center; }
+.cs-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cs-bar .btn.primary { min-width: 180px; }
+.cs-sp { flex: 1; }
+.cs-form { display: grid; grid-template-columns: 240px 1fr; gap: 20px; }
+.cs-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.cs-stage { width: 224px; height: 224px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: radial-gradient(ellipse at 50% 80%, #3a2e2a 0%, #120e14 70%); }
+.cs-stage .cs-hero { width: 192px; height: 192px; image-rendering: pixelated; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.5)); }
+.cs-preview .nm { color: var(--gold); font-size: 18px; }
+.cs-fields { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cs-label { display: flex; flex-direction: column; gap: 4px; color: var(--dim); }
+.charsel input, .cs-del input { background: #0e0b10; border: 1px solid var(--line); color: var(--fg); padding: 9px 10px; border-radius: 4px; font: inherit; font-size: 16px; }
+.cs-del label { display: flex; flex-direction: column; gap: 4px; }
+.cs-looks { border: 0; padding: 0; margin: 0; }
+.cs-looks legend { color: var(--dim); margin-bottom: 4px; }
+.looks { display: flex; gap: 10px; flex-wrap: wrap; }
+.look { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.look:hover { border-color: var(--line-hi); }
+.look[aria-pressed="true"] { border-color: var(--gold); box-shadow: 0 0 0 2px #120e14, 0 0 0 4px var(--gold); }
+.logout-wait { font-size: 40px; text-align: center; color: var(--gold); font-variant-numeric: tabular-nums; font-family: var(--font-head); }
+.cs-create .classes { grid-template-columns: repeat(5, 1fr); }
+.cs-create .classes button { padding: 8px 2px; }
+@media (max-width: 760px) {
+  .cs-create .classes { grid-template-columns: repeat(3, 1fr); }
+  .cs-grid { grid-template-columns: repeat(2, 1fr); }
+  .cs-form { grid-template-columns: 1fr; }
+}
+@media (max-width: 460px) {
+  .cs-grid { grid-template-columns: 1fr; }
+}
+.login h2 { margin: 0; font-family: var(--font-head); font-size: 22px; color: var(--fg); }

@@ -356,7 +356,7 @@ export class World {
       if (v > 0) dst.stealthUntil = 0;
       // бой — только урон от враждебного актёра; среда (жара, холод, утопление) боем не считается
       if (src && src !== dst) { dst.combatAt = this.time; if (this.isPlayer(src)) src.combatAt = this.time; }
-      if (v > 0) this.breakMount(dst);
+      if (v > 0) { dst.hurtAt = this.time; this.breakMount(dst); }
       if (u.hp <= 0) this.killPlayer(dst, src);
     } else {
       dst.lastHitAt = this.time;

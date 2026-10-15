@@ -6,10 +6,11 @@ import type { QuestSave } from "./quests";
 
 export const ROOM_NAME = "world";
 
+/** Вход в мир: токен сессии (POST /api/login) и имя героя этого аккаунта. */
+/** Вход в мир: токен сессии (POST /api/login) и имя героя этого аккаунта. */
 export interface JoinOptions {
-  name: string;
-  password: string;
-  cls?: ClassId;
+  token: string;
+  character: string;
 }
 
 /** Состояние анимации юнита в Schema. */

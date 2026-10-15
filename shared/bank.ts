@@ -10,6 +10,9 @@ export const BANK_START_SLOTS = data.startSlots;
 export const BANK_STEP = data.step;
 export const BANK_PRICES: number[] = data.prices;
 export const BANK_GOLD_MAX = 1_000_000_000;
+/** «Общий склад» аккаунта: одна вкладка для всех героев аккаунта; в сообщениях — номер вкладки SHARED_TAB. */
+export const SHARED_TAB = BANK_TABS;
+export const SHARED_SIZE: number = data.sharedSize;
 
 /** Хранится в сохранении игрока: вкладки (длина вкладки = открытые ячейки) и золото. */
 export interface BankSave {
@@ -19,6 +22,8 @@ export interface BankSave {
 /** Что видит клиент: содержимое и цена следующего расширения (null — максимум). */
 export interface BankView extends BankSave {
   price: number | null;
+  /** Общий склад аккаунта (SHARED_SIZE ячеек). */
+  shared: (Item | null)[];
 }
 
 export const newBank = (): BankSave => ({ tabs: [new Array(BANK_START_SLOTS).fill(null)], gold: 0 });

@@ -42,7 +42,7 @@ async function main() {
     await check("в бою телепорт запрещён", async () => {
       b.send("dbg", { op: "tp", x: oasis.arrive.x, y: oasis.arrive.y });
       await sleep(200);
-      b.send("dbg", { op: "hurt", v: 5 });
+      b.send("dbg", { op: "fight" });
       await sleep(200);
       b.toasts.length = 0;
       b.send("tp:go", { id: "ember" });

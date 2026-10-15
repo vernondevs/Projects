@@ -27,6 +27,8 @@ export class Unit extends Schema {
   @type("string") frame = "";
   /** Игрок: id маунта под седоком ("" — пешком). */
   @type("string") mount = "";
+  /** Игрок: оттенок спрайта (внешность), 0 — без оттенка. */
+  @type("uint32") look = 0;
   /** Элитный моб: 1. */
   @type("uint8") elite = 0;
   /** Питомец: id хозяина. */

@@ -6,11 +6,13 @@
 - data/ — контент в JSON: bestiary, rumors, food, elites, upgrade, mounts, legendaries, bank, pets, scenes, townfolk, cities, quests.
 - shared/ — общий код: constants, map (генератор мира), town (планировка Эмберхолла), formulas, classes, skills, items, mobs, protocol, path (A*),
   arena, trade, bestiary, rumors, food, elites, upgrade, mounts, legendary, bank, cities (города, телепорт), quests.
-- server/src/index.ts — HTTP + WebSocket. db.ts — аккаунты, сохранения, trade_log, admin_log, market_demand.
+- server/src/index.ts — HTTP + WebSocket. db.ts — accounts (до 6 героев, общий склад), players (account_id), trade_log, admin_log, market_demand.
+- server/src/accounts.ts — HTTP API /api (login, chars, delete, logout), сессии-токены в памяти, лимиты; WorldRoom.onAuth({token, character}). shared/accounts.ts — типы, внешность (LOOKS).
 - server/src/rooms/ — WorldRoom (мир), ArenaRoom (инстанс арены), schema, common.
 - server/src/game/ — World, Player, Mob, skills, bosses, rewards, inventory, rumors, smith, market,
   legendary (эффекты), admin, bank, Pet (питомцы), rogue (яд, удар в спину), townfolk (стражники и горожане), cities (телепорт, задания).
 - server/src/arena/ — store, queue, party, registry, rewards, bots. server/src/trade/TradeManager.ts — обмен.
+- client/src/main.ts — вход/регистрация, account.ts — HTTP API, ui/charselect.ts — выбор и создание героя; выход (logout:request) — без перезагрузки.
 - client/src/net.ts — подключение; game/ — сцены и отрисовка (UnitView, effects, terrain — куски 32×32 у камеры);
   ui/ — hud (меню, сумка, настройки), arena, trade, bestiary, rumor, cook, smith, bank, admin.
 - tools/ — генерация пиксель-арта (gen/), db (CLI: просмотр, `admin <имя> on|off`).

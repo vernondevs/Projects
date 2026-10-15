@@ -2,7 +2,7 @@
 import { CITIES } from "../../../shared/cities";
 import { TILE } from "../../../shared/constants";
 import type { WorldMap } from "../../../shared/map";
-import type { Net } from "../net";
+import type { LogoutMode, Net } from "../net";
 
 export const HOTKEYS: [string, string][] = [["WASD / клик", "движение"], ["1–4", "умения"], ["Q / E", "зелья здоровья и маны"], ["Tab", "следующая цель"], ["Пробел", "подобрать предмет"], ["F", "поговорить с NPC"], ["X / Shift+X", "ездовое животное"], ["C / I / K", "герой / сумка / умения"], ["P / B / M", "арена / бестиарий / карта"], ["Enter", "чат"], ["Esc", "закрыть окно, снять цель, меню"]];
 
@@ -61,6 +61,8 @@ export interface MenuActions {
 
 export class GameMenu {
   private back = document.createElement("div");
+  /** Ожидание выхода (отсчёт в бою): снять подписки и таймер. */
+  private waiting: (() => void) | null = null;
 
   constructor(root: HTMLElement, private a: MenuActions) {
     this.back.className = "gmenu-back";
@@ -72,6 +74,10 @@ export class GameMenu {
   toggle() { this.isOpen ? this.close() : this.open(); }
   close(): boolean {
     const was = this.isOpen;
+    if (this.waiting) {
+      this.a.net().cancelLogout();
+      this.stopWaiting();
+    }
     this.back.hidden = true;
     this.back.replaceChildren();
     return was;
@@ -93,9 +99,8 @@ export class GameMenu {
       ["Карта", "M", () => a.openMap()],
       ["Настройки", "", () => a.toggle("settings")],
       ["Помощь", "", () => a.openHelp()],
-      // TODO(задача 30): выбор персонажа; пока совпадает с выходом из аккаунта
-      ["Сменить персонажа", "", () => this.confirmLogout()],
-      ["Выйти из аккаунта", "", () => this.confirmLogout()],
+      ["Сменить персонажа", "", a.net().kind === "arena" ? null : () => this.confirmLogout("char")],
+      ["Выйти из аккаунта", "", a.net().kind === "arena" ? null : () => this.confirmLogout("account")],
     ];
     if (a.isAdmin()) items.splice(7, 0, ["Админ-панель", "F10", () => a.toggle("admin")]);
     const p = document.createElement("div");
@@ -104,7 +109,7 @@ export class GameMenu {
     for (const [text, key, fn] of items) {
       const b = document.createElement("button");
       b.className = "btn gm-item";
-      b.innerHTML = `<span>${text}</span>${fn ? (key ? `<kbd>${key}</kbd>` : "") : `<small>скоро</small>`}`;
+      b.innerHTML = `<span>${text}</span>${fn ? (key ? `<kbd>${key}</kbd>` : "") : `<small>${text.startsWith("Сменить") || text.startsWith("Выйти") ? "не на арене" : "скоро"}</small>`}`;
       b.disabled = !fn;
       if (fn) b.onclick = () => { this.close(); fn(); };
       p.append(b);
@@ -114,22 +119,55 @@ export class GameMenu {
     p.querySelector<HTMLButtonElement>(".gm-item")?.focus();
   }
 
-  private confirmLogout() {
+  private stopWaiting() {
+    this.waiting?.();
+    this.waiting = null;
+  }
+
+  /** Подтверждение выхода; дальше решает сервер: сразу или отсчёт 10 с в бою (прерывается уроном). */
+  private confirmLogout(mode: LogoutMode) {
     const p = document.createElement("div");
     p.className = "panel gmenu";
-    p.innerHTML = `<h2>Выйти из аккаунта?</h2><p class="muted" style="margin:0;text-align:center">Вы вернётесь на экран входа.</p>`;
+    const title = mode === "char" ? "Сменить героя?" : "Выйти из аккаунта?";
+    p.innerHTML = `<h2>${title}</h2><p class="muted" style="margin:0;text-align:center">${mode === "char" ? "Вы вернётесь к выбору героя." : "Вы вернётесь на экран входа."} Прогресс сохранится.</p>`;
     const yes = document.createElement("button"), no = document.createElement("button");
-    yes.className = "btn gm-item primary"; yes.textContent = "Выйти";
+    yes.className = "btn gm-item primary"; yes.textContent = mode === "char" ? "Сменить героя" : "Выйти";
     no.className = "btn gm-item"; no.textContent = "Отмена";
     no.onclick = () => this.open();
-    yes.onclick = async () => {
+    yes.onclick = () => {
       yes.disabled = no.disabled = true;
-      try { await this.a.net().room.leave(true); } catch {}
-      location.reload();
+      const net = this.a.net();
+      const offs = [
+        net.on("logout:wait", (m) => this.countdown(m.ms, title)),
+        net.on("logout:cancel", () => { this.stopWaiting(); this.close(); }),
+        net.on("logout", () => { this.stopWaiting(); this.close(); }),
+      ];
+      this.waiting = () => offs.forEach((f) => f());
+      net.requestLogout(mode);
     };
     p.append(yes, no);
     this.back.replaceChildren(p);
     this.back.hidden = false;
     no.focus();
+  }
+
+  private countdown(ms: number, title: string) {
+    const end = performance.now() + ms;
+    const p = document.createElement("div");
+    p.className = "panel gmenu";
+    p.innerHTML = `<h2>${title}</h2><p class="muted" style="margin:0;text-align:center">Вы в бою: выход через</p><div class="logout-wait"></div><p class="muted" style="margin:0;text-align:center">Полученный урон прервёт выход.</p>`;
+    const cancel = document.createElement("button");
+    cancel.className = "btn gm-item"; cancel.textContent = "Отмена";
+    cancel.onclick = () => this.close();
+    p.append(cancel);
+    const out = p.querySelector<HTMLElement>(".logout-wait")!;
+    const tick = () => (out.textContent = `${Math.max(0, Math.ceil((end - performance.now()) / 1000))} с`);
+    tick();
+    const t = window.setInterval(tick, 200);
+    const prev = this.waiting;
+    this.waiting = () => { window.clearInterval(t); prev?.(); };
+    this.back.replaceChildren(p);
+    this.back.hidden = false;
+    cancel.focus();
   }
 }

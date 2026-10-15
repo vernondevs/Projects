@@ -246,6 +246,7 @@ export class UnitView {
     else if (b & BUFF_BURN) this.sprite.setTint(0xffb080);
     else if (b & BUFF_ENRAGE) this.sprite.setTint(0xff8a7a);
     else if (this.hovered && u.kind !== UnitKind.Player && !this.npc) this.sprite.setTint(0xffe0c0);
+    else if (u.look) this.sprite.setTint(u.look);
     else this.sprite.clearTint();
 
     const auraOn = (!!(b & (BUFF_WARCRY | BUFF_HASTE | BUFF_ENRAGE)) || !!u.elite) && !this.dead;

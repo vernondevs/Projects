@@ -27,13 +27,34 @@ function chromePath() {
   return p;
 }
 
+/** Регистрация аккаунта, создание героя на экране выбора и вход в мир. */
 async function login(page: Page, name: string, cls: string) {
   await page.waitForSelector("#login-name");
   await page.type("#login-name", name);
   await page.type("#login-pass", "secret");
-  await page.$eval(`[data-cls="${cls}"]`, (b) => (b as HTMLElement).click());
-  await page.click("#login-go");
-  await page.waitForFunction(() => document.getElementById("login")!.hidden, { timeout: 15000 });
+  await page.click("#login-new");
+  await page.type("#login-pass2", "secret");
+  await page.screenshot({ path: path.join(OUT, "shot-register.png") });
+  await page.click("#login-new");
+  await page.waitForSelector(".cs-create input[name=name]", { timeout: 10000 });
+  await page.type(".cs-create input[name=name]", name);
+  await page.$eval(`.cs-create [data-cls="${cls}"]`, (b) => (b as HTMLElement).click());
+  await page.$eval(`.cs-create [data-look="2"]`, (b) => (b as HTMLElement).click());
+  await sleep(300);
+  await page.screenshot({ path: path.join(OUT, "shot-create.png") });
+  await page.click(".cs-create [type=submit]");
+  await page.waitForSelector(".cs-list .cs-slot[data-name]", { timeout: 10000 });
+  // ещё двое героев через API, чтобы экран выбора был заполнен
+  const token = await page.evaluate(() => sessionStorage.getItem("emberfall-token"));
+  for (const [n, c, l] of [["Лучница", "ranger", 4], ["Целитель", "healer", 0]] as const)
+    await fetch(`http://localhost:${PORT}/api/chars`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ name: n, cls: c, look: l }) });
+  await page.reload({ waitUntil: "networkidle0" });
+  await page.waitForSelector(".cs-list .cs-slot[data-name]", { timeout: 10000 });
+  await page.$eval(`.cs-slot[data-name="${name}"]`, (b) => (b as HTMLElement).click());
+  await sleep(400);
+  await page.screenshot({ path: path.join(OUT, "shot-charselect.png") });
+  await page.click('.cs-list [data-a="play"]');
+  await page.waitForFunction(() => document.getElementById("charsel")!.hidden, { timeout: 15000 });
   await page.waitForFunction(() => (window as any).__game?.scene?.isActive("game"), { timeout: 20000 });
   await sleep(1500);
 }
@@ -203,6 +224,24 @@ async function main() {
       await page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".shop-tabs .btn")][1].click());
       await sleep(400);
       await page.screenshot({ path: path.join(OUT, "shot-win-shop-sell.png") });
+    } else if (scenario === "logout") {
+      // выход к выбору героя без перезагрузки страницы, затем снова в мир
+      await page.evaluate(() => ((window as any).__mark = 1));
+      const clickText = (t: string) => page.evaluate((t) => [...document.querySelectorAll<HTMLButtonElement>(".gmenu button")].find((b) => b.textContent!.includes(t))!.click(), t);
+      await page.keyboard.press("Escape");
+      await sleep(300);
+      await clickText("Сменить персонажа");
+      await sleep(200);
+      await page.screenshot({ path: path.join(OUT, "shot-logout-confirm.png") });
+      await clickText("Сменить героя");
+      await page.waitForFunction(() => !document.getElementById("charsel")!.hidden, { timeout: 5000 });
+      await sleep(400);
+      if (!(await page.evaluate(() => (window as any).__mark === 1))) throw new Error("страница перезагрузилась");
+      await page.screenshot({ path: path.join(OUT, "shot-logout.png") });
+      await page.click('.cs-list [data-a="play"]');
+      await page.waitForFunction(() => (window as any).__game?.scene?.isActive("game") && document.getElementById("charsel")!.hidden, { timeout: 15000 });
+      await sleep(1500);
+      await page.screenshot({ path: path.join(OUT, "shot-relogin.png") });
     } else if (scenario === "ui") {
       await dbg({ op: "level", v: 12 });
       await dbg({ op: "item", base: "sword", ilvl: 12, rarity: 2 });

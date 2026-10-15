@@ -1,4 +1,5 @@
 import { CLASSES, type ClassId, type StatKey } from "../../../shared/classes";
+import { lookTint } from "../../../shared/accounts";
 import { Nav } from "../../../shared/path";
 import { INVENTORY_SIZE } from "../../../shared/constants";
 import { MAP_VERSION } from "../../../shared/map";
@@ -119,6 +120,12 @@ export class Player {
   /** Призыв питомца (2 с на месте) и момент, когда можно призвать снова после гибели. */
   petCast: { until: number; x: number; y: number } | null = null;
   petCdUntil = 0;
+  /** Последний полученный урон (World.time): прерывает выход из игры в бою. */
+  hurtAt = -1e9;
+  /** Выход из игры в бою: отсчёт (World.time). */
+  logout: { start: number; end: number } | null = null;
+  /** Аккаунт героя (общий склад). */
+  accountId = 0;
 
   constructor(
     readonly id: string,
@@ -162,6 +169,7 @@ export class Player {
   applyCosmetics() {
     this.unit.title = this.save.title ?? "";
     this.unit.frame = this.save.frame ?? "";
+    this.unit.look = lookTint(this.save.look);
   }
 
   /** Выдаёт бесплатные маунты по уровню. */

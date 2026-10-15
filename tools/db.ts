@@ -40,10 +40,13 @@ const json = args.includes("--json");
 const name = args.find((a) => !a.startsWith("--"));
 const date = (ms: number) => new Date(ms).toLocaleString("ru-RU");
 
-type Row = { name: string; cls: ClassId; level: number; data: string; created: number; updated: number };
+type Row = { name: string; cls: ClassId; level: number; data: string; created: number; updated: number; login?: string };
+const hasAccounts = !!db.prepare("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = 'accounts'").get();
 
 if (!name) {
-  const rows = db.prepare("SELECT name, cls, level, data, created, updated FROM players ORDER BY level DESC, updated DESC").all() as Row[];
+  const rows = db.prepare(hasAccounts
+    ? "SELECT p.name, p.cls, p.level, p.data, p.created, p.updated, a.login FROM players p LEFT JOIN accounts a ON a.id = p.account_id ORDER BY p.level DESC, p.updated DESC"
+    : "SELECT name, cls, level, data, created, updated FROM players ORDER BY level DESC, updated DESC").all() as Row[];
   if (!rows.length) console.log("В базе пока нет героев.");
   else {
     console.table(
@@ -51,6 +54,7 @@ if (!name) {
         const s = JSON.parse(r.data) as PlayerSave;
         return {
           "Имя": r.name,
+          "Аккаунт": r.login ?? "—",
           "Класс": CLASSES[r.cls]?.name ?? r.cls,
           "Ур.": r.level,
           "Золото": s.gold,

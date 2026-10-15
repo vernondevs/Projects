@@ -48,6 +48,31 @@ export async function stopServer() {
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** HTTP API аккаунтов. Ошибка — исключение с текстом сервера и полем status. */
+export async function api(path: string, body?: unknown, token = ""): Promise<any> {
+  const res = await fetch(`http://localhost:${PORT}/api${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status });
+  return data;
+}
+
+/** Вход в аккаунт login (создаётся, если его нет) и герой name на нём (создаётся, если его нет). Возвращает токен. */
+export async function ensureChar(login: string, password: string, name = login, cls = "warrior", look = 0): Promise<string> {
+  let v: any;
+  try {
+    v = await api("/login", { login, password });
+  } catch (e) {
+    if ((e as any).status !== 404) throw e;
+    v = await api("/login", { login, password, create: true });
+  }
+  if (!v.chars.some((c: any) => c.name.toLowerCase() === name.toLowerCase())) v = await api("/chars", { name, cls, look }, v.token);
+  return v.token;
+}
+
 export class Bot {
   room!: Room<any>;
   client!: Client;
@@ -68,11 +93,19 @@ export class Bot {
   partyInvite: any = null;
   top: any = null;
   history: any = null;
+  token = "";
+  closeCode = 0;
 
+  /** Аккаунт с логином = имя героя создаётся автоматически (как у перенесённых старых героев). */
   static async join(name: string, password = "secret", cls = "warrior") {
+    return Bot.enter(await ensureChar(name, password, name, cls), name);
+  }
+  /** Вход героем character по готовому токену. */
+  static async enter(token: string, character: string) {
     const b = new Bot();
+    b.token = token;
     b.client = new Client(`ws://localhost:${PORT}`);
-    b.attach(await b.client.joinOrCreate("world", { name, password, cls }));
+    b.attach(await b.client.joinOrCreate("world", { token, character }));
     await b.until(() => !!b.self && b.room.state.players?.size > 0, 3000, "self");
     return b;
   }
@@ -97,6 +130,7 @@ export class Bot {
     on("arena:top", (m) => (this.top = m));
     on("arena:history", (m) => (this.history = m));
     room.onMessage("*", () => {});
+    room.onLeave((code) => (this.closeCode = code));
   }
 
   /** Переход в другую комнату по резервации места (арена и обратно). */

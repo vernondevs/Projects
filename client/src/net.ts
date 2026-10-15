@@ -7,6 +7,9 @@ import type { TradeView } from "../../shared/trade";
 import type { BankView } from "../../shared/bank";
 import type { ChatLine, CooldownMsg, Fx, JoinOptions, LootBag, SelfState, ToastMsg } from "../../shared/protocol";
 import { ROOM_NAME } from "../../shared/protocol";
+import { LOGOUT_CODE } from "../../shared/accounts";
+
+export type LogoutMode = "char" | "account";
 
 type Events = {
   self: SelfState;
@@ -21,6 +24,10 @@ type Events = {
   loot: LootBag[];
   cd: CooldownMsg;
   leave: number;
+  /** Сервер завершил выход (задача 29): куда вернуться. */
+  logout: LogoutMode;
+  "logout:wait": { ms: number };
+  "logout:cancel": { reason: string };
   switch: "world" | "arena";
   "arena:info": ArenaInfo;
   "arena:found": MatchFoundMsg;
@@ -78,6 +85,7 @@ export interface UnitState {
   elite: number;
   ownerId: string;
   mount: string;
+  look: number;
 }
 
 export function serverUrl(): string {
@@ -102,6 +110,8 @@ export class Net {
   cooldowns = new Map<string, number>(); // id -> performance.now() окончания
   /** Идёт переход между комнатами: обрыв старой комнаты — не ошибка. */
   switching = false;
+  /** Запрошенный выход: куда вернуться после закрытия соединения сервером. */
+  logoutMode: LogoutMode | null = null;
   private handlers: Partial<Record<keyof Events, ((v: any) => void)[]>> = {};
 
   on<K extends keyof Events>(ev: K, fn: (v: Events[K]) => void): () => void {
@@ -117,6 +127,12 @@ export class Net {
   }
 
   async connect(opts: JoinOptions): Promise<void> {
+    this.self = null;
+    this.bags = [];
+    this.arenaInfo = null;
+    this.party = null;
+    this.cooldowns.clear();
+    this.logoutMode = null;
     this.client = new Client(serverUrl());
     await this.attach(await this.client.joinOrCreate(ROOM_NAME, opts));
   }
@@ -168,8 +184,19 @@ export class Net {
       room.onMessage(t, (m: any) => this.emit(t, m));
     room.onMessage("arena:go", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
     room.onMessage("arena:return", (m: { reservation: Reservation }) => void this.switchTo(m.reservation));
+    room.onMessage("logout:wait", (m: { ms: number }) => this.emit("logout:wait", m));
+    room.onMessage("logout:cancel", (m: { reason: string }) => {
+      this.logoutMode = null;
+      this.emit("logout:cancel", m);
+    });
+    room.onMessage("logout:ok", () => {});
     room.onLeave((code) => {
-      if (this.room === room && !this.switching) this.emit("leave", code);
+      if (this.room !== room || this.switching) return;
+      if (code === LOGOUT_CODE) {
+        const mode = this.logoutMode ?? "char";
+        this.logoutMode = null;
+        this.emit("logout", mode);
+      } else this.emit("leave", code);
     });
     return welcome;
   }
@@ -194,7 +221,20 @@ export class Net {
   }
 
   send(type: string, msg: unknown = {}) {
-    this.room.send(type, msg);
+    try {
+      this.room?.send(type, msg);
+    } catch {}
+  }
+
+  /** Выход из мира: сервер ответит logout:wait (в бою, отсчёт) или закроет соединение. */
+  requestLogout(mode: LogoutMode) {
+    this.logoutMode = mode;
+    this.send("logout:request", {});
+  }
+  cancelLogout() {
+    if (!this.logoutMode) return;
+    this.logoutMode = null;
+    this.send("logout:cancel", {});
   }
 
   /** Подписка на появление и удаление юнитов в Schema. */

@@ -1,6 +1,6 @@
 /** Банк Голдмунда: вкладки, ячейки, перетаскивание сумка ⇄ банк, золото и покупка места. Всё проверяет сервер. */
 import { gold } from "./gold";
-import { BANK_STEP, BANK_TAB_SIZE, BANK_TABS, BANKER, type BankView } from "../../../shared/bank";
+import { BANK_STEP, BANK_TAB_SIZE, BANK_TABS, BANKER, SHARED_SIZE, SHARED_TAB, type BankView } from "../../../shared/bank";
 import { iconFor, itemName, type Item } from "../../../shared/items";
 import type { SelfState } from "../../../shared/protocol";
 import type { Net } from "../net";
@@ -79,7 +79,8 @@ export class BankUI {
       <div class="bank-buy"></div>`;
     this.win.querySelector<HTMLButtonElement>(".x")!.onclick = () => this.close();
     if (!v) return;
-    if (this.tab >= v.tabs.length) this.tab = 0;
+    if (this.tab >= v.tabs.length && this.tab !== SHARED_TAB) this.tab = 0;
+    const shared = this.tab === SHARED_TAB;
 
     const tabs = this.win.querySelector<HTMLElement>(".bank-tabs")!;
     for (let t = 0; t < BANK_TABS; t++) {
@@ -99,10 +100,25 @@ export class BankUI {
       }
       tabs.append(b);
     }
+    {
+      // общий склад аккаунта: виден всем героям аккаунта
+      const b = document.createElement("button");
+      b.className = `btn small${shared ? " active" : ""}`;
+      b.textContent = "Общий склад";
+      b.title = "Общий для всех героев вашего аккаунта";
+      b.onclick = () => { this.tab = SHARED_TAB; this.render(); };
+      b.ondragover = (e) => e.preventDefault();
+      b.ondrop = (e) => {
+        e.preventDefault();
+        const from = Number(e.dataTransfer!.getData("text/plain"));
+        if (Number.isInteger(from)) this.net.send("bank:put", { index: from, tab: SHARED_TAB });
+      };
+      tabs.append(b);
+    }
 
     const grid = this.win.querySelector<HTMLElement>(".bank-grid")!;
-    const cells = v.tabs[this.tab];
-    for (let i = 0; i < BANK_TAB_SIZE; i++) {
+    const cells = shared ? v.shared ?? [] : v.tabs[this.tab];
+    for (let i = 0; i < (shared ? SHARED_SIZE : BANK_TAB_SIZE); i++) {
       const c = document.createElement("button");
       if (i >= cells.length) {
         c.className = "cell locked";
