@@ -487,3 +487,12 @@ img.coin { height: 1em; width: 1em; vertical-align: middle; margin-left: 0.2em; 
   .cs-grid { grid-template-columns: 1fr; }
 }
 .login h2 { margin: 0; font-family: var(--font-head); font-size: 22px; color: var(--fg); }
+
+/* защита от вылезающего текста: столбцы сетки не растягиваются содержимым, текст в кнопках не выходит за край */
+.grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.cell { min-width: 0; overflow: hidden; }
+.cell img { font-size: 0; color: transparent; }
+.btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.shop-card .si-btns .btn { flex-direction: column; gap: 1px; padding: 3px 4px; line-height: 1.15; }
+.shop-card .si-btns .btn .q { color: var(--dim); font-size: 14px; }
+.si-text b, .si-text span { overflow-wrap: anywhere; }

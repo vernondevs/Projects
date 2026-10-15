@@ -844,7 +844,7 @@ export class Hud {
       const r = el("div", "shop-card", `<div class="sc-top"><span class="sc-icon">${pic}</span><div class="si-text"><b>${name}</b><span class="muted">${desc}</span></div></div>`);
       const bx = el("div", "si-btns");
       for (const [label, price, locked, buy] of btns) {
-        const btn = el("button", "btn small", `${label}${gold(price)}`);
+        const btn = el("button", "btn small", label ? `<span class="q">${label.trim()}</span>${gold(price)}` : gold(price));
         btn.disabled = locked || s.gold < price;
         btn.onclick = buy;
         bx.append(btn);

@@ -167,7 +167,10 @@ export function iconId(icon: string, variant: ClassId, rarity: Rarity): string {
 export function iconFor(it: Pick<Item, "base" | "stats" | "uid" | "rarity" | "unique"> & { legendary?: string }): string {
   if (it.unique) return "uq_" + it.unique;
   if (it.legendary) return "lg_" + it.legendary;
-  return iconId(BASE_ITEMS[it.base].icon, iconVariant(it), it.rarity);
+  const b = BASE_ITEMS[it.base];
+  // расходники и ресурсы (зелья, еда, материалы, добыча биомов) рисуются одной иконкой без вариантов
+  if (!b || b.slot === "consumable") return b?.icon ?? "gold";
+  return iconId(b.icon, iconVariant(it), it.rarity);
 }
 
 /** Уникальные предметы боссов: фиксированное имя и набор характеристик. */

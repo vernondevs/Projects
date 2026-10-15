@@ -211,6 +211,7 @@ async function main() {
       // drag inventory by header
       await page.keyboard.press("i");
       await sleep(400);
+      if (await page.evaluate(() => !!document.querySelector(".win-inv")?.hasAttribute("hidden"))) { await page.keyboard.press("i"); await sleep(400); }
       const hb = await page.evaluate(() => { const r = document.querySelector(".win-inv h2")!.getBoundingClientRect(); return { x: r.left + 40, y: r.top + 10 }; });
       await page.mouse.move(hb.x, hb.y); await page.mouse.down(); await page.mouse.move(hb.x - 300, hb.y + 120, { steps: 8 }); await page.mouse.up();
       await sleep(200);
