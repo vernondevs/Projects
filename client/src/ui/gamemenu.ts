@@ -1,8 +1,4 @@
 /** Игровое меню по Esc, окно помощи и большая карта мира. */
-import { CITIES, cityKnown } from "../../../shared/cities";
-import { factionColor } from "../../../shared/factions";
-import { TILE } from "../../../shared/constants";
-import { PLACES, type WorldMap } from "../../../shared/map";
 import type { LogoutMode, Net } from "../net";
 
 export const HOTKEYS: [string, string][] = [["WASD / клик", "движение"], ["1–4", "умения"], ["Q / E", "зелья здоровья и маны"], ["Tab", "следующая цель"], ["Пробел", "подобрать предмет"], ["F", "поговорить с NPC"], ["X / Shift+X", "ездовое животное"], ["C / I / K", "герой / сумка / умения"], ["P / B / M", "арена / бестиарий / карта"], ["Enter", "чат"], ["Esc", "закрыть окно, снять цель, меню"]];
@@ -17,51 +13,6 @@ const TIPS = [
 export function fillHelp(body: Element) {
   body.innerHTML = `<h3 style="margin:0;font-size:16px;color:var(--gold)">Управление</h3><dl class="keys">${HOTKEYS.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join("")}</dl>
     <h3 style="margin:8px 0 0;font-size:16px;color:var(--gold)">Советы</h3><ul style="margin:0;padding-left:20px;line-height:1.5">${TIPS.map((t) => `<li>${t}</li>`).join("")}</ul>`;
-}
-
-/** Большая карта: базовый холст мини-карты, маркер героя, поселения и города (неоткрытые — серым «???», столицы — цветом фракции). */
-export function drawWorldMap(cv: HTMLCanvasElement, map: WorldMap, base: HTMLCanvasElement | null, pos: { x: number; y: number }, known?: string[], faction?: string) {
-  const g = cv.getContext("2d")!;
-  g.imageSmoothingEnabled = false;
-  g.fillStyle = "#0e0b10";
-  g.fillRect(0, 0, cv.width, cv.height);
-  const k = Math.min(cv.width / map.w, cv.height / map.h);
-  const ox = (cv.width - map.w * k) / 2, oy = (cv.height - map.h * k) / 2;
-  if (base) g.drawImage(base, ox, oy, map.w * k, map.h * k);
-  g.font = "600 13px Rubik, sans-serif";
-  g.textAlign = "center";
-  if (map.w > 200) {
-    g.font = "500 10px Rubik, sans-serif";
-    for (const p of PLACES) {
-      const x = ox + p.x * k, y = oy + p.y * k;
-      g.fillStyle = "#c8bca8";
-      g.fillRect(x - 1.5, y - 1.5, 3, 3);
-      g.lineWidth = 3;
-      g.strokeStyle = "#120a10";
-      g.strokeText(p.name, x, y - 5);
-      g.fillText(p.name, x, y - 5);
-    }
-    g.font = "600 13px Rubik, sans-serif";
-  }
-  if (map.w > 200) for (const c of CITIES) {
-    const x = ox + c.x * k, y = oy + c.y * k;
-    const open = !known || cityKnown(c, known, faction);
-    const label = open || c.capital ? c.name : "???";
-    g.fillStyle = c.capital ? factionColor(c.capital) : open ? "#f0c050" : "#8a8290";
-    g.fillRect(x - 3, y - 3, 6, 6);
-    g.lineWidth = 3;
-    g.strokeStyle = "#120a10";
-    g.strokeText(label, x, y - 8);
-    g.fillText(label, x, y - 8);
-  }
-  const px = ox + (pos.x / TILE) * k, py = oy + (pos.y / TILE) * k;
-  g.fillStyle = "#fff";
-  g.strokeStyle = "#e84a4a";
-  g.lineWidth = 2;
-  g.beginPath();
-  g.arc(px, py, 5, 0, Math.PI * 2);
-  g.fill();
-  g.stroke();
 }
 
 export interface MenuActions {

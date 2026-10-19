@@ -117,6 +117,12 @@ async function main() {
     } else if (scenario === "gear") {
       // внешность по снаряжению (задача 56): наборы вещей разной редкости и легендарные сеты, крупный план героя
       await dbg({ op: "god" });
+      { // открытое место вне города: поляна, без фонарей и прохожих
+        const { PLACES } = await import("../shared/map");
+        const p = PLACES.find((q) => q.id === "clear_dale") ?? PLACES[0];
+        await dbg({ op: "tp", x: p.x * 32 + 16, y: p.y * 32 + 16 });
+        await sleep(1500);
+      }
       await page.evaluate(() => (window as any).__game.scene.getScene("game").cameras.main.setZoom(5));
       const umb = ["deathknight", "bloodweaver", "darkranger", "warlock", "reaver"].includes(cls);
       const wbase = ({ warrior: "sword", deathknight: "sword", mage: "staff", bloodweaver: "staff", warlock: "staff", healer: "scepter", ranger: "bow", darkranger: "bow", rogue: "dagger", reaver: "axe" } as Record<string, string>)[cls];
@@ -129,8 +135,10 @@ async function main() {
         ["leg-plus10", { ...std(3, 10), weapon: L.weapon ? { leg: L.weapon, plus: 10 } : { base: wbase, r: 3, plus: 10 }, helmet: { leg: L.helmet, plus: 10 }, armor: { leg: umb ? "thorn_plate" : "arcane_mantle", plus: 10 }, boots: { leg: "hunter_treads", plus: 10 } }],
       ];
       const faction = umb ? "umbrath" : "solgard";
-      const shot = async (name: string) => page.screenshot({ path: path.join(OUT, `shot-gear-${cls}-${name}.png`), clip: { x: 580, y: 300, width: 200, height: 200 } });
+      const shot = async (name: string) => page.screenshot({ path: path.join(OUT, `shot-gear-${cls}-${name}.png`), clip: { x: 540, y: 340, width: 200, height: 200 } });
+      const only = process.env.GEAR_SETS?.split(",");
       for (const [name, slots] of sets) {
+        if (only && !only.includes(name)) continue;
         await dbg({ op: "gear", slots, faction });
         await sleep(500);
         await shot(name + "-down");
@@ -163,6 +171,20 @@ async function main() {
       await page.keyboard.press("m");
       await sleep(800);
       await page.screenshot({ path: path.join(OUT, "shot-world-map.png") });
+    } else if (scenario === "worldmap") {
+      // полная карта мира (задача 108): общий вид, приближение, подсказка
+      await dbg({ op: "god" });
+      await page.keyboard.press("m");
+      await sleep(900);
+      await page.screenshot({ path: path.join(OUT, "shot-worldmap-1.png") });
+      const box = (await page.$eval(".wm-view canvas", (e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; }));
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      for (let i = 0; i < 3; i++) { await page.mouse.wheel(0, -300); await sleep(100); }
+      await sleep(400);
+      await page.screenshot({ path: path.join(OUT, "shot-worldmap-2.png") });
+      await page.evaluate(() => (Array.from(document.querySelectorAll(".wm-btn")).find((b) => b.textContent === "Центрировать на мне") as HTMLElement).click());
+      await sleep(300);
+      await page.screenshot({ path: path.join(OUT, "shot-worldmap-3.png") });
     } else if (scenario === "teleport") {
       // телепорт: руны, спираль, нить, вспышка, прибытие
       const { CITIES } = await import("../shared/cities");

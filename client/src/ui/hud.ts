@@ -24,7 +24,8 @@ import { RumorUI } from "./rumor";
 import { EncounterUI } from "./encounter";
 import { CookUI, foodTip } from "./cook";
 import { QuestUI, TeleportUI } from "./cities";
-import { drawWorldMap, fillHelp, GameMenu, HOTKEYS } from "./gamemenu";
+import { fillHelp, GameMenu, HOTKEYS } from "./gamemenu";
+import { WorldMapView } from "./worldmap";
 import { plusBadge, SmithUI } from "./smith";
 import { BankUI, parseBankDrag } from "./bank";
 import { BagsUI } from "./bags";
@@ -79,6 +80,7 @@ export class Hud {
   private mini = el("div", "panel hud-mini");
   private miniCanvas = el("canvas");
   private miniBase: HTMLCanvasElement | null = null;
+  private wmView: WorldMapView | null = null;
   private bar = el("div", "panel hud-bar");
   private menuBar = el("div", "hud-menu");
   private uiScale = 100;
@@ -327,12 +329,15 @@ export class Hud {
     mk("help", "win-help", "Помощь");
     fillHelp(this.wins.help.querySelector(".body")!);
     mk("worldmap", "win-worldmap", "Карта мира");
-    this.wins.worldmap.querySelector(".body")!.innerHTML = `<canvas width="1000" height="360"></canvas>`;
   }
   openWorldMap() {
     const w = this.wins.worldmap;
     w.hidden = false;
-    drawWorldMap(w.querySelector("canvas")!, this.ctx.map, this.miniBase, this.lastPos, this.ctx.net.self?.cities, this.ctx.net.self?.faction);
+    if (!this.wmView) {
+      this.wmView = new WorldMapView(this.ctx.map, () => this.miniBase, () => this.lastPos, () => ({ known: this.ctx.net.self?.cities, faction: this.ctx.net.self?.faction }), w);
+      w.querySelector(".body")!.append(this.wmView.root);
+    }
+    this.wmView.open();
   }
   toggleWorldMap() {
     if (this.wins.worldmap.hidden) this.openWorldMap();
