@@ -345,6 +345,7 @@ export class World {
     let armor = this.isPlayer(dst) ? dst.derived.armor + (dst.warcryUntil > this.time ? dst.warcryArmor : 0) : dst.stats.armor;
     if (o.kind && o.kind !== "phys") armor *= 0.5;
     amount *= 1 - armorReduction(armor, level);
+    if (!this.isPlayer(dst)) amount *= dst.ai.weak?.dmg?.[o.kind ?? "phys"] ?? 1;
     let reflect = 0;
     if (this.isPlayer(dst)) {
       amount *= dst.derived.dmgTaken;
@@ -796,12 +797,14 @@ export class World {
     u.buffs = (u.buffs & 0x20) | b;
 
     if (m.boss) m.boss.update(dt);
+    this.applyWeakCc(m);
     if (m.stunUntil > t) {
       if (u.anim === Anim.Walk) u.anim = Anim.Idle;
       return;
     }
-    const canMove = m.rootUntil <= t && !(m.boss && (m.boss as { casting?: boolean }).casting);
+    const canMove = m.rootUntil <= t && m.windUntil <= t && !(m.boss && (m.boss as { casting?: boolean }).casting);
     let moving = false;
+    if (m.ai.heal && m.state !== "return") this.mobHeal(m);
 
     if (m.state === "return") {
       moving = this.moveMob(m, m.home.x, m.home.y, dt, m.def.speed * 1.6);
@@ -842,8 +845,18 @@ export class World {
           const d = this.dist(u, target);
           const reach = m.def.range + PLAYER_RADIUS;
           const clear = lineClear(this.map, u.x, u.y, target.x, target.y);
-          if ((d > reach || !clear) && canMove) moving = this.moveMob(m, target.x, target.y, dt, this.mobSpeed(m), m.def.projectile ? reach * 0.8 : reach - 6);
-          else if (d <= reach + 4 && clear && t >= m.attackAt) this.mobAttack(m, target);
+          const kite = m.ai.kite;
+          let kited = false;
+          if (kite && d < kite.min && canMove) {
+            // стрелок/шаман отступает от героя, продолжая стрелять
+            const k = d || 1;
+            moving = kited = this.moveMob(m, u.x + ((u.x - target.x) / k) * 80, u.y + ((u.y - target.y) / k) * 80, dt, this.mobSpeed(m) * 0.9);
+          }
+          if (kited) {
+            if (d <= reach + 4 && clear && t >= m.attackAt) this.mobAttack(m, target);
+          } else if (m.ai.slam && m.windUntil <= t && t >= m.slamAt && d <= m.ai.slam.r + PLAYER_RADIUS + 20 && clear) this.mobSlam(m, target);
+          else if ((d > reach || !clear) && canMove) moving = this.moveMob(m, target.x, target.y, dt, this.mobSpeed(m), m.def.projectile ? reach * 0.8 : reach - 6);
+          else if (d <= reach + 4 && clear && t >= m.attackAt && m.windUntil <= t) this.mobAttack(m, target);
           if (!moving && d > reach && m.def.projectile && canMove) moving = this.moveMob(m, target.x, target.y, dt, this.mobSpeed(m), 20);
         }
       } else if (m.state === "chase") {
@@ -865,6 +878,54 @@ export class World {
     }
     if (moving) u.anim = Anim.Walk;
     else if (u.anim === Anim.Walk) u.anim = Anim.Idle;
+  }
+
+  /** Слабость к контролю: оглушение/замедление/корни длятся дольше (или короче) по data/mobAI.json. */
+  private applyWeakCc(m: Mob) {
+    const cc = m.ai.weak?.cc, t = this.time, s = m.seenCc;
+    if (cc) {
+      if (cc.stun && m.stunUntil > s.stun) m.stunUntil = t + (m.stunUntil - t) * cc.stun;
+      if (cc.slow && m.slowUntil > s.slow) m.slowUntil = t + (m.slowUntil - t) * cc.slow;
+      if (cc.root && m.rootUntil > s.root) m.rootUntil = t + (m.rootUntil - t) * cc.root;
+    }
+    s.stun = m.stunUntil; s.slow = m.slowUntil; s.root = m.rootUntil;
+  }
+
+  /** Шаман лечит самого раненого союзника в бою (снаряд света), не прерывая движения. */
+  private mobHeal(m: Mob) {
+    const h = m.ai.heal!;
+    if (this.time < m.healAt || m.stunUntil > this.time) return;
+    let best: Mob | null = null, bf = 0.75;
+    for (const a of this.mobs.values()) {
+      if (a === m || a.dead || a.def.boss || a.state === "return") continue;
+      const f = a.unit.hp / a.unit.maxHp;
+      if (f >= bf || this.dist(a, m) > h.range || !lineClear(this.map, m.x, m.y, a.x, a.y)) continue;
+      if (a.state !== "chase" && this.time - a.lastHitAt > 8000) continue;
+      bf = f; best = a;
+    }
+    if (!best) return;
+    const ally = best;
+    m.healAt = this.time + h.cd * 1000;
+    const ms = (this.dist(m, ally) / 400) * 1000;
+    m.unit.dir = World.dirTo(ally.x - m.x, ally.y - m.y);
+    this.emit({ t: "proj", k: "holy", from: m.id, to: ally.id, tx: ally.x, ty: ally.y, ms });
+    this.later(ms, () => {
+      if (m.dead || ally.dead) return;
+      ally.unit.hp = Math.min(ally.unit.maxHp, ally.unit.hp + Math.round(ally.unit.maxHp * h.pct));
+      this.emit({ t: "buff", id: ally.id, k: "heal", ms: 600 });
+    });
+  }
+
+  /** Тяжёлый удар по площади: замах с красным кругом; оглушение во время замаха срывает удар. */
+  private mobSlam(m: Mob, target: Player) {
+    const s = m.ai.slam!;
+    m.slamAt = this.time + s.cd * 1000;
+    m.windUntil = this.time + s.ms;
+    m.attackAt = Math.max(m.attackAt, this.time + s.ms + 400);
+    m.unit.dir = World.dirTo(target.x - m.x, target.y - m.y);
+    m.unit.aseq = (m.unit.aseq + 1) % 65535;
+    const kind = (["phys", "fire", "frost", "poison", "arcane", "shadow", "nature", "holy"].includes(s.k) ? s.k : "phys") as FxKind;
+    this.telegraph(m, "circle", m.x, m.y, s.r, s.ms, (p) => { if (m.stunUntil <= this.time) this.hit(m, p, { kind, mult: s.mult }); }, { k: kind });
   }
 
   mobAttack(m: Mob, target: Player, mult = 1) {

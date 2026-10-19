@@ -1,6 +1,6 @@
 import { mobStats, type MobStats } from "../../../shared/formulas";
 import { Nav } from "../../../shared/path";
-import type { MobDef } from "../../../shared/mobs";
+import { MOB_AI, type MobAI, type MobDef } from "../../../shared/mobs";
 import { Anim, UnitKind } from "../../../shared/protocol";
 import { ELITE } from "../../../shared/elites";
 import { Unit } from "../rooms/schema";
@@ -34,6 +34,13 @@ export class Mob {
   /** Провокация: до какого момента и кто держит моба на себе. */
   tauntUntil = 0;
   tauntBy = "";
+  /** Поведение из data/mobAI.json. */
+  readonly ai: MobAI;
+  /** Конец замаха удара по площади; кулдауны; уже учтённые длительности контроля. */
+  windUntil = 0;
+  slamAt = 0;
+  healAt = 0;
+  seenCc = { stun: 0, slow: 0, root: 0 };
   deadAt = 0;
   respawnAt = 0;
   lastHitAt = 0;
@@ -48,6 +55,7 @@ export class Mob {
     public level: number,
     readonly home: { x: number; y: number },
   ) {
+    this.ai = MOB_AI[def.id] ?? {};
     this.baseStats = this.stats = mobStats(def, level);
     const u = this.unit;
     u.kind = def.boss ? UnitKind.Boss : UnitKind.Mob;
@@ -108,6 +116,8 @@ export class Mob {
     this.threat.clear();
     this.tauntUntil = 0;
     this.stunUntil = this.rootUntil = this.slowUntil = this.weakUntil = this.curseUntil = this.bleedUntil = 0;
+    this.windUntil = this.slamAt = this.healAt = 0;
+    this.seenCc = { stun: 0, slow: 0, root: 0 };
     this.boss?.reset();
   }
 
