@@ -20,6 +20,7 @@ import type { WorldState } from "../rooms/schema";
 import { createBoss } from "./bosses";
 import * as legendary from "./legendary";
 import * as tanks from "./tanks";
+import * as healers from "./healers";
 import { rogueProc } from "./rogue";
 import { grantKillRewards } from "./rewards";
 import { tickEncounters } from "./encounters";
@@ -335,7 +336,7 @@ export class World {
         amount *= d.critMult;
       }
       if (o.flat) amount = o.flat;
-      else amount *= tanks.outgoing(this, src, dst, o);
+      else amount *= tanks.outgoing(this, src, dst, o) * healers.outgoing(this, src, dst, o);
     } else {
       amount = o.flat ?? src.stats.dmg * rnd(0.85, 1.15) * (o.mult ?? 1);
       if (src.unit.buffs & 0x20) amount *= 1.3; // ярость босса
@@ -369,7 +370,7 @@ export class World {
         src.slowPct = Math.max(dst.boneChill, live);
       }
       const before = amount;
-      amount = tanks.incoming(this, src, dst, amount, o);
+      amount = healers.incoming(this, src, dst, tanks.incoming(this, src, dst, amount, o), o);
       if (amount <= 0) {
         dst.combatAt = this.time;
         if (this.isPlayer(src)) src.combatAt = this.time;
@@ -385,6 +386,7 @@ export class World {
         dst.shieldAmt -= ab;
         amount -= ab;
         if (dst.shieldBy) this.onHeal?.(dst.shieldBy, Math.round(ab));
+        healers.onAbsorb(this, dst.shieldBy, dst, ab, src);
         if (amount < 0.5) {
           dst.combatAt = this.time;
           if (this.isPlayer(src)) src.combatAt = this.time;
@@ -399,13 +401,15 @@ export class World {
       const share = (amount * dst.bondShare) / 100;
       if (share >= 1) {
         amount -= share;
-        const bw = dst.bondBy, sv = Math.round(share);
-        this.applyDamage(bw, sv, src);
-        this.emit({ t: "dmg", id: bw.id, v: sv, k: "blood" });
+        const bw = dst.bondBy, sv = Math.round(share * healers.bondTaken(dst.bondBy));
+        if (sv > 0) {
+          this.applyDamage(bw, sv, src);
+          this.emit({ t: "dmg", id: bw.id, v: sv, k: "blood" });
+        }
       }
     }
     let v = Math.max(1, Math.round(amount));
-    if (this.isPlayer(dst)) v = tanks.beforeLethal(this, dst, v);
+    if (this.isPlayer(dst)) v = healers.beforeLethal(this, dst, tanks.beforeLethal(this, dst, v));
     this.applyDamage(dst, v, src);
     this.onDamage?.(src, dst, v);
     this.emit({ t: "dmg", id: this.idOf(dst), v, crit, k: o.kind ?? "phys" });
@@ -413,8 +417,10 @@ export class World {
       const ls = src.derived.lifesteal + (src.frenzyUntil > this.time ? src.frenzyLeech / 100 : 0);
       if (ls > 0) this.heal(src, Math.round(v * ls), false);
       tanks.afterDealt(this, src, dst, v, o);
+      healers.afterDealt(this, src, dst, v, o);
     }
     if (this.isPlayer(dst) && !o.noProc) tanks.afterDamaged(this, src, dst, v, o);
+    if (this.isPlayer(dst)) healers.afterDamaged(this, src, dst, v, o);
     if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1) * (this.isPlayer(src) ? CLASSES[src.cls].threat : 1));
     if (reflect >= 1 && !o.noReflect && !this.isDead(src)) this.hit(dst, src, { flat: Math.round(reflect), canCrit: false, noReflect: true, noProc: true, threat: 1 });
     legendary.onHit(this, src, dst, v, crit, o);
@@ -448,6 +454,7 @@ export class World {
     const got = p.unit.hp - before;
     if (got > 0) this.onHeal?.(by ?? p, got);
     if (show && got > 0) this.emit({ t: "dmg", id: p.id, v: got, heal: true });
+    if (by) healers.onHealed(this, p, v, got, by);
     return got;
   }
 
@@ -484,7 +491,7 @@ export class World {
     m.respawnAt = this.time + respawn;
     m.boss?.onDeath();
     if (m.boss) this.bossKills.set(m.def.id, { by: killer && this.isPlayer(killer) ? killer.name : "неизвестный герой", at: this.time });
-    if (killer && this.isPlayer(killer)) { legendary.onKill(this, killer, m); tanks.onKill(this, killer, m); }
+    if (killer && this.isPlayer(killer)) { legendary.onKill(this, killer, m); tanks.onKill(this, killer, m); healers.onKill(this, killer, m); }
     grantKillRewards(this, m, killer && this.isPlayer(killer) ? killer : undefined);
     if (m.summoned) this.later(2500, () => this.removeMob(m));
   }

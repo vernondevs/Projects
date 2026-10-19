@@ -9,6 +9,7 @@ import { lineClear, walkable } from "../../../shared/map";
 import { petUnitId, type PetDef } from "../../../shared/pets";
 import { SUMMONS, type SkillDef } from "../../../shared/skills";
 import { Anim, type FxKind } from "../../../shared/protocol";
+import { bondDur, onSacrifice, poolBonus, sacrificeCost } from "./healers";
 import { dismissPet, Pet } from "./Pet";
 import type { Player } from "./Player";
 import { applyHeal, healPower, reachable, resolveAlly, type Ally } from "./skills";
@@ -60,6 +61,11 @@ export function addDot(w: World, p: Player, target: Actor, key: "curse" | "bleed
   w.later(1000, tick);
 }
 
+/** Снять все периодические эффекты героев с цели (очищение). */
+export function clearDots(targetId: string) {
+  for (const k of [...dots.keys()]) if (k.split("|")[1] === targetId) dots.delete(k);
+}
+
 const weaponAvg = (p: Player) => ((p.derived.dmgMin + p.derived.dmgMax) / 2) * p.derived.skillMult;
 
 /** Ослабление цели: её урон −pct% на ms. */
@@ -70,7 +76,7 @@ function weaken(w: World, a: Actor, pct: number, ms: number) {
 }
 
 /** Самый раненый союзник (или сам герой) в радиусе: для «Кровавой стрелы». */
-function mostWounded(w: World, p: Player, r: number): Ally {
+export function mostWounded(w: World, p: Player, r: number): Ally {
   let best: Ally = { id: p.id, x: p.x, y: p.y, player: p }, br = p.unit.hp / Math.max(1, p.unit.maxHp);
   for (const q of w.playersInCircle(p.x, p.y, r)) {
     if (q === p || w.hostile(p, q) || q.faction !== p.faction) continue;
@@ -195,12 +201,13 @@ export function castUmbrath(c: CastCtx): string | null {
       if (a.player?.dead) return "Цель мертва";
       if (w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
       c.ok();
-      const until = w.time + v.dur * 1000;
+      const dur = v.dur + bondDur(p);
+      const until = w.time + dur * 1000;
       if (a.player) { a.player.bondBy = p; a.player.bondUntil = until; a.player.bondShare = v.share; }
       w.emit({ t: "chain", pts: [u.x, u.y - 12, a.x, a.y - 12], k: "heal" });
-      w.emit({ t: "buff", id: a.id, k: "renew", ms: v.dur * 1000 });
+      w.emit({ t: "buff", id: a.id, k: "renew", ms: dur * 1000 });
       const amt = (healPower(p) * v.regen) / 100;
-      for (let i = 1; i <= v.dur; i++)
+      for (let i = 1; i <= dur; i++)
         w.later(i * 1000, () => {
           if (p.dead) return;
           const pl = w.players.get(a.id), pet = w.pets.get(a.id);
@@ -211,13 +218,14 @@ export function castUmbrath(c: CastCtx): string | null {
     }
     case "bw_sacrifice": {
       const a = resolveAlly(w, p, c.targetId);
-      const cost = Math.round((u.maxHp * v.cost) / 100);
+      const cost = sacrificeCost(p, Math.round((u.maxHp * v.cost) / 100));
       if (u.hp <= cost) return "Слишком мало здоровья для жертвы";
       if (a.player?.dead) return "Цель мертва";
       if (a.id !== p.id && w.dist(u, a) > range + PLAYER_RADIUS) return "Цель слишком далеко";
       c.ok();
       u.hp -= cost;
       w.emit({ t: "dmg", id: p.id, v: cost, k: "blood" });
+      onSacrifice(w, p, cost);
       if (a.id === p.id) {
         // без цели: кровь превращается в ману
         const mp = Math.round((u.maxMp * v.mana) / 100);
@@ -236,14 +244,15 @@ export function castUmbrath(c: CastCtx): string | null {
       c.ok();
       u.anim = Anim.Cast;
       w.later(400, () => { if (u.anim === Anim.Cast && !p.dead) u.anim = Anim.Idle; });
-      w.emit({ t: "tele", shape: "circle", k: "fire", x: pt.x, y: pt.y, r: v.radius, ms: v.ticks * 1000 });
+      const pb = poolBonus(p), ticks = v.ticks + pb.ticks;
+      w.emit({ t: "tele", shape: "circle", k: "fire", x: pt.x, y: pt.y, r: v.radius, ms: ticks * 1000 });
       const dmgMult = v.dmg / 100, heal = (healPower(p) * v.heal) / 100;
-      for (let i = 1; i <= v.ticks; i++)
+      for (let i = 1; i <= ticks; i++)
         w.later(i * 1000, () => {
           if (p.dead) return;
           w.emit({ t: "aoe", k: "fire", x: pt.x, y: pt.y, r: v.radius * 0.6 });
           for (const m of w.enemiesInCircle(p, pt.x, pt.y, v.radius)) w.hit(p, m, { mult: dmgMult, skill: true, kind: "blood", noBreak: true });
-          for (const q of w.playersInCircle(pt.x, pt.y, v.radius)) if (q === p || (!w.hostile(p, q) && q.faction === p.faction)) w.heal(q, Math.round(heal), true, p);
+          for (const q of w.playersInCircle(pt.x, pt.y, v.radius)) if (q === p || (!w.hostile(p, q) && q.faction === p.faction)) w.heal(q, Math.round(heal * (q.unit.hp < q.unit.maxHp * 0.5 ? pb.low : 1)), true, p);
         });
       return null;
     }

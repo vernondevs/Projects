@@ -37,7 +37,7 @@ async function main() {
       assert(f.classes.length === 5, `${f.name}: классов не 5`);
       for (const c of f.classes) {
         assert(CLASSES[c].faction === f.id, `${c}: не та фракция`);
-        const tank = c === "warrior" || c === "deathknight";
+        const tank = c === "warrior" || c === "deathknight" || c === "healer" || c === "bloodweaver";
         assert(tank ? activeSkills(c).length === 9 : activeSkills(c).length >= 3 && activeSkills(c).length <= 4, `${c}: умений ${activeSkills(c).length}`);
         if (tank) assert(classSkills(c).filter((s) => s.kind === "passive").length === 11, `${c}: пассивок мало`);
       }
@@ -68,7 +68,7 @@ async function main() {
     // мобы спорной зоны теперь 38+ уровня: убираем их, проверяем только умения
     for (const m of [...w.mobs.values()]) w.removeMob(m);
     const p0 = pvpSpot()!;
-    for (const cls of FACTIONS.umbrath.classes) {
+    for (const cls of [...FACTIONS.umbrath.classes, "healer" as const]) {
       const save = newSave(cls, p0);
       save.level = 20;
       for (const s of activeSkills(cls)) save.skills[s.id] = 1;

@@ -8,12 +8,14 @@ import { TeleportFx } from "./teleportFx";
 
 const MAX_BURST = 36;
 const MAX_POOL = 90;
-const SFX_OF: Record<string, sfx.SfxName> = { blood: "shadow", fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit", bash: "slam", glare: "holy", banner: "holy", divine: "holy", nova: "holy", rune: "frost", chains: "shadow", reap: "shadow", antimagic: "arcane" };
+const SFX_OF: Record<string, sfx.SfxName> = { blood: "shadow", fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit", bash: "slam", glare: "holy", banner: "holy", divine: "holy", nova: "holy", rune: "frost", chains: "shadow", reap: "shadow", antimagic: "arcane", ray: "holy", hymn: "heal", ward: "shield", cleanse: "heal", pact: "shadow", burst: "explosion", tide: "shadow" };
 
 const KIND_COLOR: Record<string, number> = {
   phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0, heal: 0x9affb8, blood: 0xe0304a,
   // умения танков
   bash: 0xffe090, glare: 0xfff4b0, banner: 0xffd060, divine: 0xffffff, nova: 0xfff0a0, rune: 0x7ad8ff, chains: 0xb080ff, reap: 0x8aff9a, antimagic: 0xc080ff,
+  // умения лекарей
+  ray: 0xfff6c0, hymn: 0xfff0b0, ward: 0xffe890, cleanse: 0xb8ffff, pact: 0xe0304a, burst: 0xff3050, tide: 0xff2a40,
 };
 const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow", holy: "fx_holy", blood: "fx_fire" };
 
@@ -215,6 +217,29 @@ export class Effects {
           s.tweens.add({ targets: col2, scaleX: 0.2, alpha: 0, duration: f.k === "glare" ? 500 : 900, onComplete: () => col2.destroy() });
           this.burst(f.x, f.y - 6, "fx_spark", KIND_COLOR[f.k], 18, f.r * 0.7, 1000, -60, 0.9);
         }
+        if (f.k === "ray") {
+          const col3 = s.add.image(f.x, f.y - 8, "fx_glow").setTint(0xfff6c0).setBlendMode(Phaser.BlendModes.ADD).setScale(1.4).setDepth(DEPTH.top - 30).setAlpha(0.9);
+          s.tweens.add({ targets: col3, scale: 0.2, alpha: 0, duration: 420, onComplete: () => col3.destroy() });
+          this.burst(f.x, f.y - 6, "fx_spark", 0xfff6c0, 14, 70, 600, -30, 0.9);
+        }
+        if (f.k === "hymn" || f.k === "ward" || f.k === "cleanse") {
+          // золотые лучи вверх и расходящееся кольцо
+          for (let i = 0; i < 3; i++) {
+            const r4 = s.add.image(f.x, f.y, "fx_ring").setTint(KIND_COLOR[f.k]).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 21).setScale(0.1, 0.07);
+            s.tweens.add({ targets: r4, scaleX: f.r / 26, scaleY: (f.r / 26) * 0.7, alpha: { from: 0.9, to: 0 }, duration: 700, delay: i * 140, ease: "Cubic.easeOut", onComplete: () => r4.destroy() });
+          }
+          const beam = s.add.image(f.x, f.y - 14, "fx_glow").setTint(KIND_COLOR[f.k]).setBlendMode(Phaser.BlendModes.ADD).setScale(f.k === "ward" ? 2.2 : 1.2, 5).setDepth(DEPTH.top - 30).setAlpha(0.7);
+          s.tweens.add({ targets: beam, scaleX: 0.2, alpha: 0, duration: 800, onComplete: () => beam.destroy() });
+          this.burst(f.x, f.y - 4, "fx_spark", KIND_COLOR[f.k], Math.min(26, 8 + f.r / 8), f.r * 0.6, 1000, -80, 0.9);
+        }
+        if (f.k === "pact" || f.k === "burst" || f.k === "tide") {
+          // капли и всплеск крови
+          this.burst(f.x, f.y - 4, "fx_ember", 0xc01830, Math.min(34, 10 + f.r / 4), f.r * 1.2, 700, 40, 1.1);
+          if (f.k === "burst") { this.shake(f.x, f.y, 180, 0.005); this.burst(f.x, f.y - 6, "fx_smoke", 0x701020, 12, f.r, 800, -10, 1.3); }
+          const g3 = s.add.graphics().setDepth(DEPTH.ground + 22).setBlendMode(Phaser.BlendModes.ADD);
+          g3.lineStyle(2, 0xff5060, 0.85).strokeEllipse(f.x, f.y, f.r * 1.4, f.r * 0.9);
+          s.tweens.add({ targets: g3, alpha: 0, duration: 600, onComplete: () => g3.destroy() });
+        }
         if (f.k === "chains" || f.k === "reap") for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; this.burst(f.x + Math.cos(a) * f.r * 0.7, f.y + Math.sin(a) * f.r * 0.5, "fx_smoke", KIND_COLOR[f.k], 3, 30, 600, -20); }
         if (f.k === "rune") {
           const g2 = s.add.graphics().setDepth(DEPTH.ground + 23).setBlendMode(Phaser.BlendModes.ADD);
@@ -338,6 +363,16 @@ export class Effects {
             const rep = s.time.addEvent({ delay: 450, loop: true, callback: () => { const q = this.unit(f.id); if (q) this.burst(q.x, q.y - 4, "fx_spark", 0xb8ffc8, 2, 20, 700, -70, 0.6); } });
             s.time.delayedCall(f.ms, () => rep.remove());
           }
+          break;
+        }
+        if (f.k === "bless" || f.k === "tide") {
+          const bl = f.k === "bless";
+          this.sound(bl ? "holy" : "shadow", u.x, u.y);
+          this.burst(u.x, u.y - 10, "fx_spark", bl ? 0xfff0a0 : 0xe0304a, 18, 70, 800, -70, 0.9);
+          const halo = s.add.ellipse(u.x, u.y - 34, 22, 7, 0, 0).setStrokeStyle(2, bl ? 0xffe890 : 0xff5060, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
+          const follow2 = s.time.addEvent({ delay: 30, loop: true, callback: () => { const q = this.unit(f.id); if (q) halo.setPosition(q.x, q.y - 34); } });
+          s.tweens.add({ targets: halo, alpha: { from: 1, to: 0.4 }, yoyo: true, repeat: -1, duration: 400 });
+          s.time.delayedCall(Math.min(f.ms, 20000), () => { follow2.remove(); s.tweens.killTweensOf(halo); halo.destroy(); });
           break;
         }
         if (f.k === "rune" || f.k === "frozen") {

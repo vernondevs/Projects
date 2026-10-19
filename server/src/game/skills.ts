@@ -6,6 +6,7 @@ import { SKILLS } from "../../../shared/skills";
 import { CLASSES } from "../../../shared/classes";
 import { castUmbrath } from "./umbrath";
 import { castTank, onCast } from "./tanks";
+import { castHealer, powerMult } from "./healers";
 import type { Pet } from "./Pet";
 import { applyPoison, facing, isBehind } from "./rogue";
 import type { Player } from "./Player";
@@ -81,6 +82,11 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
   const ctx = { w, p, id, def, rank, v, liveTarget, targetId, ax, ay, aim, ok, stun, slow, threat, isBoss };
   if (def.cls === "warrior" || def.cls === "deathknight") {
     const r = castTank(ctx);
+    if (r !== undefined) return r;
+  }
+  // лекари: новые умения Клирика и Кровотворца (server/src/game/healers.ts)
+  if (def.cls === "healer" || def.cls === "bloodweaver") {
+    const r = castHealer(ctx);
     if (r !== undefined) return r;
   }
   if (CLASSES[def.cls].faction === "umbrath") return castUmbrath(ctx);
@@ -435,7 +441,7 @@ export function resolveAlly(w: World, p: Player, targetId: string | null): Ally 
 /** Сила лечения: средний урон оружия × сила умений × «Благодать». */
 export function healPower(p: Player): number {
   const d = p.derived;
-  return ((d.dmgMin + d.dmgMax) / 2) * d.skillMult * (1 + 0.06 * (p.save.skills.grace || 0));
+  return ((d.dmgMin + d.dmgMax) / 2) * d.skillMult * (1 + 0.06 * (p.save.skills.grace || 0)) * powerMult(p);
 }
 
 export function applyHeal(w: World, p: Player, a: Ally, amount: number): number {
