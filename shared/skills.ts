@@ -1,5 +1,6 @@
 import type { ClassId } from "./classes";
 import skillData from "../data/skills.json";
+import { skillUnlockLevel } from "./formulas";
 
 export type SkillTarget = "enemy" | "point" | "self" | "ally";
 
@@ -11,6 +12,7 @@ export interface SkillDef {
   /** Клавиша 1–4 для активных умений. */
   slot?: number;
   maxRank: number;
+  /** В исходниках — проектная шкала 1..30; после загрузки — реальный уровень (skillUnlockLevel). */
   reqLevel: number;
   req?: { id: string; rank: number };
   icon: string;
@@ -305,6 +307,8 @@ for (const [id, s] of Object.entries(skillData.skills as unknown as Record<strin
     tree: s.tree,
   };
 }
+// reqLevel выше задан по проектной шкале 1..30 — переводим в реальный уровень 1..MAX_LEVEL (BALANCE.md)
+for (const s of Object.values(SKILLS)) s.reqLevel = skillUnlockLevel(s.reqLevel);
 /** Временные призванные союзники умений (питомец на время). */
 export const SUMMONS = skillData.summons as Record<string, { name: string; sprite: string; hp: number; dmg: number; armor: number; speed: number; range: number; attackCd: number; radius: number }>;
 

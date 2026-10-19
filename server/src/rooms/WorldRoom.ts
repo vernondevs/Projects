@@ -8,7 +8,7 @@ import { freshChars, sessionOf } from "../accounts";
 import { xpToNext } from "../../../shared/formulas";
 import { MOUNTS } from "../../../shared/mounts";
 import { buyPet, selectPet, togglePet } from "../game/Pet";
-import { MERCHANT_RANGE, PLAYER_RADIUS } from "../../../shared/constants";
+import { MAX_LEVEL, MERCHANT_RANGE, PLAYER_RADIUS } from "../../../shared/constants";
 import { MAP_VERSION, walkable } from "../../../shared/map";
 import { makeItem, makeUnique, Rarity } from "../../../shared/items";
 import { makeLegendary } from "../../../shared/legendary";
@@ -522,7 +522,7 @@ export class WorldRoom extends Room<WorldState> {
           p.recalc(); break;
         }
         case "xp": gainXp(w(), p, Number(m.v)); break;
-        case "level": { const lv = Number(m.v); while (p.level < lv) gainXp(w(), p, xpToNext(p.level) - p.save.xp); break; }
+        case "level": { const lv = Math.min(MAX_LEVEL, Number(m.v) || 1); while (p.level < lv) gainXp(w(), p, xpToNext(p.level) - p.save.xp); break; }
         case "gold": p.save.gold += Number(m.v); p.selfDirty = true; break;
         case "hp": p.unit.hp = Math.max(1, Number(m.v)); break;
         case "god": p.unit.maxHp = 999999; p.unit.hp = 999999; break;

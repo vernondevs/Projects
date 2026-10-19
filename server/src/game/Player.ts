@@ -1,10 +1,10 @@
 import { CLASSES, classFaction, type ClassId, type FactionId, type StatKey } from "../../../shared/classes";
 import { lookTint } from "../../../shared/accounts";
 import { Nav } from "../../../shared/path";
-import { INVENTORY_SIZE } from "../../../shared/constants";
+import { INVENTORY_SIZE, MAX_LEVEL } from "../../../shared/constants";
 import { MAP_VERSION } from "../../../shared/map";
 import { homeCity } from "../../../shared/cities";
-import { derive, xpToNext, type Derived } from "../../../shared/formulas";
+import { derive, skillPointsAt, statPointsAt, xpToNext, type Derived } from "../../../shared/formulas";
 import { FOOD } from "../../../shared/food";
 import { MOUNTS } from "../../../shared/mounts";
 import { petXpToNext } from "../../../shared/pets";
@@ -165,6 +165,10 @@ export class Player {
       send("toast", { text: "Умения воина изменены — очки возвращены", kind: "info" });
     }
     save.faction ??= classFaction(save.cls);
+    // предел уровня 30 → 100 (задача 39): кривая до 30 прежняя, опыт внутри уровня остаётся; страховка от мусора
+    save.level = Math.max(1, Math.min(MAX_LEVEL, Math.floor(save.level) || 1));
+    const next = xpToNext(save.level);
+    save.xp = next ? Math.max(0, Math.min(next - 1, save.xp || 0)) : 0;
     save.equip.offhand ??= null; // старые сохранения без второй руки
     const u = this.unit;
     u.kind = UnitKind.Player;
@@ -253,11 +257,11 @@ export class Player {
 
   statPoints(): number {
     const spent = (Object.values(this.save.alloc) as number[]).reduce((a, b) => a + b, 0);
-    return (this.save.level - 1) * 3 - spent;
+    return statPointsAt(this.save.level) - spent;
   }
   skillPoints(): number {
     const spent = Object.values(this.save.skills).reduce((a, b) => a + b, 0);
-    return this.save.level - spent; // одно очко за уровень, стартовое умение уже вложено
+    return skillPointsAt(this.save.level) - spent; // стартовое умение уже вложено
   }
 
   allocate(stat: StatKey): boolean {

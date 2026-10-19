@@ -185,7 +185,7 @@ async function main() {
     await check("дерево умений: требования уровня и предка", async () => {
       c.toasts.length = 0;
       c.send("learn", { id: "rain" });
-      await c.until(() => c.toasts.some((t) => t.includes("15 уровень")), 2000, "отказ по уровню");
+      await c.until(() => c.toasts.some((t) => t.includes("39 уровень")), 2000, "отказ по уровню");
       c.send("learn", { id: "volley" });
       await c.until(() => c.self!.skills.volley === 1, 2000, "залп изучен");
       c.send("learn", { id: "taunt" });
@@ -193,20 +193,20 @@ async function main() {
       assert(!c.self!.skills.taunt, "изучено умение чужого класса");
     });
     await check("пассивка влияет на характеристики", async () => {
-      c.send("dbg", { op: "level", v: 5 });
-      await c.until(() => c.self!.level === 5, 2000, "уровень 5");
+      c.send("dbg", { op: "level", v: 9 });
+      await c.until(() => c.self!.level === 9, 2000, "уровень 9");
       const crit = c.self!.derived.crit;
       c.send("learn", { id: "precision" });
       await c.until(() => (c.self!.skills.precision || 0) === 1, 2000, "меткость");
       assert(Math.abs(c.self!.derived.crit - crit - 0.03) < 1e-6, "крит не вырос на 3%");
     });
-    await check("предел уровня 30", async () => {
-      c.send("dbg", { op: "level", v: 30 });
-      await c.until(() => c.self!.level === 30, 3000, "уровень 30");
+    await check("предел уровня 100", async () => {
+      c.send("dbg", { op: "level", v: 100 });
+      await c.until(() => c.self!.level === 100, 5000, "уровень 100");
       c.send("dbg", { op: "xp", v: 1e7 });
       await sleep(200);
-      assert(c.self!.level === 30 && c.self!.xpNext === 0, "уровень выше 30");
-      assert(c.self!.statPoints === 87 - 2, "очки на 30 уровне: " + c.self!.statPoints);
+      assert(c.self!.level === 100 && c.self!.xpNext === 0, "уровень выше 100");
+      assert(c.self!.statPoints === 297 - 2 && c.self!.skillPoints === 65 - 3, "очки на 100 уровне: " + c.self!.skillPoints + " " + c.self!.statPoints);
     });
 
     console.log("Этап 5: лут и снаряжение");

@@ -85,7 +85,7 @@ export class AdminUI {
         <select id="g-rar"><option value="0">Обычное</option><option value="1">Редкое</option><option value="2">Эпическое</option><option value="3">Легендарное</option></select>
         <input id="g-ilvl" type="number" min="1" max="60" value="10" title="Ур. предмета" style="width:70px"><input id="g-qty" type="number" min="1" max="99" value="1" title="Кол-во" style="width:70px"><button class="btn small" data-act="give-item">Выдать предмет</button></div>
         <div class="adm-row"><input id="g-gold" type="number" value="1000" style="width:100px"><button class="btn small" data-act="give-gold">Выдать золото</button></div>
-        <div class="adm-row"><input id="g-xp" type="number" value="1000" style="width:100px"><button class="btn small" data-act="give-xp">Выдать опыт</button><input id="g-lv" type="number" min="1" max="30" value="30" style="width:70px"><button class="btn small" data-act="give-lv">Поднять до уровня</button></div>`;
+        <div class="adm-row"><input id="g-xp" type="number" value="1000" style="width:100px"><button class="btn small" data-act="give-xp">Выдать опыт</button><input id="g-lv" type="number" min="1" max="100" value="100" style="width:70px"><button class="btn small" data-act="give-lv">Поднять до уровня</button></div>`;
     }
     if (this.tab === "world") {
       const zones = ZONES.map((z, i) => (z.name === "Арена" ? "" : `<option value="${i}">${esc(z.name)}</option>`)).join("");

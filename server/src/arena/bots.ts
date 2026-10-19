@@ -10,6 +10,7 @@ import { walkable } from "../../../shared/map";
 import { findPath } from "../../../shared/path";
 import { SKILLS, activeSkills, classSkills } from "../../../shared/skills";
 import { PLAYER_RADIUS } from "../../../shared/constants";
+import { skillPointsAt, statPointsAt } from "../../../shared/formulas";
 import type { PlayerSave } from "../db";
 import { newSave, type Player } from "../game/Player";
 import { castSkill } from "../game/skills";
@@ -30,7 +31,7 @@ const BOT_NAMES = ["Гром", "Вихрь", "Клык", "Тень", "Искра
 export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerSave {
   const s = newSave(cls, { x: 0, y: 0 });
   s.level = level;
-  const pts = (level - 1) * 3;
+  const pts = statPointsAt(level);
   s.alloc = { str: 0, agi: 0, int: 0, vit: 0 };
   const main = CLASSES[cls].mainStat === "vit" ? "str" : CLASSES[cls].mainStat;
   s.alloc[main] = Math.ceil(pts * 0.6);
@@ -46,8 +47,8 @@ export function botSave(cls: ClassId, level: number, like?: PlayerSave): PlayerS
       } else if (!canEquip(it, cls, level)) s.equip[slot] = JSON.parse(JSON.stringify(it)) as Item;
     }
   }
-  // очки умений: по одному за уровень, по кругу по доступным умениям
-  let free = level - 1;
+  // очки умений (skillPointsAt, стартовое уже вложено) — по кругу по доступным умениям
+  let free = skillPointsAt(level) - 1;
   const tree = classSkills(cls);
   for (let changed = true; free > 0 && changed; ) {
     changed = false;

@@ -1,12 +1,37 @@
 import { CLASSES, type ClassId, type Stats, type StatKey } from "./classes";
 import { BASE_ITEMS, effStats, type Item, type ItemStats, type Slot } from "./items";
-import { MAX_LEVEL } from "./constants";
+import { MAX_LEVEL, STAT_POINTS_PER_LEVEL } from "./constants";
 import type { MobDef } from "./mobs";
 
+/** Начало «длинного хвоста»: до этого уровня кривая прежняя (старые сохранения ≤30 валидны без пересчёта). */
+export const XP_TAIL_FROM = 30;
+/** Опыт до следующего уровня (BALANCE.md): 20 + 30·L^1.65, после 30 — × (1 + 3.6·((L−30)/70)^1.5). */
 export function xpToNext(level: number): number {
-  if (level >= MAX_LEVEL) return 0;
-  return Math.round(20 + 30 * Math.pow(level, 1.65));
+  if (level >= MAX_LEVEL || level < 1) return 0;
+  const tail = level > XP_TAIL_FROM ? 1 + 3.6 * Math.pow((level - XP_TAIL_FROM) / (100 - XP_TAIL_FROM), 1.5) : 1;
+  return Math.round((20 + 30 * Math.pow(level, 1.65)) * tail);
 }
+/** Опыт обычного моба уровня L (множитель def.xp — отдельно). */
+export const mobXpBase = (level: number) => 12 + level * 9;
+/** Опыт за задание уровня L на n целей: 1.5 моба за цель; число из данных квеста — нижняя граница. */
+export const questXp = (level: number, n: number, given = 0) => Math.max(given, Math.round(mobXpBase(Math.max(1, level)) * Math.max(1, n) * 1.5));
+/** Всего очков характеристик к уровню. */
+export const statPointsAt = (level: number) => (Math.max(1, level) - 1) * STAT_POINTS_PER_LEVEL;
+/** Всего очков умений к уровню (стартовое умение — первое очко): 1 за уровень до 30, дальше 1 за 2 уровня. */
+export const skillPointsAt = (level: number) => (level <= XP_TAIL_FROM ? Math.max(1, level) : XP_TAIL_FROM + Math.floor((level - XP_TAIL_FROM) / 2));
+/**
+ * Уровни открытия умений: reqLevel в shared/skills.ts и data/skills.json задан по проектной шкале 1..30,
+ * реальный уровень — степенная растяжка на 1..MAX_LEVEL (частые открытия в начале, редкие в конце).
+ */
+export const SKILL_DESIGN_CAP = 30;
+export function skillUnlockLevel(design: number): number {
+  if (design <= 1) return 1;
+  const t = Math.min(1, (design - 1) / (SKILL_DESIGN_CAP - 1));
+  return Math.max(2, Math.round(1 + (MAX_LEVEL - 1) * Math.pow(t, 1.3)));
+}
+/** Мягкий предел Ловкости для процентных эффектов (крит, уклонение, скорость атаки): до 120 — 1:1, дальше убывает, асимптота 240. */
+export const SOFT_STAT = 120;
+export const softStat = (x: number) => (x <= SOFT_STAT ? x : SOFT_STAT + (x - SOFT_STAT) / (1 + (x - SOFT_STAT) / SOFT_STAT));
 
 export interface Derived {
   stats: Stats;
@@ -77,6 +102,7 @@ export function derive(p: PlayerCore): Derived {
   let mult = 1 + st[c.mainStat] * c.mainK;
   if (c.mainStat !== "str") mult += st.str * STAT_K.strDmg;
   if (c.projectile && c.mainStat !== "agi") mult += st.agi * STAT_K.agiRanged;
+  const agiS = softStat(st.agi);
   const w = p.equip.weapon;
   const wMin = w ? g.dmgMin || 2 : 2, wMax = w ? g.dmgMax || 4 : 4;
   return {
@@ -86,10 +112,10 @@ export function derive(p: PlayerCore): Derived {
     dmgMin: Math.round(wMin * mult),
     dmgMax: Math.round(wMax * mult),
     armor: Math.round(((g.armor || 0) + st.vit * STAT_K.vitArmor) * (1 + 0.06 * sk("toughness"))),
-    crit: Math.min(0.75, 0.05 + st.agi * STAT_K.agiCrit + (g.crit || 0) / 100 + sk("precision") * 0.03),
+    crit: Math.min(0.75, 0.05 + agiS * STAT_K.agiCrit + (g.crit || 0) / 100 + sk("precision") * 0.03),
     critMult: 1.5 + sk("deadly") * 0.12,
-    dodge: Math.min(DODGE_CAP, st.agi * STAT_K.agiDodge + sk("evasion") * 0.02),
-    attackCd: c.attackCd / (1 + st.agi * 0.004 + sk("quickhands") * 0.07),
+    dodge: Math.min(DODGE_CAP, agiS * STAT_K.agiDodge + sk("evasion") * 0.02),
+    attackCd: c.attackCd / (1 + agiS * 0.004 + sk("quickhands") * 0.07),
     hpRegen: 0.6 + st.vit * 0.12,
     mpRegen: (1.5 + st.int * 0.12) * (1 + sk("wisdom") * 0.12 + sk("insight") * 0.12),
     lifesteal: sk("bloodlust") * 0.03,
@@ -117,7 +143,7 @@ export function mobStats(def: MobDef, level: number): MobStats {
     maxHp: Math.round((30 + level * 22 + level * level * 0.6) * def.hp),
     dmg: (4 + level * 2.6) * def.dmg,
     armor: Math.round(level * 2.5 * def.armor),
-    xp: Math.round((12 + level * 9) * def.xp),
+    xp: Math.round(mobXpBase(level) * def.xp),
     gold: [Math.round(level * def.xp), Math.round(level * 3 * def.xp) + 2],
   };
 }

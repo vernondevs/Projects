@@ -778,7 +778,7 @@ export class Hud {
 
   private renderSkills(s: SelfState) {
     const b = this.body("skills");
-    b.innerHTML = `<p class="muted">Свободно очков умений: <b class="gold">${s.skillPoints}</b> (1 за уровень). Активные — квадратные, пассивные — круглые.</p><div class="tree"></div>`;
+    b.innerHTML = `<p class="muted">Свободно очков умений: <b class="gold">${s.skillPoints}</b> (1 за уровень, после 30-го — 1 за 2 уровня). Активные — квадратные, пассивные — круглые.</p><div class="tree"></div>`;
     const tree = b.querySelector<HTMLElement>(".tree")!;
     const defs = classSkills(s.cls);
     const rows = Math.max(...defs.map((d) => d.tree[0])) + 1;

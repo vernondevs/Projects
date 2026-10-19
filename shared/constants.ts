@@ -14,7 +14,8 @@ export const PATCH_MS = 50;
 
 export const PLAYER_SPEED = 150; // px/s
 export const PLAYER_RADIUS = 10;
-export const MAX_LEVEL = 30;
+/** Предел уровня (задача 39, BALANCE.md); levelCap в data/world.json должен совпадать. */
+export const MAX_LEVEL = 100;
 export const STAT_POINTS_PER_LEVEL = 3;
 export const SKILL_POINTS_PER_LEVEL = 1;
 export const INVENTORY_SIZE = 24;
