@@ -143,8 +143,10 @@ export class GearLayers {
       if (a.rag) { this.R(14, 23, 4, 4, "#5a4630"); this.R(15, 26, 2, 1, "#3a2a1a"); this.R(14, 23, 4, 1, "#3a2a1a"); }
       else {
         // цензурная пикселизация: мозаика 2x2 телесных оттенков
-        const bx = side ? 15 : 14, mc = [skin, skinD, "#b07858", skinD];
-        for (let r = 0; r < 2; r++) for (let q = 0; q < 2; q++) this.R(bx + q * 2, 23 + r * 2, 2, 2, mc[(r * 2 + q + (r ? 1 : 0)) % 4]);
+        // шахматка 3x3 из ярких и тёмных тонов кожи с тёмной рамкой — хорошо читается на любом классе
+        const bx = side ? 14 : 13, light = dark(skin, 1.0), mid = dark(skin, 0.7), deep = dark(skin, 0.4);
+        this.R(bx - 1, 21, 8, 8, deep);
+        for (let r = 0; r < 3; r++) for (let q = 0; q < 3; q++) this.R(bx + q * 2, 22 + r * 2, 2, 2, (r + q) % 2 ? mid : (r + q) % 4 === 0 ? "#f4e4cc" : light);
       }
     }
     // ---- сапоги ----
