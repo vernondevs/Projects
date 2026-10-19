@@ -415,6 +415,11 @@ export function afterDealt(w: World, src: Player, dst: Actor, v: number, o: HitO
       src.shieldBy = src;
     }
   }
+  const fury = rk(src, "dk_rune_fury");
+  if (fury && !o.skill && o.flat === undefined) {
+    const cut = pv(src, "dk_rune_fury").cd * 1000;
+    for (const [id, ready] of src.cds) if (ready > w.time) setCd(src, w, id, Math.max(0, ready - w.time - cut));
+  }
   if (s.bladeUntil > w.time && s.bladeLeech > 0) w.heal(src, Math.round((v * s.bladeLeech) / 100), false);
   if (!o.skill || w.isDead(src)) return;
   if (s.runes >= 5 && rk(src, "dk_rune_mastery") && !w.isDead(dst)) {

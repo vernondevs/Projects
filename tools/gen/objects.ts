@@ -468,6 +468,7 @@ function skillIcon(kind: string, bg: Ramp, fg: Ramp): PC {
     case "chains": for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2 + 0.4; for (let j = 1; j <= 3; j++) c.ellipse(16 + Math.cos(a) * j * 4.2, 16 + Math.sin(a) * j * 4.2, 2.2, 1.6, j % 2 ? fg[3] : fg[2]); } c.shadedEllipse(16, 16, 4, 4, P.bone); break;
     case "soulorb": g(16, 16, 12); c.shadedEllipse(16, 17, 8, 8, fg); c.ellipse(13, 14, 2, 2, W); for (const [x, y] of [[8, 7], [24, 8], [26, 20], [6, 22]]) c.ellipse(x, y, 1.3, 1.3, fg[3]); c.line(16, 3, 16, 8, fg[3], 2); break;
     case "antimagic": c.ellipse(16, 16, 13, 13, withA(fg[1], 140)); for (let a = 0; a < 6.3; a += 0.04) c.set(16 + Math.cos(a) * 13, 16 + Math.sin(a) * 13, fg[3]); c.line(9, 9, 23, 23, W, 3); c.line(23, 9, 9, 23, W, 3); c.shadedEllipse(16, 16, 4, 4, bg); break;
+    case "runefury": g(16, 16, 12); c.poly([[16, 3], [27, 16], [16, 29], [5, 16]], bg[2]); c.line(12, 10, 12, 22, fg[3], 2); c.line(12, 12, 20, 9, W, 2); c.line(12, 18, 20, 15, W, 2); for (let i = 0; i < 3; i++) c.line(22 + i, 8 + i * 6, 29, 6 + i * 6, fg[2], 1); break;
     case "coffin": c.poly([[12, 3], [20, 3], [26, 11], [21, 29], [11, 29], [6, 11]], P.wood[2]); c.poly([[13, 6], [19, 6], [23, 12], [19, 26], [13, 26], [9, 12]], bg[1]); c.rect(15, 9, 2, 12, fg[3]); c.rect(11, 12, 10, 2, fg[3]); c.set(16, 16, W); break;
   }
   return c;

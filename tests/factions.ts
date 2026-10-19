@@ -38,8 +38,8 @@ async function main() {
       for (const c of f.classes) {
         assert(CLASSES[c].faction === f.id, `${c}: не та фракция`);
         const tank = c === "warrior" || c === "deathknight";
-        assert(tank ? activeSkills(c).length >= 8 : activeSkills(c).length >= 3 && activeSkills(c).length <= 4, `${c}: умений ${activeSkills(c).length}`);
-        if (tank) assert(classSkills(c).filter((s) => s.kind === "passive").length >= 10, `${c}: пассивок мало`);
+        assert(tank ? activeSkills(c).length === 9 : activeSkills(c).length >= 3 && activeSkills(c).length <= 4, `${c}: умений ${activeSkills(c).length}`);
+        if (tank) assert(classSkills(c).filter((s) => s.kind === "passive").length === 11, `${c}: пассивок мало`);
       }
     }
     assert(CLASSES.warrior.name === "Храмовник" && CLASSES.rogue.name === "Ассасин", "классы Сольгарда не переименованы");
