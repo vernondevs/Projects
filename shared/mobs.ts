@@ -1,3 +1,14 @@
+import ai from "../data/mobAI.json";
+
+/** Поведение моба из data/mobAI.json. */
+export interface MobAI {
+  kite?: { min: number };
+  heal?: { range: number; pct: number; cd: number };
+  slam?: { r: number; ms: number; mult: number; cd: number; k: string };
+  weak?: { dmg?: Record<string, number>; cc?: Partial<Record<"stun" | "slow" | "root", number>> };
+}
+export const MOB_AI = ai as unknown as Record<string, MobAI>;
+
 export interface MobDef {
   id: string;
   name: string;
