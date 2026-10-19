@@ -5,6 +5,7 @@ import { Anim } from "../../../shared/protocol";
 import { SKILLS } from "../../../shared/skills";
 import { CLASSES } from "../../../shared/classes";
 import { castUmbrath } from "./umbrath";
+import { castTank, onCast } from "./tanks";
 import type { Pet } from "./Pet";
 import { applyPoison, facing, isBehind } from "./rogue";
 import type { Player } from "./Player";
@@ -65,6 +66,7 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
     w.breakMount(p);
     if (id !== "stealth" && id !== "dr_shadowmeld") p.stealthUntil = 0;
     u.mp -= mana;
+    onCast(w, p, id, liveTarget);
     const cd = def.cd!(rank) * 1000;
     p.cds.set(id, w.time + cd);
     p.send("cd", { id, ms: cd });
@@ -75,9 +77,13 @@ export function castSkill(w: World, p: Player, id: string, ax: number, ay: numbe
     return null;
   };
 
-  // классы Умбрата: своя механика (server/src/game/umbrath.ts)
-  if (CLASSES[def.cls].faction === "umbrath")
-    return castUmbrath({ w, p, id, def, rank, v, liveTarget, targetId, ax, ay, aim, ok, stun, slow, threat, isBoss });
+  // танки: новые умения (server/src/game/tanks.ts); классы Умбрата: своя механика (server/src/game/umbrath.ts)
+  const ctx = { w, p, id, def, rank, v, liveTarget, targetId, ax, ay, aim, ok, stun, slow, threat, isBoss };
+  if (def.cls === "warrior" || def.cls === "deathknight") {
+    const r = castTank(ctx);
+    if (r !== undefined) return r;
+  }
+  if (CLASSES[def.cls].faction === "umbrath") return castUmbrath(ctx);
 
   switch (id) {
     // ---------- воин ----------

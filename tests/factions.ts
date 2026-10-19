@@ -8,7 +8,7 @@ import { MAP_SEED, TILE } from "../shared/constants";
 import { generateMap, lineClear, walkable, Zone } from "../shared/map";
 import { FACTIONS, pvpPlace } from "../shared/factions";
 import { CLASSES, CLASS_IDS } from "../shared/classes";
-import { activeSkills } from "../shared/skills";
+import { activeSkills, classSkills } from "../shared/skills";
 import { GameDB } from "../server/src/db";
 import { World } from "../server/src/game/World";
 import { Player, newSave } from "../server/src/game/Player";
@@ -37,7 +37,9 @@ async function main() {
       assert(f.classes.length === 5, `${f.name}: классов не 5`);
       for (const c of f.classes) {
         assert(CLASSES[c].faction === f.id, `${c}: не та фракция`);
-        assert(activeSkills(c).length >= 3 && activeSkills(c).length <= 4, `${c}: умений ${activeSkills(c).length}`);
+        const tank = c === "warrior" || c === "deathknight";
+        assert(tank ? activeSkills(c).length >= 8 : activeSkills(c).length >= 3 && activeSkills(c).length <= 4, `${c}: умений ${activeSkills(c).length}`);
+        if (tank) assert(classSkills(c).filter((s) => s.kind === "passive").length >= 10, `${c}: пассивок мало`);
       }
     }
     assert(CLASSES.warrior.name === "Храмовник" && CLASSES.rogue.name === "Ассасин", "классы Сольгарда не переименованы");

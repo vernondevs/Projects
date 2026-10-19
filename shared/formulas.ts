@@ -111,7 +111,7 @@ export function derive(p: PlayerCore): Derived {
     maxMp: Math.round((40 + st.int * 6 + p.level * 3) * (1 + 0.04 * sk("wisdom") + 0.03 * sk("insight"))),
     dmgMin: Math.round(wMin * mult),
     dmgMax: Math.round(wMax * mult),
-    armor: Math.round(((g.armor || 0) + st.vit * STAT_K.vitArmor) * (1 + 0.06 * sk("toughness"))),
+    armor: Math.round(((g.armor || 0) + st.vit * STAT_K.vitArmor) * (1 + 0.06 * sk("toughness") + 0.06 * sk("dk_icebound"))),
     crit: Math.min(0.75, 0.05 + agiS * STAT_K.agiCrit + (g.crit || 0) / 100 + sk("precision") * 0.03),
     critMult: 1.5 + sk("deadly") * 0.12,
     dodge: Math.min(DODGE_CAP, agiS * STAT_K.agiDodge + sk("evasion") * 0.02),
@@ -121,7 +121,7 @@ export function derive(p: PlayerCore): Derived {
     lifesteal: sk("bloodlust") * 0.03,
     skillMult: (1 + sk("focus") * 0.06) * (1 + st.int * STAT_K.intSkill),
     dmgTaken: 1 - sk("arcane_shield") * 0.05 - sk("toughness") * 0.02,
-    ccReduce: sk("unbending") * 0.15,
+    ccReduce: sk("unbending") * 0.15 + sk("dk_icebound") * 0.08,
     bossMult: 1 + sk("hunter") * 0.1,
   };
 }

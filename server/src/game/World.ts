@@ -19,6 +19,7 @@ import {
 import type { WorldState } from "../rooms/schema";
 import { createBoss } from "./bosses";
 import * as legendary from "./legendary";
+import * as tanks from "./tanks";
 import { rogueProc } from "./rogue";
 import { grantKillRewards } from "./rewards";
 import { tickEncounters } from "./encounters";
@@ -334,6 +335,7 @@ export class World {
         amount *= d.critMult;
       }
       if (o.flat) amount = o.flat;
+      else amount *= tanks.outgoing(this, src, dst, o);
     } else {
       amount = o.flat ?? src.stats.dmg * rnd(0.85, 1.15) * (o.mult ?? 1);
       if (src.unit.buffs & 0x20) amount *= 1.3; // ярость босса
@@ -355,6 +357,7 @@ export class World {
       }
       if (dst.lastStandUntil > this.time) amount *= 1 - (SKILLS.laststand.v(ls || 1).reduce) / 100;
       if (dst.blockUntil > this.time) {
+        tanks.onBlock(this, dst, (amount * dst.blockPct) / 100);
         reflect = (amount * dst.blockPct * dst.blockReflect) / 10000;
         amount *= 1 - dst.blockPct / 100;
       }
@@ -363,6 +366,14 @@ export class World {
         const live = src.slowUntil > this.time ? src.slowPct : 0;
         src.slowUntil = Math.max(src.slowUntil, this.time + 1500 * (this.isPlayer(src) ? 1 - src.derived.ccReduce : 1));
         src.slowPct = Math.max(dst.boneChill, live);
+      }
+      const before = amount;
+      amount = tanks.incoming(this, src, dst, amount, o);
+      if (amount <= 0) {
+        dst.combatAt = this.time;
+        if (this.isPlayer(src)) src.combatAt = this.time;
+        this.emit({ t: "dmg", id: dst.id, v: Math.round(before), abs: true });
+        return 0;
       }
     }
     if (this.isPlayer(src) && this.isPlayer(dst)) amount *= PVP_DAMAGE_MULT;
@@ -381,6 +392,7 @@ export class World {
         }
       } else dst.shieldAmt = 0;
     }
+    if (this.isPlayer(dst)) amount = tanks.redirect(this, src, dst, amount);
     // кровавые узы: часть урона по союзнику принимает Кровотворец
     if (this.isPlayer(dst) && dst.bondUntil > this.time && dst.bondBy && dst.bondBy !== dst && !dst.bondBy.dead && this.players.get(dst.bondBy.id) === dst.bondBy) {
       const share = (amount * dst.bondShare) / 100;
@@ -391,14 +403,17 @@ export class World {
         this.emit({ t: "dmg", id: bw.id, v: sv, k: "blood" });
       }
     }
-    const v = Math.max(1, Math.round(amount));
+    let v = Math.max(1, Math.round(amount));
+    if (this.isPlayer(dst)) v = tanks.beforeLethal(this, dst, v);
     this.applyDamage(dst, v, src);
     this.onDamage?.(src, dst, v);
     this.emit({ t: "dmg", id: this.idOf(dst), v, crit, k: o.kind ?? "phys" });
     if (this.isPlayer(src)) {
       const ls = src.derived.lifesteal + (src.frenzyUntil > this.time ? src.frenzyLeech / 100 : 0);
       if (ls > 0) this.heal(src, Math.round(v * ls), false);
+      tanks.afterDealt(this, src, dst, v, o);
     }
+    if (this.isPlayer(dst) && !o.noProc) tanks.afterDamaged(this, src, dst, v, o);
     if (!this.isPlayer(dst)) dst.addThreat(this.idOf(src), v * (o.threat ?? 1) * (this.isPlayer(src) ? CLASSES[src.cls].threat : 1));
     if (reflect >= 1 && !o.noReflect && !this.isDead(src)) this.hit(dst, src, { flat: Math.round(reflect), canCrit: false, noReflect: true, noProc: true, threat: 1 });
     legendary.onHit(this, src, dst, v, crit, o);
@@ -468,7 +483,7 @@ export class World {
     m.respawnAt = this.time + respawn;
     m.boss?.onDeath();
     if (m.boss) this.bossKills.set(m.def.id, { by: killer && this.isPlayer(killer) ? killer.name : "неизвестный герой", at: this.time });
-    if (killer && this.isPlayer(killer)) legendary.onKill(this, killer, m);
+    if (killer && this.isPlayer(killer)) { legendary.onKill(this, killer, m); tanks.onKill(this, killer, m); }
     grantKillRewards(this, m, killer && this.isPlayer(killer) ? killer : undefined);
     if (m.summoned) this.later(2500, () => this.removeMob(m));
   }

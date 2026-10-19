@@ -8,10 +8,12 @@ import { TeleportFx } from "./teleportFx";
 
 const MAX_BURST = 36;
 const MAX_POOL = 90;
-const SFX_OF: Record<string, sfx.SfxName> = { blood: "shadow", fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit" };
+const SFX_OF: Record<string, sfx.SfxName> = { blood: "shadow", fire: "fire", frost: "frost", poison: "poison", arcane: "arcane", shadow: "shadow", holy: "holy", nature: "poison", phys: "hit", bash: "slam", glare: "holy", banner: "holy", divine: "holy", nova: "holy", rune: "frost", chains: "shadow", reap: "shadow", antimagic: "arcane" };
 
 const KIND_COLOR: Record<string, number> = {
   phys: 0xffffff, fire: 0xff8a3a, frost: 0x8ad0ff, poison: 0x9aff5a, arcane: 0xc08aff, shadow: 0xa070ff, nature: 0x8adf5a, holy: 0xfff0a0, heal: 0x9affb8, blood: 0xe0304a,
+  // умения танков
+  bash: 0xffe090, glare: 0xfff4b0, banner: 0xffd060, divine: 0xffffff, nova: 0xfff0a0, rune: 0x7ad8ff, chains: 0xb080ff, reap: 0x8aff9a, antimagic: 0xc080ff,
 };
 const PROJ_TEX: Record<string, string> = { arrow: "fx_arrow", arcane: "fx_arcane", fireball: "fx_fireball", fire: "fx_fire", poison: "fx_poison", shadow: "fx_shadow", frost: "fx_frost", aimed: "fx_arrow", holy: "fx_holy", blood: "fx_fire" };
 
@@ -174,7 +176,7 @@ export class Effects {
         const col = f.k === "taunt" ? 0xffa040 : f.k === "quake" ? 0xc09060 : (KIND_COLOR[f.k] ?? 0xffffff);
         const ring = s.add.image(f.x, f.y, "fx_ring").setTint(col).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.ground + 20).setScale(0.2, 0.14);
         s.tweens.add({ targets: ring, scaleX: f.r / 30, scaleY: (f.r / 30) * 0.7, alpha: { from: 1, to: 0 }, duration: 450, ease: "Cubic.easeOut", onComplete: () => ring.destroy() });
-        const tex = f.k === "shadow" ? "fx_smoke" : f.k === "frost" ? "fx_shard" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
+        const tex = f.k === "shadow" ? "fx_smoke" : f.k === "frost" || f.k === "rune" ? "fx_shard" : f.k === "chains" || f.k === "reap" ? "fx_smoke" : f.k === "fire" ? "fx_ember" : f.k === "poison" ? "fx_bubble" : f.k === "nature" ? "fx_leaf" : "fx_spark";
         this.burst(f.x, f.y - 6, tex, col, Math.min(40, 10 + f.r / 5), f.r * 1.4, 520);
         if (f.k === "slash") {
           const g = s.add.graphics().setDepth(DEPTH.top - 40);
@@ -206,6 +208,19 @@ export class Effects {
           }
           this.burst(f.x, f.y - 4, "fx_smoke", 0x806040, 14, f.r * 0.8, 800, -10, 1.4);
           s.tweens.add({ targets: g, alpha: 0, delay: 900, duration: 600, onComplete: () => g.destroy() });
+        }
+        if (f.k === "bash") { this.shake(f.x, f.y, 160, 0.005); this.burst(f.x, f.y - 8, "fx_spark", 0xfff0c0, 14, 90, 300); }
+        if (f.k === "glare" || f.k === "divine" || f.k === "banner") {
+          const col2 = s.add.image(f.x, f.y - 10, "fx_glow").setTint(KIND_COLOR[f.k]).setBlendMode(Phaser.BlendModes.ADD).setScale(f.k === "banner" ? 1.2 : 1.6, 5).setDepth(DEPTH.top - 30).setAlpha(0.85);
+          s.tweens.add({ targets: col2, scaleX: 0.2, alpha: 0, duration: f.k === "glare" ? 500 : 900, onComplete: () => col2.destroy() });
+          this.burst(f.x, f.y - 6, "fx_spark", KIND_COLOR[f.k], 18, f.r * 0.7, 1000, -60, 0.9);
+        }
+        if (f.k === "chains" || f.k === "reap") for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; this.burst(f.x + Math.cos(a) * f.r * 0.7, f.y + Math.sin(a) * f.r * 0.5, "fx_smoke", KIND_COLOR[f.k], 3, 30, 600, -20); }
+        if (f.k === "rune") {
+          const g2 = s.add.graphics().setDepth(DEPTH.ground + 23).setBlendMode(Phaser.BlendModes.ADD);
+          g2.lineStyle(2, 0x9ae8ff, 0.9).strokeEllipse(f.x, f.y, f.r * 1.6, f.r * 1.1);
+          for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; g2.lineBetween(f.x + Math.cos(a) * f.r * 0.8, f.y + Math.sin(a) * f.r * 0.55, f.x + Math.cos(a + 0.5) * f.r * 0.5, f.y + Math.sin(a + 0.5) * f.r * 0.35); }
+          s.tweens.add({ targets: g2, alpha: 0, duration: 700, onComplete: () => g2.destroy() });
         }
         if (f.k === "fire" && f.r >= 90) {
           this.shake(f.x, f.y, 180, 0.004);
@@ -260,7 +275,7 @@ export class Effects {
         break;
       }
       case "hazard": {
-        const color = f.k === "poison" ? 0x6adf2a : f.k === "fire" ? 0xff6a1a : 0x8a5aff;
+        const color = f.k === "poison" ? 0x6adf2a : f.k === "fire" ? 0xff6a1a : f.k === "holy" ? 0xffd870 : 0x8a5aff;
         const pool = s.add.ellipse(f.x, f.y, f.r * 2, f.r * 1.5, color, 0.28).setDepth(DEPTH.ground + 8).setStrokeStyle(1.5, color, 0.8);
         const bub = s.add.particles(f.x, f.y, f.k === "poison" ? "fx_bubble" : "fx_ember", {
           x: { min: -f.r * 0.8, max: f.r * 0.8 }, y: { min: -f.r * 0.5, max: f.r * 0.5 }, lifespan: 900, speedY: { min: -20, max: -8 }, scale: { start: 1, end: 0.2 }, alpha: { start: 0.9, end: 0 }, frequency: 90, tint: color,
@@ -325,10 +340,22 @@ export class Effects {
           }
           break;
         }
-        if (f.k === "block" || f.k === "shield") {
-          this.sound("shield", u.x, u.y);
-          const gold = f.k === "shield";
-          const bub = s.add.ellipse(u.x, u.y - 10, 44, 52, gold ? 0xffd84a : 0x6ac0ff, 0.22).setStrokeStyle(2, gold ? 0xfff0b0 : 0xbfe6ff, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
+        if (f.k === "rune" || f.k === "frozen") {
+          this.sound("frost", u.x, u.y);
+          this.burst(u.x, u.y - 10, "fx_shard", 0x9ae8ff, 16, 60, 700);
+          if (f.k === "rune") {
+            const rep = s.time.addEvent({ delay: 250, loop: true, callback: () => { const q = this.unit(f.id); if (q) this.burst(q.x, q.y - 10, "fx_spark", 0x7ad8ff, 2, 30, 500, -40, 0.7); } });
+            s.time.delayedCall(f.ms, () => rep.remove());
+          } else {
+            const ice = s.add.image(u.x, u.y - 8, "fx_glow").setTint(0x9ae8ff).setBlendMode(Phaser.BlendModes.ADD).setScale(1.3).setDepth(DEPTH.top - 30).setAlpha(0.7);
+            s.tweens.add({ targets: ice, alpha: 0, duration: Math.min(f.ms, 1500), onComplete: () => ice.destroy() });
+          }
+          break;
+        }
+        if (f.k === "block" || f.k === "shield" || f.k === "invuln" || f.k === "antimagic") {
+          this.sound(f.k === "antimagic" ? "arcane" : "shield", u.x, u.y);
+          const gold = f.k === "shield" || f.k === "invuln";
+          const bub = s.add.ellipse(u.x, u.y - 10, f.k === "invuln" ? 56 : 44, f.k === "invuln" ? 64 : 52, f.k === "antimagic" ? 0xa060ff : gold ? 0xffd84a : 0x6ac0ff, 0.22).setStrokeStyle(2, f.k === "antimagic" ? 0xe0c8ff : gold ? 0xfff0b0 : 0xbfe6ff, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDepth(DEPTH.top - 30);
           const follow = s.time.addEvent({ delay: 30, loop: true, callback: () => { const q = this.unit(f.id); if (q) bub.setPosition(q.x, q.y - 10); } });
           s.tweens.add({ targets: bub, alpha: { from: 0.9, to: 0.5 }, yoyo: true, repeat: -1, duration: 300 });
           s.time.delayedCall(f.ms, () => { follow.remove(); s.tweens.killTweensOf(bub); s.tweens.add({ targets: bub, alpha: 0, duration: 200, onComplete: () => bub.destroy() }); });

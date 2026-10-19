@@ -341,7 +341,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       if (e.repeat) return;
-      if (code.startsWith("Digit") && "1234".includes(code.slice(5))) this.useSkill(Number(code.slice(5)) - 1);
+      if (code.startsWith("Digit") && "123456789".includes(code.slice(5))) this.useSkill(Number(code.slice(5)) - 1);
       else if (code === "KeyQ") this.usePotion("hp_potion");
       else if (code === "KeyE") this.usePotion("mp_potion");
       else if (code === "Tab") { e.preventDefault(); this.cycleTarget(); }
